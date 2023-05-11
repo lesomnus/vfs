@@ -138,7 +138,7 @@ fs::path Vfs::weakly_canonical(fs::path const& p, std::error_code& ec) const {
 
 void Vfs::copy(fs::path const& from, fs::path const& to, fs::copy_options options) {
 	auto const src_f = this->navigate(from);
-	if(auto const src_r = std::dynamic_pointer_cast<RegularFile>(src_f); src_r) {
+	if(auto const src_r = std::dynamic_pointer_cast<RegularFileEntry>(src_f); src_r) {
 		if((options & fs::copy_options::directories_only) == fs::copy_options::directories_only) {
 			return;
 		}
@@ -157,6 +157,7 @@ void Vfs::copy(fs::path const& from, fs::path const& to, fs::copy_options option
 		} else {
 			this->copy_file(from, to, options);
 		}
+		return;
 	}
 	if(auto const src_s = std::dynamic_pointer_cast<SymlinkEntry>(src_f); src_s) {
 		if((options & fs::copy_options::skip_symlinks) == fs::copy_options::skip_symlinks) {
@@ -190,14 +191,11 @@ void Vfs::copy(fs::path const& from, fs::path const& to, fs::copy_options option
 
 	auto [dst_f, it] = this->navigate(to.begin(), to.end());
 	if(it != to.end()) {
-		this->create_directory(from, to);
-		return;
-	}
-	if(dst_f->type() == fs::file_type::regular) {
+		this->create_directory(to, from);
+		dst_f = dst_f->must_be<DirectoryEntry>()->navigate(acc_paths(it, to.end()));
+	} else if(dst_f->type() != fs::file_type::directory) {
 		throw fs::filesystem_error("", src_f->path(), dst_f->path(), std::make_error_code(std::errc::file_exists));
 	}
-
-	auto dst_d = dst_f->must_be<DirectoryEntry>();
 
 	auto const src_p = src_f->path();
 	auto const dst_p = dst_f->path();
@@ -278,13 +276,13 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& existing_p) {
 
 	switch(std::distance(it, t.end())) {
 	default: {  // v > 1
-		throw fs::filesystem_error("", t, std::make_error_code(std::errc::no_such_file_or_directory));
+		throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::no_such_file_or_directory));
 	}
 	case 0: {
 		if(std::dynamic_pointer_cast<DirectoryEntry>(f)) {
 			return false;
 		} else {
-			throw fs::filesystem_error("", t, std::make_error_code(std::errc::file_exists));
+			throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::file_exists));
 		}
 	}
 	case 1: {
@@ -292,10 +290,19 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& existing_p) {
 	}
 	}
 
-	// TODO: must_be and should_be
+	auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f);
+	if(!d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
+	}
 
-	auto const other_d = this->navigate(existing_p)->must_be<DirectoryEntry>();
-	f->must_be<DirectoryEntry>()->insert(std::make_pair(*it, std::make_shared<Directory>(*other_d->typed_file())));
+	auto const other_f = this->navigate(existing_p);
+	auto const other_d = std::dynamic_pointer_cast<DirectoryEntry>(other_f);
+	if(!other_d) {
+		throw fs::filesystem_error("", other_f->path(), std::make_error_code(std::errc::not_a_directory));
+	}
+
+	d->insert(std::make_pair(*it, std::make_shared<Directory>(0, 0)));
+	d->perms(other_d->perms());
 
 	return true;
 }
