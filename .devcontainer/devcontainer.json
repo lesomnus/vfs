@@ -1,0 +1,31 @@
+{
+	"name": "vfs",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt=seccomp=unconfined",
+		"--privileged"
+	],
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"editor.detectIndentation": false,
+				"editor.insertSpaces": false,
+				"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+				"cmake.configureArgs": [
+					"-DCMAKE_TOOLCHAIN_FILE:FILEPATH=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake"
+				]
+			},
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cmake-tools",
+				"twxs.cmake",
+				"josetr.cmake-language-support-vscode",
+				"matepek.vscode-catch2-test-adapter",
+				"cschlosser.doxdocgen"
+			]
+		}
+	}
+}

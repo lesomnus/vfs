@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.21)
+
+project(
+	"vfs"
+		VERSION   0.0.1
+		LANGUAGES CXX
+)
+
+option(${PROJECT_NAME}_TESTS "Enable ${PROJECT_NAME} tests targets." ${PROJECT_IS_TOP_LEVEL})
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(CMAKE_CXX_STANDARD          20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+
+
+add_library(
+	vfs SHARED
+		include/vfs/fs.hpp
+
+		internal/vfs/impl/entry.hpp
+		internal/vfs/impl/file.hpp
+		internal/vfs/impl/utils.hpp
+		internal/vfs/impl/vfs.hpp
+
+		src/entry.cpp
+		src/file.cpp
+		src/utils.cpp
+		src/vfs.cpp
+)
+target_include_directories(
+	vfs
+		PUBLIC
+			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+			$<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+			$<BUILD_INTERFACE:$<$<BOOL:$<TARGET_PROPERTY:vfs_INTERNAL>>:${CMAKE_CURRENT_SOURCE_DIR}/internal>>
+		PRIVATE
+			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/internal>
+)
+add_library(
+	vfs::vfs
+		ALIAS vfs
+)
+
+
+
+if(${PROJECT_NAME}_TESTS)
+	add_subdirectory(tests)
+endif()
