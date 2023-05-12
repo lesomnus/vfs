@@ -35,17 +35,15 @@ Vfs::Vfs(fs::path const& temp_dir)
 	this->create_directories(this->temp_);
 }
 
-Vfs::Vfs(Vfs const& other, fs::path const& wd)
+Vfs::Vfs(Vfs const& other, DirectoryEntry& wd)
     : root_(other.root_)
     , temp_(other.temp_)
-    , cwd_(const_cast<Vfs&>(other).navigate(wd)->must_be<DirectoryEntry>()) { }
+    , cwd_(wd.shared_from_this()->must_be<DirectoryEntry>()) { }
 
-Vfs::Vfs(Vfs&& other, fs::path const& wd)
+Vfs::Vfs(Vfs&& other, DirectoryEntry& wd)
     : root_(std::move(other.root_))
     , temp_(std::move(other.temp_))
-    , cwd_(std::move(other.cwd_)) {
-	this->cwd_ = this->navigate(wd)->must_be<DirectoryEntry>();
-}
+    , cwd_(wd.shared_from_this()->must_be<DirectoryEntry>()) { }
 
 std::shared_ptr<std::istream> Vfs::open_read(fs::path const& filename, std::ios_base::openmode mode) const {
 	constexpr auto fail = [] {
@@ -114,7 +112,7 @@ std::shared_ptr<std::ostream> Vfs::open_write(fs::path const& filename, std::ios
 }
 
 fs::path Vfs::canonical(fs::path const& p) const {
-	return this->navigate(p)->path();
+	return this->navigate(p)->follow_chain()->path();
 }
 
 fs::path Vfs::canonical(fs::path const& p, std::error_code& ec) const {
@@ -124,12 +122,15 @@ fs::path Vfs::canonical(fs::path const& p, std::error_code& ec) const {
 fs::path Vfs::weakly_canonical(fs::path const& p) const {
 	auto ec      = std::error_code();
 	auto [f, it] = this->navigate(p.begin(), p.end(), ec);
+	if(it == p.begin()) {
+		return p.lexically_normal();
+	}
 
-	auto t = f->path();
+	auto t = f->follow_chain()->path();
 	if(it != p.end()) {
 		t /= acc_paths(it, p.end());
 	}
-	return t;
+	return t.lexically_normal();
 }
 
 fs::path Vfs::weakly_canonical(fs::path const& p, std::error_code& ec) const {
@@ -211,7 +212,11 @@ void Vfs::copy(fs::path const& from, fs::path const& to, fs::copy_options option
 }
 
 bool Vfs::copy_file(fs::path const& from, fs::path const& to, fs::copy_options options) {
-	auto const src = this->navigate(from)->follow_chain()->must_be<RegularFileEntry>();
+	auto const src_f = this->navigate(from)->follow_chain();
+	auto const src   = std::dynamic_pointer_cast<RegularFileEntry>(src_f);
+	if(!src) {
+		throw fs::filesystem_error("not a regular file", src_f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
 
 	auto const t = this->weakly_canonical(to).lexically_normal();
 	auto [f, it] = this->navigate(t.begin(), t.end());
@@ -256,6 +261,8 @@ bool Vfs::copy_file(fs::path const& from, fs::path const& to, fs::copy_options o
 		// unreachable.
 	}
 	}
+
+	// unreachable.
 }
 
 bool Vfs::copy_file(fs::path const& from, fs::path const& to, fs::copy_options options, std::error_code& ec) {
@@ -271,7 +278,7 @@ bool Vfs::create_directory(fs::path const& p, std::error_code& ec) noexcept {
 }
 
 bool Vfs::create_directory(fs::path const& p, fs::path const& existing_p) {
-	auto const t = this->weakly_canonical(p).lexically_normal();
+	auto const t = this->weakly_canonical(p);
 	auto [f, it] = this->navigate(t.begin(), t.end());
 
 	switch(std::distance(it, t.end())) {
@@ -312,17 +319,22 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& existing_p, std::e
 }
 
 bool Vfs::create_directories(fs::path const& p) {
-	auto const t = this->weakly_canonical(p).lexically_normal();
+	auto const t = this->weakly_canonical(p);
 	auto [f, it] = this->navigate(t.begin(), t.end());
 	if(it == t.end()) {
 		return false;
 	}
 
+	auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f);
+	if(!d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
+	}
+
 	auto prev = f->must_be<DirectoryEntry>()->typed_file();
 	for(; it != t.end(); ++it) {
-		auto d = std::make_shared<Directory>(0, 0);
-		prev->files.insert(std::make_pair(*it, d));
-		prev = std::move(d);
+		auto curr = std::make_shared<Directory>(0, 0);
+		prev->files.insert(std::make_pair(*it, curr));
+		prev = std::move(curr);
 	}
 
 	return true;
@@ -369,11 +381,23 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const& {
-	return std::shared_ptr<Vfs>(new Vfs(*this, p));
+	auto f = this->navigate(p);
+	auto d = std::dynamic_pointer_cast<DirectoryEntry const>(f);
+	if(!d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
+	}
+
+	return std::shared_ptr<Vfs>(new Vfs(*this, const_cast<DirectoryEntry&>(*d)));
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) && {
-	return std::shared_ptr<Vfs>(new Vfs(std::move(*this), p));
+	auto f = this->navigate(p);
+	auto d = std::dynamic_pointer_cast<DirectoryEntry>(f);
+	if(!d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
+	}
+
+	return std::shared_ptr<Vfs>(new Vfs(std::move(*this), *d));
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const& noexcept {

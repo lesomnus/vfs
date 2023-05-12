@@ -135,8 +135,8 @@ class Vfs: public Fs {
 	}
 
    private:
-	Vfs(Vfs const& other, std::filesystem::path const& wd);
-	Vfs(Vfs&& other, std::filesystem::path const& wd);
+	Vfs(Vfs const& other, DirectoryEntry& wd);
+	Vfs(Vfs&& other, DirectoryEntry& wd);
 
 	std::shared_ptr<DirectoryEntry> root_;
 	std::shared_ptr<DirectoryEntry> cwd_;
