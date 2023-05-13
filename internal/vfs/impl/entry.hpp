@@ -221,7 +221,7 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p, ec));
 	}
 
-	void insert(std::pair<std::string, std::shared_ptr<File>> entry);
+	bool insert(std::pair<std::string, std::shared_ptr<File>> entry);
 
 	std::shared_ptr<Entry> next_insert(std::string name, std::shared_ptr<File> file);
 

@@ -110,6 +110,9 @@ class Fs {
 	virtual bool create_directories(std::filesystem::path const& p)                      = 0;
 	virtual bool create_directories(std::filesystem::path const& p, std::error_code& ec) = 0;
 
+	virtual void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link)                               = 0;
+	virtual void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept = 0;
+
 	virtual void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link)                               = 0;
 	virtual void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept = 0;
 
@@ -149,6 +152,18 @@ class Fs {
 	virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const                               = 0;
 	virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept = 0;
 
+	virtual std::uintmax_t file_size(std::filesystem::path const& p) const                               = 0;
+	virtual std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+
+	virtual std::uintmax_t hard_link_count(std::filesystem::path const& p) const                               = 0;
+	virtual std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+
+	virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const                               = 0;
+	virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+
+	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time)                               = 0;
+	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time, std::error_code& ec) noexcept = 0;
+
 	virtual void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts = std::filesystem::perm_options::replace) = 0;
 	virtual void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec)                     = 0;
 
@@ -164,6 +179,12 @@ class Fs {
 
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p)                      = 0;
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) = 0;
+
+	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size)                               = 0;
+	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept = 0;
+
+	virtual std::filesystem::space_info space(std::filesystem::path const& p) const                               = 0;
+	virtual std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	virtual std::filesystem::file_status status(std::filesystem::path const& p) const                               = 0;
 	virtual std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;

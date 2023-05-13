@@ -344,8 +344,24 @@ bool Vfs::create_directories(fs::path const& p, std::error_code& ec) {
 	return handle_error([&] { return this->create_directories(p); }, ec);
 }
 
+void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
+	auto const dst_f = this->navigate(target);
+
+	auto const src_p = this->weakly_canonical(link);
+	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
+
+	auto const ok = prev->insert(std::make_pair(src_p.filename(), dst_f->file()));
+	if(!ok) {
+		throw fs::filesystem_error("", src_p, std::make_error_code(std::errc::file_exists));
+	}
+}
+
+void Vfs::create_hard_link(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
+	handle_error([&] { this->create_hard_link(target, link); return 0; }, ec);
+}
+
 void Vfs::create_symlink(fs::path const& target, fs::path const& link) {
-	auto const t = this->weakly_canonical(link).lexically_normal();
+	auto const t = this->weakly_canonical(link);
 	auto [f, it] = this->navigate(t.begin(), t.end());
 
 	switch(std::distance(it, t.end())) {
@@ -408,6 +424,24 @@ std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) &&
 	return handle_error([&] { return std::move(*this).current_path(p); }, ec);
 }
 
+std::uintmax_t Vfs::file_size(fs::path const& p) const {
+	auto const f = this->navigate(p)->follow_chain();
+	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
+	}
+
+	auto const r = std::dynamic_pointer_cast<RegularFileEntry const>(f);
+	if(!r) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	return r->typed_file()->size();
+}
+
+std::uintmax_t Vfs::file_size(fs::path const& p, std::error_code& ec) const noexcept {
+	return handle_error([&] { return this->file_size(p); }, ec, static_cast<std::uintmax_t>(-1));
+}
+
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
 	auto const f1 = this->navigate(p1)->follow_chain();
 	auto const f2 = this->navigate(p2)->follow_chain();
@@ -417,6 +451,53 @@ bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2, std::error_code& ec) const noexcept {
 	return handle_error([&] { return this->equivalent(p1, p2); }, ec);
+}
+
+std::uintmax_t Vfs::hard_link_count(fs::path const& p) const {
+	auto const f = this->navigate(p)->file();
+	return f.use_count() - 1;  // Minus one for being held by `f`.
+}
+
+std::uintmax_t Vfs::hard_link_count(fs::path const& p, std::error_code& ec) const noexcept {
+	return handle_error([&] { return this->hard_link_count(p); }, ec, static_cast<std::uintmax_t>(-1));
+}
+
+fs::file_time_type Vfs::last_write_time(fs::path const& p) const {
+	auto const f = this->navigate(p)->follow_chain();
+	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
+		// TODO: no throw?
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
+	}
+
+	auto const r = std::dynamic_pointer_cast<RegularFileEntry const>(f);
+	if(!r) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	return r->typed_file()->last_write_time();
+}
+
+fs::file_time_type Vfs::last_write_time(fs::path const& p, std::error_code& ec) const noexcept {
+	return handle_error([&] { return this->last_write_time(p); }, ec, fs::file_time_type::min());
+}
+
+void Vfs::last_write_time(fs::path const& p, fs::file_time_type new_time) {
+	auto const f = this->navigate(p)->follow_chain();
+	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f); d) {
+		// TODO: no throw?
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
+	}
+
+	auto const r = std::dynamic_pointer_cast<RegularFileEntry>(f);
+	if(!r) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	r->typed_file()->last_write_time(new_time);
+}
+
+void Vfs::last_write_time(fs::path const& p, fs::file_time_type new_time, std::error_code& ec) noexcept {
+	handle_error([&] { this->last_write_time(p, new_time); return 0; }, ec);
 }
 
 void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts) {
@@ -442,7 +523,7 @@ void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts) 
 
 	default: {
 		auto const v = static_cast<std::underlying_type_t<fs::perm_options>>(opts);
-		throw std::invalid_argument("unexpected value of \"std::filesystem::perm_options\": " + std::to_string(v));
+		throw std::invalid_argument("unexpected value of \"fs::perm_options\": " + std::to_string(v));
 	}
 	}
 }
@@ -502,6 +583,32 @@ std::uintmax_t Vfs::remove_all(fs::path const& p) {
 
 std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
 	return handle_error([&] { return this->remove(p); }, ec, static_cast<std::uintmax_t>(-1));
+}
+
+void Vfs::resize_file(fs::path const& p, std::uintmax_t new_size) {
+	auto const f = this->navigate(p)->follow_chain();
+	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f); d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
+	}
+
+	auto const r = std::dynamic_pointer_cast<RegularFileEntry>(f);
+	if(!r) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	r->typed_file()->resize(new_size);
+}
+
+void Vfs::resize_file(fs::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept {
+	handle_error([&] {  this->resize_file(p, new_size); return 0; }, ec);
+}
+
+fs::space_info Vfs::space(fs::path const& p) const {
+	return this->navigate(p)->follow_chain()->file()->space();
+}
+
+fs::space_info Vfs::space(fs::path const& p, std::error_code& ec) const noexcept {
+	return handle_error([&] { return this->space(p); }, ec);
 }
 
 fs::file_status Vfs::status(fs::path const& p) const {
@@ -570,7 +677,7 @@ bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
 
 }  // namespace impl
 
-std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir) {
+std::shared_ptr<Fs> make_vfs(fs::path const& temp_dir) {
 	return std::make_shared<impl::Vfs>(temp_dir);
 }
 

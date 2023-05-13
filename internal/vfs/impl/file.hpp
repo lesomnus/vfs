@@ -28,6 +28,14 @@ class File {
 		return 1;
 	}
 
+	virtual std::filesystem::space_info space() const {
+		return std::filesystem::space_info{
+		    .capacity  = static_cast<std::uintmax_t>(-1),
+		    .free      = static_cast<std::uintmax_t>(-1),
+		    .available = static_cast<std::uintmax_t>(-1),
+		};
+	}
+
 	std::intmax_t          owner;
 	std::intmax_t          group;
 	std::filesystem::perms perms;
@@ -81,6 +89,12 @@ class RegularFile: public File {
 
 	virtual std::uintmax_t size() const = 0;
 
+	virtual std::filesystem::file_time_type last_write_time() const = 0;
+
+	virtual void last_write_time(std::filesystem::file_time_type new_time) = 0;
+
+	virtual void resize(std::uintmax_t new_size) = 0;
+
 	virtual std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const = 0;
 	virtual std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out)     = 0;
 };
@@ -96,6 +110,14 @@ class EmptyFile: public RegularFile {
 	std::uintmax_t size() const override {
 		return 0;
 	}
+
+	std::filesystem::file_time_type last_write_time() const {
+		return std::filesystem::file_time_type();
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override { }
+
+	void resize(std::uintmax_t new_size) override { }
 
 	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const override;
 	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out) override;
@@ -114,7 +136,25 @@ class TempFile: public RegularFile {
 
 	~TempFile();
 
-	std::uintmax_t size() const override;
+	std::uintmax_t size() const override {
+		return std::filesystem::file_size(this->sys_path_);
+	}
+
+	std::filesystem::file_time_type last_write_time() const {
+		return std::filesystem::last_write_time(this->sys_path_);
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override {
+		std::filesystem::last_write_time(this->sys_path_, new_time);
+	}
+
+	void resize(std::uintmax_t new_size) override {
+		std::filesystem::resize_file(this->sys_path_, new_size);
+	}
+
+	std::filesystem::space_info space() const {
+		return std::filesystem::space(this->sys_path_);
+	}
 
 	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const override;
 	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out) override;

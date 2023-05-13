@@ -59,10 +59,6 @@ TempFile::~TempFile() {
 	fs::remove(this->sys_path_);
 }
 
-std::uintmax_t TempFile::size() const {
-	return fs::file_size(this->sys_path_);
-}
-
 std::shared_ptr<std::istream> TempFile::open_read(std::ios_base::openmode mode) const {
 	return std::make_shared<std::ifstream>(this->sys_path_, mode | std::ios_base::in);
 }

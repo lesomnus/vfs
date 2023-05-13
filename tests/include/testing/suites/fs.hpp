@@ -31,7 +31,7 @@ class TestFsBasic {
 
 		SECTION("::open_*") {
 			SECTION("reading a file that does not exist fails") {
-				auto const f = fs->open_read("./foo");
+				auto const f = fs->open_read("foo");
 				CHECK(not f->good());
 				CHECK(f->fail());
 				CHECK(not f->bad());
@@ -39,10 +39,10 @@ class TestFsBasic {
 			}
 
 			SECTION("writing a file creates a new file if the file does not exist") {
-				REQUIRE(not fs->exists("./foo"));
+				REQUIRE(not fs->exists("foo"));
 
-				auto f = fs->open_write("./foo");
-				CHECK(fs->exists("./foo"));
+				auto f = fs->open_write("foo");
+				CHECK(fs->exists("foo"));
 				CHECK(f->good());
 				CHECK(not f->fail());
 				CHECK(not f->bad());
@@ -50,10 +50,10 @@ class TestFsBasic {
 			}
 
 			SECTION("read write") {
-				*fs->open_write("./foo") << "Lorem ipsum";
+				*fs->open_write("foo") << "Lorem ipsum";
 
 				std::string content;
-				std::getline(*fs->open_read("./foo"), content);
+				std::getline(*fs->open_read("foo"), content);
 				CHECK("Lorem ipsum" == content);
 			}
 		}
@@ -62,17 +62,17 @@ class TestFsBasic {
 			// /
 			// + /foo *
 			//   + /bar
-			// + baz -> ./foo/bar
-			// + qux -> ./baz
+			// + baz -> foo/bar
+			// + qux -> baz
 			// + dog
-			// + cat -> ./dog
-			// + void -> ./not-exists
-			fs->create_directories("./foo/bar");
-			fs->create_symlink("./foo/bar", "./baz");
-			fs->create_symlink("./baz", "./qux");
+			// + cat -> dog
+			// + void -> not-exists
+			fs->create_directories("foo/bar");
+			fs->create_symlink("foo/bar", "baz");
+			fs->create_symlink("baz", "qux");
 			fs->open_write("dog");
-			fs->create_symlink("./dog", "./cat");
-			fs = fs->current_path("./foo");
+			fs->create_symlink("dog", "cat");
+			fs = fs->current_path("foo");
 
 			SECTION("valid paths") {
 				CHECK("/" == fs->canonical("/"));
@@ -138,32 +138,32 @@ class TestFsBasic {
 			//     + /baz
 			//   + dog
 			//   + cat -> ./dog
-			fs->create_directories("./foo/bar/baz");
-			*fs->open_write("./foo/dog") << "woof";
-			fs->create_symlink("./dog", "./foo/cat");
+			fs->create_directories("foo/bar/baz");
+			*fs->open_write("foo/dog") << "woof";
+			fs->create_symlink("./dog", "foo/cat");
 
 			SECTION("recursive") {
-				fs->copy("./foo", "./foo_", copy_options::recursive | copy_options::copy_symlinks);
+				fs->copy("foo", "foo_", copy_options::recursive | copy_options::copy_symlinks);
 
-				CHECK(fs->is_directory("./foo_/bar/baz"));
-				CHECK(fs->is_regular_file("./foo_/dog"));
-				CHECK(fs->is_symlink("./foo_/cat"));
+				CHECK(fs->is_directory("foo_/bar/baz"));
+				CHECK(fs->is_regular_file("foo_/dog"));
+				CHECK(fs->is_symlink("foo_/cat"));
 			}
 
 			SECTION("directory only") {
 				// TODO: symlink should be skipped or not according to its target.
-				fs->copy("./foo", "./foo_", copy_options::recursive | copy_options::directories_only | copy_options::skip_symlinks);
+				fs->copy("foo", "foo_", copy_options::recursive | copy_options::directories_only | copy_options::skip_symlinks);
 
-				CHECK(fs->is_directory("./foo_/bar/baz"));
-				CHECK(not fs->exists("./foo_/dog"));
-				CHECK(not fs->exists("./foo_/cat"));
+				CHECK(fs->is_directory("foo_/bar/baz"));
+				CHECK(not fs->exists("foo_/dog"));
+				CHECK(not fs->exists("foo_/cat"));
 			}
 
 			// TODO: more tests
 		}
 
 		SECTION("::copy_file") {
-			*fs->open_write("./foo") << "Lorem ipsum";
+			*fs->open_write("foo") << "Lorem ipsum";
 			REQUIRE(fs->is_regular_file("foo"));
 
 			SECTION("source does not exist") {
@@ -301,6 +301,36 @@ class TestFsBasic {
 			}
 		}
 
+		SECTION("::create_hard_link") {
+			SECTION("to a regular file") {
+				*fs->open_write("foo") << "Lorem ipsum";
+				REQUIRE(fs->is_regular_file("foo"));
+
+				fs->create_hard_link("foo", "bar");
+				CHECK(fs->is_regular_file("bar"));
+
+				std::string content;
+				std::getline(*fs->open_read("bar"), content);
+				CHECK("Lorem ipsum" == content);
+
+				fs->create_hard_link("bar", "baz");
+				CHECK(fs->is_regular_file("baz"));
+
+				content.clear();
+				std::getline(*fs->open_read("baz"), content);
+				CHECK("Lorem ipsum" == content);
+
+				fs->remove("foo");
+				REQUIRE(not fs->exists("foo"));
+
+				content.clear();
+				std::getline(*fs->open_read("bar"), content);
+				CHECK("Lorem ipsum" == content);
+			}
+
+			// TODO: hard link to directory?
+		}
+
 		SECTION("::current_path") {
 			SECTION("change to existing directory") {
 				fs->create_directory("foo");
@@ -336,40 +366,33 @@ class TestFsBasic {
 		}
 
 		SECTION("::create_symlink") {
-			fs->create_directory("./foo");
+			fs->create_directory("foo");
+			REQUIRE(fs->exists("foo"));
 
 			SECTION("in an existing directory") {
-				fs->create_symlink("./foo", "./bar");
+				fs->create_symlink("foo", "bar");
 
-				file_status status = fs->symlink_status("./bar");
-				CHECK(file_type::symlink == status.type());
-
-				status = fs->status("./bar");
-				CHECK(file_type::directory == status.type());
-				CHECK(fs->create_directory("./bar/baz"));
+				CHECK("foo" == fs->read_symlink("bar"));
 			}
 
 			SECTION("in a directory that does not exist") {
-				REQUIRE(not fs->exists("./bar"));
+				REQUIRE(not fs->exists("bar"));
 
 				std::error_code ec;
-				fs->create_symlink("./foo", "./bar/baz", ec);
+				fs->create_symlink("foo", "bar/baz", ec);
 				CHECK(std::errc::no_such_file_or_directory == ec);
 			}
 
 			SECTION("to file that does not exist") {
-				fs->create_symlink("./baz", "./bar");
+				fs->create_symlink("baz", "bar");
 
-				file_status status = fs->symlink_status(sandbox / "bar");
-				CHECK(file_type::symlink == status.type());
-
-				status = fs->status(sandbox / "bar");
-				CHECK(file_type::not_found == status.type());
+				CHECK("baz" == fs->read_symlink("bar"));
 			}
 		}
 
 		SECTION("::equivalent") {
-			fs->create_directory("./foo");
+			fs->create_directory("foo");
+			REQUIRE(fs->exists("foo"));
 
 			SECTION("true if two path is resolved to same file") {
 				CHECK(fs->equivalent("/", "/"));
@@ -377,61 +400,104 @@ class TestFsBasic {
 				CHECK(fs->equivalent("/..", "/"));
 				CHECK(fs->equivalent(".", sandbox));
 				CHECK(fs->equivalent(sandbox, "."));
-				CHECK(fs->equivalent("./foo", "./foo"));
+				CHECK(fs->equivalent("foo", "foo"));
 			}
 
 			SECTION("false if two path is resolved to different file") {
-				CHECK(not fs->equivalent("/", "./foo"));
-				CHECK(not fs->equivalent("./foo", "/"));
+				CHECK(not fs->equivalent("/", "foo"));
+				CHECK(not fs->equivalent("foo", "/"));
 			}
 
 			SECTION("symlink is followed") {
-				fs->create_symlink("./foo", "./bar");
+				fs->create_symlink("foo", "bar");
+				REQUIRE("foo" == fs->read_symlink("bar"));
 
-				CHECK(fs->equivalent("./foo", "./bar"));
+				CHECK(fs->equivalent("foo", "bar"));
+			}
+
+			SECTION("given path does not exist") {
+				REQUIRE(not fs->exists("bar"));
+
+				std::error_code ec;
+				fs->equivalent("bar", "foo", ec);
+				CHECK(std::errc::no_such_file_or_directory == ec);
+
+				ec.clear();
+				fs->equivalent("foo", "bar", ec);
+				CHECK(std::errc::no_such_file_or_directory == ec);
 			}
 		}
 
+		SECTION("hard_link_count") {
+			*fs->open_write("foo");
+			REQUIRE(fs->is_regular_file("foo"));
+
+			CHECK(1 == fs->hard_link_count("foo"));
+
+			fs->create_hard_link("foo", "bar");
+			CHECK(2 == fs->hard_link_count("foo"));
+			CHECK(2 == fs->hard_link_count("bar"));
+
+			fs->create_hard_link("foo", "baz");
+			CHECK(3 == fs->hard_link_count("foo"));
+			CHECK(3 == fs->hard_link_count("bar"));
+			CHECK(3 == fs->hard_link_count("baz"));
+
+			fs->remove("foo");
+			REQUIRE(not fs->exists("foo"));
+			CHECK(2 == fs->hard_link_count("bar"));
+			CHECK(2 == fs->hard_link_count("baz"));
+		}
+
 		SECTION("::read_symlink") {
-			fs->create_directory("./foo");
-
 			SECTION("target may not necessarily exist") {
-				fs->create_symlink("./not-exists", "./bar");
+				fs->create_symlink("not-exists", "bar");
+				REQUIRE(fs->is_symlink("bar"));
 
-				CHECK("./not-exists" == fs->read_symlink("./bar"));
+				CHECK("not-exists" == fs->read_symlink("bar"));
 			}
 
-			SECTION("that is not a symbolic link") {
+			SECTION("of file that is not a symbolic link") {
+				fs->create_directory("foo");
+				REQUIRE(fs->exists("foo"));
+
 				std::error_code ec;
-				fs->read_symlink("./foo", ec);
+				fs->read_symlink("foo", ec);
 				CHECK(std::errc::invalid_argument == ec);
 			}
 		}
 
 		SECTION("::remove") {
 			SECTION("directory that does not exist") {
-				CHECK(not fs->exists("./foo"));
-				CHECK(not fs->remove("./foo"));
+				REQUIRE(not fs->exists("foo"));
+				CHECK(not fs->remove("foo"));
 			}
 
-			SECTION("empty directory") {
-				fs->create_directory("./foo");
+			SECTION("directory that is empty") {
+				fs->create_directory("foo");
+				REQUIRE(fs->is_directory("foo"));
 
-				CHECK(fs->remove("./foo"));
+				CHECK(fs->remove("foo"));
 			}
 
 			SECTION("directory that is not empty") {
-				fs->create_directories("./foo/bar");
+				fs->create_directories("foo/bar");
+				REQUIRE(not fs->is_empty("foo"));
 
 				std::error_code ec;
-				CHECK(not fs->remove("./foo", ec));
+				CHECK(not fs->remove("foo", ec));
 				CHECK(std::errc::directory_not_empty == ec);
 			}
 
 			SECTION("symlink") {
-				fs->create_symlink("./not-exists", "./foo");
+				fs->create_directory("foo");
+				REQUIRE(fs->exists("foo"));
 
-				CHECK(fs->remove("./foo"));
+				fs->create_symlink("foo", "bar");
+				REQUIRE(fs->is_symlink("bar"));
+
+				CHECK(fs->remove("bar"));
+				CHECK(fs->exists("foo"));
 			}
 		}
 	}
