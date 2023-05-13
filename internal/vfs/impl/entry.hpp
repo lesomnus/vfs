@@ -54,6 +54,10 @@ class Entry: public std::enable_shared_from_this<Entry> {
 		return this->file_->type();
 	}
 
+	bool holds(std::shared_ptr<File> const& file) const {
+		return this->file_ == file;
+	}
+
 	bool holds_same_file_with(Entry const& other) const {
 		return this->file_ == other.file_;
 	}
@@ -178,6 +182,10 @@ class DirectoryEntry: public TypedEntry<Directory> {
 
 	std::shared_ptr<DirectoryEntry const> prev() const override;
 
+	bool is_root() const {
+		return this->prev_ == nullptr;
+	}
+
 	std::shared_ptr<Entry const> next(std::string const& name) const;
 
 	std::shared_ptr<Entry> next(std::string const& name) {
@@ -221,7 +229,7 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p, ec));
 	}
 
-	bool insert(std::pair<std::string, std::shared_ptr<File>> entry);
+	void insert(std::pair<std::string, std::shared_ptr<File>> entry);
 
 	std::shared_ptr<Entry> next_insert(std::string name, std::shared_ptr<File> file);
 

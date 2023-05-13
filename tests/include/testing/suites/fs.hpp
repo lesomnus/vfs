@@ -500,6 +500,98 @@ class TestFsBasic {
 				CHECK(fs->exists("foo"));
 			}
 		}
+
+		SECTION("::rename") {
+			SECTION("from file") {
+				*fs->open_write("foo") << "Lorem ipsum";
+				REQUIRE(fs->is_regular_file("foo"));
+
+				SECTION("to same file") {
+					fs->rename("foo", "foo");
+					CHECK(fs->is_regular_file("foo"));
+				}
+
+				SECTION("to same file that is hard linked") {
+					fs->create_hard_link("foo", "bar");
+					REQUIRE(fs->equivalent("foo", "bar"));
+
+					fs->rename("foo", "foo");
+					CHECK(fs->is_regular_file("foo"));
+					CHECK(fs->is_regular_file("bar"));
+					CHECK(fs->equivalent("foo", "bar"));
+				}
+
+				SECTION("to file") {
+					*fs->open_write("bar") << "dolor sit amet";
+					REQUIRE(fs->is_regular_file("bar"));
+
+					fs->rename("foo", "bar");
+					CHECK(not fs->exists("foo"));
+					CHECK(fs->is_regular_file("bar"));
+
+					std::string content;
+					std::getline(*fs->open_read("bar"), content);
+					CHECK("Lorem ipsum" == content);
+				}
+
+				SECTION("to directory") {
+					fs->create_directory("bar");
+					REQUIRE(fs->is_directory("bar"));
+
+					std::error_code ec;
+					fs->rename("foo", "bar", ec);
+					CHECK(std::errc::is_a_directory == ec);
+					CHECK(fs->is_regular_file("foo"));
+				}
+			}
+
+			SECTION("from directory") {
+				fs->create_directories("foo/qux");
+				REQUIRE(fs->is_directory("foo/qux"));
+
+				SECTION("to same directory") {
+					fs->rename("foo", "foo");
+					REQUIRE(fs->is_directory("foo"));
+				}
+
+				SECTION("to directory that is empty") {
+					fs->create_directory("bar");
+					REQUIRE(fs->is_directory("bar"));
+
+					fs->rename("foo", "bar");
+					CHECK(not fs->exists("foo"));
+					CHECK(fs->is_directory("bar/qux"));
+				}
+
+				SECTION("to directory that is not empty") {
+					fs->create_directories("bar/baz");
+					REQUIRE(fs->is_directory("bar/baz"));
+
+					std::error_code ec;
+					fs->rename("foo", "bar", ec);
+					CHECK(std::errc::directory_not_empty == ec);
+					CHECK(fs->is_directory("foo/qux"));
+				}
+
+				SECTION("to file") {
+					*fs->open_write("bar") << "Lorem ipsum";
+					REQUIRE(fs->is_regular_file("bar"));
+
+					std::error_code ec;
+					fs->rename("foo", "bar", ec);
+					CHECK(std::errc::not_a_directory == ec);
+					CHECK(fs->is_directory("foo/qux"));
+				}
+
+				SECTION("to its children") {
+					std::error_code ec;
+					fs->rename("foo", "foo/bar", ec);
+					CHECK(std::errc::invalid_argument == ec);
+					CHECK(fs->is_directory("foo/qux"));
+					CHECK(not fs->exists("foo/bar"));
+				}
+			}
+		}
 	}
 };
 

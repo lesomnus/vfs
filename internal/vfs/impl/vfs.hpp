@@ -83,6 +83,9 @@ class Vfs: public Fs {
 	std::uintmax_t remove_all(std::filesystem::path const& p) override;
 	std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) override;
 
+	void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p) override;
+	void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept override;
+
 	void resize_file(std::filesystem::path const& p, std::uintmax_t new_size) override;
 	void resize_file(std::filesystem::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept override;
 

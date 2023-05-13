@@ -180,6 +180,9 @@ class Fs {
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p)                      = 0;
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) = 0;
 
+	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p)                               = 0;
+	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept = 0;
+
 	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size)                               = 0;
 	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept = 0;
 

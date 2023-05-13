@@ -349,11 +349,7 @@ void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
 
 	auto const src_p = this->weakly_canonical(link);
 	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
-
-	auto const ok = prev->insert(std::make_pair(src_p.filename(), dst_f->file()));
-	if(!ok) {
-		throw fs::filesystem_error("", src_p, std::make_error_code(std::errc::file_exists));
-	}
+	prev->insert(std::make_pair(src_p.filename(), dst_f->file()));
 }
 
 void Vfs::create_hard_link(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
@@ -583,6 +579,58 @@ std::uintmax_t Vfs::remove_all(fs::path const& p) {
 
 std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
 	return handle_error([&] { return this->remove(p); }, ec, static_cast<std::uintmax_t>(-1));
+}
+
+void Vfs::rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p) {
+	auto const src_f = this->navigate(old_p);
+
+	auto const dst_p = this->weakly_canonical(new_p);
+	auto const prev  = this->navigate(dst_p.parent_path() / "")->must_be<DirectoryEntry>();
+
+	if(src_f->type() == fs::file_type::directory) {
+		auto cursor = std::static_pointer_cast<DirectoryEntry const>(prev);
+		do {
+			if(src_f->holds_same_file_with(*cursor)) {
+				throw fs::filesystem_error("source cannot be an ancestor of destination", src_f->path(), dst_p, std::make_error_code(std::errc::invalid_argument));
+			}
+
+			cursor = cursor->prev();
+		} while(!cursor->is_root());
+	}
+
+	auto const& files = prev->typed_file()->files;
+	if(auto const it = files.find(dst_p.filename()); it != files.end()) {
+		// Destination is existing file.
+
+		if(src_f->holds(it->second)) {
+			// Source file and destination file are equivalent.
+			return;
+		}
+
+		auto const dst_d = std::dynamic_pointer_cast<Directory>(it->second);
+		if(auto const src_d = std::dynamic_pointer_cast<DirectoryEntry>(src_f); src_d) {
+			if(!dst_d) {
+				// Source is a directory but destination is not.
+				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::not_a_directory));
+			}
+			if(!dst_d->files.empty()) {
+				// Destination is a directory that is not empty.
+				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::directory_not_empty));
+			}
+		} else {
+			if(dst_d) {
+				// Source is not a directory but destination is a directory.
+				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::is_a_directory));
+			}
+		}
+	}
+
+	prev->typed_file()->files.insert_or_assign(dst_p.filename(), src_f->file());
+	src_f->prev()->typed_file()->files.erase(src_f->name());
+}
+
+void Vfs::rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept {
+	handle_error([&] { this->rename(old_p, new_p); return 0; }, ec);
 }
 
 void Vfs::resize_file(fs::path const& p, std::uintmax_t new_size) {
