@@ -8,7 +8,7 @@
 			"name": "(gdb) Launch",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/build/Debug/tests/vfs-test",
+			"program": "${workspaceFolder}/build/Debug/tests/sys_fs-test",
 			"args": [],
 			"stopAtEntry": false,
 			"cwd": "${fileDirname}",

@@ -302,6 +302,7 @@ class Fs {
 	}
 };
 
+std::shared_ptr<Fs> make_sys_fs();
 std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
 
 }  // namespace vfs

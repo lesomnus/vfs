@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <iosfwd>
 #include <memory>
-#include <vector>
+#include <system_error>
 
 #include "vfs/impl/entry.hpp"
 
@@ -16,6 +16,9 @@ namespace impl {
 class Vfs: public Fs {
    public:
 	Vfs(std::filesystem::path const& temp_dir);
+
+	Vfs(Vfs const& other, DirectoryEntry& wd);
+	Vfs(Vfs&& other, DirectoryEntry& wd);
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override;
 	std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) override;
@@ -159,9 +162,6 @@ class Vfs: public Fs {
 	}
 
    private:
-	Vfs(Vfs const& other, DirectoryEntry& wd);
-	Vfs(Vfs&& other, DirectoryEntry& wd);
-
 	std::shared_ptr<DirectoryEntry> root_;
 	std::shared_ptr<DirectoryEntry> cwd_;
 	std::filesystem::path           temp_;

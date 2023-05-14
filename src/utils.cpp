@@ -17,7 +17,7 @@ std::mt19937 random_engine(std::random_device{}());
 }
 
 std::string random_string(std::size_t len, std::string_view char_set) {
-	std::uniform_int_distribution<std::size_t> distribution{0, char_set.size()};
+	std::uniform_int_distribution<std::size_t> distribution{0, char_set.size() - 1};
 
 	std::string rst(len, char_set.at(0));
 	for(auto& c: rst) {

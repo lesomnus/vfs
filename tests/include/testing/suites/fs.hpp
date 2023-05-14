@@ -6,6 +6,8 @@
 
 #include <vfs/fs.hpp>
 
+#include <vfs/impl/utils.hpp>
+
 namespace testing {
 
 class TestFsFixture {
@@ -23,8 +25,10 @@ class TestFsBasic {
 
 		std::shared_ptr<vfs::Fs> fs = fixture.make();
 
-		auto sandbox = fs->temp_directory_path() / "vfs-test";
-		fs->create_directory(sandbox);
+		auto const sandbox = fs->temp_directory_path() / "vfs-test" / vfs::impl::random_string(32, vfs::impl::Alphanumeric);
+		INFO("sandbox: " + sandbox.string());
+
+		fs->create_directories(sandbox);
 		fs = fs->current_path(sandbox);
 		REQUIRE(sandbox.is_absolute());
 		REQUIRE(sandbox == fs->current_path());
@@ -331,6 +335,31 @@ class TestFsBasic {
 			// TODO: hard link to directory?
 		}
 
+		SECTION("::create_symlink") {
+			fs->create_directory("foo");
+			REQUIRE(fs->exists("foo"));
+
+			SECTION("in an existing directory") {
+				fs->create_symlink("foo", "bar");
+
+				CHECK("foo" == fs->read_symlink("bar"));
+			}
+
+			SECTION("in a directory that does not exist") {
+				REQUIRE(not fs->exists("bar"));
+
+				std::error_code ec;
+				fs->create_symlink("foo", "bar/baz", ec);
+				CHECK(std::errc::no_such_file_or_directory == ec);
+			}
+
+			SECTION("to file that does not exist") {
+				fs->create_symlink("baz", "bar");
+
+				CHECK("baz" == fs->read_symlink("bar"));
+			}
+		}
+
 		SECTION("::current_path") {
 			SECTION("change to existing directory") {
 				fs->create_directory("foo");
@@ -362,31 +391,6 @@ class TestFsBasic {
 				std::error_code ec;
 				CHECK(nullptr == fs->current_path("foo", ec));
 				CHECK(std::errc::not_a_directory == ec);
-			}
-		}
-
-		SECTION("::create_symlink") {
-			fs->create_directory("foo");
-			REQUIRE(fs->exists("foo"));
-
-			SECTION("in an existing directory") {
-				fs->create_symlink("foo", "bar");
-
-				CHECK("foo" == fs->read_symlink("bar"));
-			}
-
-			SECTION("in a directory that does not exist") {
-				REQUIRE(not fs->exists("bar"));
-
-				std::error_code ec;
-				fs->create_symlink("foo", "bar/baz", ec);
-				CHECK(std::errc::no_such_file_or_directory == ec);
-			}
-
-			SECTION("to file that does not exist") {
-				fs->create_symlink("baz", "bar");
-
-				CHECK("baz" == fs->read_symlink("bar"));
 			}
 		}
 
@@ -592,6 +596,8 @@ class TestFsBasic {
 				}
 			}
 		}
+
+		fs->remove_all(sandbox);
 	}
 };
 

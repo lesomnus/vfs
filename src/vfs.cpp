@@ -15,11 +15,11 @@
 #include <type_traits>
 #include <utility>
 
+#include "vfs/fs.hpp"
+
 #include "vfs/impl/entry.hpp"
 #include "vfs/impl/file.hpp"
 #include "vfs/impl/utils.hpp"
-
-#include "vfs/fs.hpp"
 
 namespace fs = std::filesystem;
 
