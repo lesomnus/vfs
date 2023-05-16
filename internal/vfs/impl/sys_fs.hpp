@@ -35,11 +35,17 @@ class SysFs: public Fs {
 	}
 
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
+		if(p.empty()) {
+			return p;
+		} else if(p.is_relative() && !std::filesystem::exists(this->cwd_ / *p.begin())) {
+			return p.lexically_normal();
+		}
+
 		return std::filesystem::weakly_canonical(this->normal_(p));
 	}
 
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
-		return std::filesystem::weakly_canonical(this->normal_(p), ec);
+		return handle_error([&] { return this->weakly_canonical(p); }, ec);
 	}
 
 	void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options) override {
@@ -127,7 +133,8 @@ class SysFs: public Fs {
 	}
 
 	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
-		return std::filesystem::equivalent(this->normal_(p1), this->normal_(p2), ec);
+		return handle_error([&] { return this->equivalent(p1, p2); }, ec);
+		// return std::filesystem::equivalent(this->normal_(p1), this->normal_(p2), ec);
 	}
 
 	std::uintmax_t file_size(std::filesystem::path const& p) const override {

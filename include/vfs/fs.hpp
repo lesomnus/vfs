@@ -16,24 +16,84 @@ class Fs {
 	virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const = 0;
 	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out)     = 0;
 
+	/**
+	 * @brief Composes an absolute path.
+	 * @details Returns a path referencing the same file system location as `p`, for which `Fs::is_absolute(p)` is `true`.
+	 * 
+	 * @param[in] p path to convert to absolute form.
+	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as `p`.
+	 */
 	std::filesystem::path absolute(std::filesystem::path const& p) const {
 		return p.is_absolute() ? p : this->current_path() / p;
 	}
 
+	/**
+	 * @brief Composes an absolute path.
+	 * @details Returns a path referencing the same file system location as `p`, for which `Fs::is_absolute()` is `true`.
+	 * 
+	 * @param[in] p path to convert to absolute form.
+	 * @param[out] ec error code to store error status to.
+	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as `p`.
+	 */
 	std::filesystem::path absolute(std::filesystem::path const& p, std::error_code& ec) const {
 		return p.is_absolute() ? p : this->current_path(ec) / p;
 	}
 
-	virtual std::filesystem::path canonical(std::filesystem::path const& p) const                      = 0;
+	/**
+	 * @brief Compose a canonical path.
+	 * @details Converts path `p` to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
+	 * 
+	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
+	 * @return Canonical absolute path that resolves to the same file as `std::filesystem::absolute(p)`.
+	 * 
+	 * @exception std::filesystem::filesystem_error if the path `p` does not exist.
+	 */
+	virtual std::filesystem::path canonical(std::filesystem::path const& p) const = 0;
+
+	/**
+	 * @brief Compose a canonical path.
+	 * @details Converts path `p` to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
+	 * 
+	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
+	 * @param[out] ec error code to store error status to.
+	 * @return Canonical absolute path that resolves to the same file as `std::filesystem::absolute(p)`.
+	 */
 	virtual std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
-	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p) const                      = 0;
+	/**
+	 * @brief Compose a canonical path.
+	 * 
+	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
+	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in `p` that exist, and `y` is a path composed of the remaining trailing non-existent elements of `p`.
+	 */
+	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p) const = 0;
+
+	/**
+	 * @brief Compose a canonical path.
+	 * 
+	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
+	 * @param[out] ec error code to store error status to.
+	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in `p` that exist, and `y` is a path composed of the remaining trailing non-existent elements of `p`.
+	 */
 	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
+	/**
+	 * @brief Composes a relative path
+	 * 
+	 * @param[in] p an existing path
+	 * @return `p` made relative against `base`.
+	 */
 	std::filesystem::path relative(std::filesystem::path const& p) const {
 		return this->relative(p, this->current_path());
 	}
 
+	/**
+	 * @brief Composes a relative path
+	 * 
+	 * @param[in] p an existing path
+	 * @param[out] ec error code to store error status to.
+	 * @return `p` made relative against `base`.
+	 */
 	std::filesystem::path relative(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->relative(p, this->current_path(), ec);
 	}

@@ -439,10 +439,26 @@ std::uintmax_t Vfs::file_size(fs::path const& p, std::error_code& ec) const noex
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
-	auto const f1 = this->navigate(p1)->follow_chain();
-	auto const f2 = this->navigate(p2)->follow_chain();
+	std::shared_ptr<Entry const> f1, f2;
 
-	return f1->holds_same_file_with(*f2);
+	try {
+		f1 = this->navigate(p1)->follow_chain();
+	} catch(fs::filesystem_error const& err) {
+	}
+
+	try {
+		f2 = this->navigate(p2)->follow_chain();
+	} catch(fs::filesystem_error const& err) {
+	}
+
+	if(f1 && f2) {
+		return f1->holds_same_file_with(*f2);
+	}
+	if(f1 || f2) {
+		return false;
+	}
+
+	throw fs::filesystem_error("", p1, p2, std::make_error_code(std::errc::no_such_file_or_directory));
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2, std::error_code& ec) const noexcept {
