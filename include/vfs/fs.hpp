@@ -18,10 +18,10 @@ class Fs {
 
 	/**
 	 * @brief Composes an absolute path.
-	 * @details Returns a path referencing the same file system location as `p`, for which `Fs::is_absolute(p)` is `true`.
+	 * @details Returns a path referencing the same file system location as \p p, for which \ref Fs::is_absolute(p) is `true`.
 	 * 
-	 * @param[in] p path to convert to absolute form.
-	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as `p`.
+	 * @param[in] p Path to convert to absolute form.
+	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as \p p.
 	 */
 	std::filesystem::path absolute(std::filesystem::path const& p) const {
 		return p.is_absolute() ? p : this->current_path() / p;
@@ -29,11 +29,11 @@ class Fs {
 
 	/**
 	 * @brief Composes an absolute path.
-	 * @details Returns a path referencing the same file system location as `p`, for which `Fs::is_absolute()` is `true`.
+	 * @details Returns a path referencing the same file system location as \p p, for which \ref Fs::is_absolute(p) is `true`.
 	 * 
-	 * @param[in] p path to convert to absolute form.
-	 * @param[out] ec error code to store error status to.
-	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as `p`.
+	 * @param[in]  p  Path to convert to absolute form.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Absolute (although not necessarily canonical) pathname referencing the same file as \p p.
 	 */
 	std::filesystem::path absolute(std::filesystem::path const& p, std::error_code& ec) const {
 		return p.is_absolute() ? p : this->current_path(ec) / p;
@@ -41,109 +41,222 @@ class Fs {
 
 	/**
 	 * @brief Compose a canonical path.
-	 * @details Converts path `p` to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
+	 * @details Converts path \p p to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
 	 * 
-	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
-	 * @return Canonical absolute path that resolves to the same file as `std::filesystem::absolute(p)`.
+	 * @param[in] p Path which may be absolute or relative; it must be an existing path.
+	 * @return Canonical absolute path that resolves to the same file as \ref Fs::absolute(p).
 	 * 
-	 * @exception std::filesystem::filesystem_error if the path `p` does not exist.
+	 * @exception \ref std::filesystem::filesystem_error if the path \p p does not exist.
 	 */
 	virtual std::filesystem::path canonical(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Compose a canonical path.
-	 * @details Converts path `p` to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
+	 * @details Converts path \p p to a canonical absolute path, i.e. an absolute path that has no dot, dot-dot elements or symbolic links in its generic format representation.
 	 * 
-	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
-	 * @param[out] ec error code to store error status to.
-	 * @return Canonical absolute path that resolves to the same file as `std::filesystem::absolute(p)`.
+	 * @param[in]  p  Path which may be absolute or relative; it must be an existing path.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Canonical absolute path that resolves to the same file as \ref std::filesystem::absolute(p).
 	 */
 	virtual std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Compose a canonical path.
 	 * 
-	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
-	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in `p` that exist, and `y` is a path composed of the remaining trailing non-existent elements of `p`.
+	 * @param[in] p Path which may be absolute or relative.
+	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in \p p that exist, and `y` is a path composed of the remaining trailing non-existent elements of \p p.
 	 */
 	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Compose a canonical path.
 	 * 
-	 * @param[in] p a path which may be absolute or relative; for canonical it must be an existing path.
-	 * @param[out] ec error code to store error status to.
-	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in `p` that exist, and `y` is a path composed of the remaining trailing non-existent elements of `p`.
+	 * @param[in]  p  Path which may be absolute or relative.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Normal path of the form `canonical(x)/y`, where `x` is a path composed of the longest leading sequence of elements in \p p that exist, and `y` is a path composed of the remaining trailing non-existent elements of \p p.
 	 */
 	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
-	 * @brief Composes a relative path
+	 * @brief Composes a relative path.
 	 * 
-	 * @param[in] p an existing path
-	 * @return `p` made relative against `base`.
-	 */
-	std::filesystem::path relative(std::filesystem::path const& p) const {
-		return this->relative(p, this->current_path());
-	}
-
-	/**
-	 * @brief Composes a relative path
-	 * 
-	 * @param[in] p an existing path
-	 * @param[out] ec error code to store error status to.
-	 * @return `p` made relative against `base`.
+	 * @param[in]  p  Existing path.
+	 * @param[out] ec Error code to store error status to.
+	 * @return \p p made relative against current path.
 	 */
 	std::filesystem::path relative(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->relative(p, this->current_path(), ec);
 	}
 
+	/**
+	 * @brief Composes a relative path.
+	 * 
+	 * @param[in] p    Existing path
+	 * @param[in] base Base path, against which \p p will be made relative.
+	 * @return \p p made relative against \p base.
+	 */
 	std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base) const {
 		return this->weakly_canonical(p).lexically_relative(this->weakly_canonical(base));
 	}
 
+	/**
+	 * @brief Composes a relative path.
+	 * 
+	 * @param[in]  p    Existing path
+	 * @param[in]  base Base path, against which \p p will be made relative.
+	 * @param[out] ec   Error code to store error status to.
+	 * @return \p p made relative against \p base.
+	 */
 	std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
 		return std::filesystem::weakly_canonical(p, ec).lexically_relative(std::filesystem::weakly_canonical(base, ec));
 	}
 
+	/**
+	 * @brief Composes a proximate path.
+	 * 
+	 * @param[in] p Existing path.
+	 * @return \p p made proximate against current path.
+	 */
 	std::filesystem::path proximate(std::filesystem::path const& p) const {
 		return this->proximate(p, this->current_path());
 	}
 
+	/**
+	 * @brief Composes a proximate path.
+	 * 
+	 * @param[in]  p  Existing path.
+	 * @param[out] ec Error code to store error status to.
+	 * @return \p p made proximate against current path.
+	 */
 	std::filesystem::path proximate(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->proximate(p, this->current_path(), ec);
 	}
 
+	/**
+	 * @brief Composes a proximate path.
+	 * 
+	 * @param[in] p    Existing path
+	 * @param[in] base Base path, against which \p p will be made proximate.
+	 * @return \p p made proximate against \p base.
+	 */
 	std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base = std::filesystem::current_path()) const {
 		return std::filesystem::weakly_canonical(p).lexically_proximate(std::filesystem::weakly_canonical(base));
 	}
 
+	/**
+	 * @brief Composes a proximate path.
+	 * 
+	 * @param[in]  p    Existing path
+	 * @param[in]  base Base path, against which \p p will be made proximate.
+	 * @param[out] ec   Error code to store error status to.
+	 * @return \p p made proximate against \p base.
+	 */
 	std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
 		return std::filesystem::weakly_canonical(p, ec).lexically_proximate(std::filesystem::weakly_canonical(base, ec));
 	}
 
+	/**
+	 * @brief Copies files or directories.
+	 * 
+	 * @param[in] from Path to the source file, directory, or symlink to copy; it must be an existing path.
+	 * @param[in] to   Path to the target file, directory, or symlink.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist.
+	 */
 	void copy(std::filesystem::path const& from, std::filesystem::path const& to) {
 		this->copy(from, to, std::filesystem::copy_options::none);
 	}
 
+	/**
+	 * @brief Copies files or directories.
+	 * 
+	 * @param[in]  from Path to the source file, directory, or symlink to copy; it must be an existing path.
+	 * @param[in]  to   Path to the target file, directory, or symlink.
+	 * @param[out] ec   Error code to store error status to.
+	 */
 	void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::error_code& ec) {
 		this->copy(from, to, std::filesystem::copy_options::none, ec);
 	}
 
-	virtual void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options)                      = 0;
+	/**
+	 * @brief Copies files or directories.
+	 * 
+	 * @param[in] from    Path to the source file, directory, or symlink to copy; it must be an existing path.
+	 * @param[in] to      Path to the target file, directory, or symlink.
+	 * @param[in] options Copy options.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist.
+	 */
+	virtual void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options) = 0;
+
+	/**
+	 * @brief Copies files or directories.
+	 * 
+	 * @param[in]  from    Path to the source file, directory, or symlink to copy; it must be an existing path.
+	 * @param[in]  to      Path to the target file, directory, or symlink.
+	 * @param[in]  options Copy options.
+	 * @param[out] ec      Error code to store error status to.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist.
+	 */
 	virtual void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options, std::error_code& ec) = 0;
 
+	/**
+	 * @brief Copies file contents.
+	 * 
+	 * @param[in] from Path to the source file to copy; it must be an existing path.
+	 * @param[in] to   Path to the target file.
+	 * @return `true` if the file was copied, `false` otherwise.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist or `!Fs::is_regular_file(from)`.
+	 */
 	bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to) {
 		return this->copy_file(from, to, std::filesystem::copy_options::none);
 	}
 
+	/**
+	 * @brief Copies file contents.
+	 * 
+	 * @param[in]  from Path to the source file to copy; it must be an existing path.
+	 * @param[in]  to   Path to the target file.
+	 * @param[out] ec   Error code to store error status to.
+	 * @return `true` if the file was copied, `false` otherwise.
+	 */
 	bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::error_code& ec) {
 		return this->copy_file(from, to, std::filesystem::copy_options::none, ec);
 	}
 
-	virtual bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options)                      = 0;
+	/**
+	 * @brief Copies file contents.
+	 * 
+	 * @param[in] from    Path to the source file to copy; it must be an existing path.
+	 * @param[in] to      Path to the target file.
+	 * @param[in] options Copy options.
+	 * @return `true` if the file was copied, `false` otherwise.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist or `!Fs::is_regular_file(from)`.
+	 */
+	virtual bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options) = 0;
+
+	/**
+	 * @brief Copies file contents.
+	 * 
+	 * @param[in]  from    Path to the source file to copy; it must be an existing path.
+	 * @param[in]  to      Path to the target file.
+	 * @param[in]  options Copy options.
+	 * @param[out] ec      Error code to store error status to.
+	 * @return `true` if the file was copied, `false` otherwise.
+	 */
 	virtual bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options, std::error_code& ec) = 0;
 
+	/**
+	 * @brief Copies a symbolic link.
+	 * 
+	 * @param[in] from Path to symbolic link to copy; it must be an existing path.
+	 * @param[in] to   Destination path of the new symbolic link; it must be an non-existing path.
+	 * 
+	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist or \p to does exist.
+	 */
 	void copy_symlink(std::filesystem::path const& from, std::filesystem::path const& to) {
 		auto const target = this->read_symlink(from);
 		this->is_directory(target)
@@ -151,6 +264,13 @@ class Fs {
 		    : this->create_symlink(target, to);
 	}
 
+	/**
+	 * @brief Copies a symbolic link.
+	 * 
+	 * @param[in]  from Path to symbolic link to copy; it must be an existing path.
+	 * @param[in]  to   Destination path of the new symbolic link; it must be an non-existing path.
+	 * @param[out] ec   Error code to store error status to.
+	 */
 	void copy_symlink(std::filesystem::path const& from, std::filesystem::path const& to, std::error_code& ec) noexcept {
 		if(auto const target = this->read_symlink(from, ec); ec) {
 			return;
@@ -161,6 +281,13 @@ class Fs {
 		}
 	}
 
+	/**
+	 * @brief Creates a directory.
+	 * 
+	 * @param p 
+	 * @return true 
+	 * @return false 
+	 */
 	virtual bool create_directory(std::filesystem::path const& p)                               = 0;
 	virtual bool create_directory(std::filesystem::path const& p, std::error_code& ec) noexcept = 0;
 
