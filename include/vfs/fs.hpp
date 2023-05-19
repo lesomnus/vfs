@@ -13,8 +13,23 @@ class Fs {
    public:
 	virtual ~Fs() = default;
 
+	/**
+	 * @brief Opens a file for reading.
+	 * 
+	 * @param filename Name of the file to be opened.
+	 * @param mode     Open mode for the file.
+	 * @return Input stream of the opened file.
+	 */
 	virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const = 0;
-	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out)     = 0;
+
+	/**
+	 * @brief Opens a file for writing.
+	 * 
+	 * @param filename Name of the file to be opened.
+	 * @param mode     Open mode for the file.
+	 * @return Output stream of the opened file.
+	 */
+	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
 
 	/**
 	 * @brief Converts a given path to its absolute form, which is a fully qualified path that includes the root directory.
@@ -431,8 +446,8 @@ class Fs {
 	/**
 	 * @brief Checks whether the path refers to an existing file system object
 	 * 
-	 * @param[in] p File status to check.
-	 * @return `true` if the file or directory exists, `false` otherwise.
+	 * @param[in] s File status to check.
+	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
 	bool exists(std::filesystem::file_status s) const noexcept {
 		return this->status_known(s) && s.type() != std::filesystem::file_type::not_found;
@@ -442,7 +457,7 @@ class Fs {
 	 * @brief Checks whether the path refers to an existing file system object
 	 * 
 	 * @param[in] p Path to the file or directory to check.
-	 * @return `true` if the file or directory exists, `false` otherwise.
+	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
 	bool exists(std::filesystem::path const& p) const {
 		return std::filesystem::exists(this->status(p));
@@ -453,7 +468,7 @@ class Fs {
 	 * 
 	 * @param[in]  p  Path to the file or directory to check.
 	 * @param[out] ec Error code to store error status to.
-	 * @return `true` if the file or directory exists, `false` otherwise.
+	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
 	bool exists(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		auto const s = this->status(p, ec);
@@ -590,7 +605,7 @@ class Fs {
 	virtual bool remove(std::filesystem::path const& p, std::error_code& ec) noexcept = 0;
 
 	/**
-	 * @brief Removes a file or a directory and its contents recursively.
+	 * @brief Removes a file or directory and its contents recursively.
 	 * 
 	 * @param[in] p Path to the file or directory to be removed.
 	 * @return Number of files and directories that were removed. 
@@ -598,7 +613,7 @@ class Fs {
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p) = 0;
 
 	/**
-	 * @brief Removes a file or a directory and its contents recursively.
+	 * @brief Removes a file or directory and its contents recursively.
 	 * 
 	 * @param[in]  p  Path to the file or directory to be removed.
 	 * @param[out] ec Error code to store error status to.
@@ -606,56 +621,195 @@ class Fs {
 	 */
 	virtual std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) = 0;
 
-	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p)                               = 0;
+	/**
+	 * @brief Renames a file or directory.
+	 * 
+	 * @param[in] old_p Path of the file or directory to be renamed.
+	 * @param[in] new_p New path for the file or directory.
+	 */
+	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p) = 0;
+
+	/**
+	 * @brief Renames a file or directory.
+	 * 
+	 * @param[in]  old_p Path of the file or directory to be renamed.
+	 * @param[in]  new_p New path for the file or directory.
+	 * @param[out] ec    Error code to store error status to.
+	 */
 	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept = 0;
 
-	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size)                               = 0;
-	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept = 0;
+	/**
+	 * @brief Resizes a regular file by truncation or zero-fill.
+	 * 
+	 * @param[in] p Path of the regular file to be resized.
+	 * @param[in] n New size of the file in bytes.
+	 */
+	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t n) = 0;
 
-	virtual std::filesystem::space_info space(std::filesystem::path const& p) const                               = 0;
+	/**
+	 * @brief Resizes a regular file by truncation or zero-fill.
+	 * 
+	 * @param[in]  p  Path of the regular file to be resized.
+	 * @param[in]  n  New size of the file in bytes.
+	 * @param[out] ec Error code to store error status to.
+	 */
+	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept = 0;
+
+	/**
+	 * @brief Retrieves space information about a file system.
+	 * 
+	 * @param[in] p Path to a file or directory for which the space information to be retrieved.
+	 * @return Space information of \p p.
+	 */
+	virtual std::filesystem::space_info space(std::filesystem::path const& p) const = 0;
+
+	/**
+	 * @brief Retrieves space information about a file system.
+	 * 
+	 * @param[in]  p  Path to a file or directory for which the space information to be retrieved.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Space information of \p p.
+	 */
 	virtual std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
-	virtual std::filesystem::file_status status(std::filesystem::path const& p) const                               = 0;
+	/**
+	 * @brief Retrieves the status of a file or directory.
+	 * 
+	 * @param[in] p Path to the file or directory for which the status is to be retrieved.
+	 * @return Status of \p p.
+	 */
+	virtual std::filesystem::file_status status(std::filesystem::path const& p) const = 0;
+
+	/**
+	 * @brief Retrieves the status of a file or directory.
+	 * 
+	 * @param[in]  p  Path to the file or directory for which the status is to be retrieved.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Status of \p p.
+	 */
 	virtual std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
-	virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p) const                               = 0;
+	/**
+	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed ans status of symbolic link is retrieved.
+	 * 
+	 * @param[in] p Path to the file or directory for which the status is to be retrieved.
+	 * @return Status of \p p.
+	 */
+	virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p) const = 0;
+
+	/**
+	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed ans status of symbolic link is retrieved.
+	 * 
+	 * @param[in]  p  Path to the file or directory for which the status is to be retrieved.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Status of \p p.
+	 */
 	virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
-	virtual std::filesystem::path temp_directory_path() const                    = 0;
+	/**
+	 * @brief Retrieves the path to the temporary directory.
+	 * 
+	 * @return Path to the temporary directory.
+	 */
+	virtual std::filesystem::path temp_directory_path() const = 0;
+
+	/**
+	 * @brief Retrieves the path to the temporary directory.
+	 * 
+	 * @param[out] ec Error code to store error status to.
+	 * @return Path to the temporary directory.
+	 */
 	virtual std::filesystem::path temp_directory_path(std::error_code& ec) const = 0;
 
+	/**
+	 * @brief Checks whether the path refers to a block file.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a block file, `false` otherwise.
+	 */
 	bool is_block_file(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::block;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a block file.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a block file, `false` otherwise.
+	 */
 	bool is_block_file(std::filesystem::path const& p) const {
 		return this->is_block_file(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a block file.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a block file, `false` otherwise.
+	 */
 	bool is_block_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_block_file(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a character file.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a character file, `false` otherwise.
+	 */
 	bool is_character_file(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::character;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a character file.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a character file, `false` otherwise.
+	 */
 	bool is_character_file(std::filesystem::path const& p) const {
 		return this->is_character_file(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a character file.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a character file, `false` otherwise.
+	 */
 	bool is_character_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_character_file(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a directory.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a directory, `false` otherwise.
+	 */
 	bool is_directory(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::directory;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a directory.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a directory, `false` otherwise.
+	 */
 	bool is_directory(std::filesystem::path const& p) const {
 		return this->is_directory(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a directory.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a directory, `false` otherwise.
+	 */
 	bool is_directory(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_directory(this->status(p, ec));
 	}
@@ -663,72 +817,185 @@ class Fs {
 	virtual bool is_empty(std::filesystem::path const& p) const                      = 0;
 	virtual bool is_empty(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
+	/**
+	 * @brief Checks whether the path refers to a pipe file.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
+	 */
 	bool is_fifo(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::fifo;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a pipe file.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
+	 */
 	bool is_fifo(std::filesystem::path const& p) const {
 		return this->is_fifo(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a pipe file.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
+	 */
 	bool is_fifo(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_fifo(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to an other file.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to an other file, `false` otherwise.
+	 */
 	bool is_other(std::filesystem::file_status s) const noexcept {
 		return this->exists(s) && !this->is_regular_file(s) && !this->is_directory(s) && !this->is_symlink(s);
 	}
 
+	/**
+	 * @brief Checks whether the path refers to an other file.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to an other file, `false` otherwise.
+	 */
 	bool is_other(std::filesystem::path const& p) const {
 		return this->is_other(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to an other file.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to an other file, `false` otherwise.
+	 */
 	bool is_other(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_other(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a regular file.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a regular file, `false` otherwise.
+	 */
 	bool is_regular_file(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::regular;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a regular file.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a regular file, `false` otherwise.
+	 */
 	bool is_regular_file(std::filesystem::path const& p) const {
 		return this->is_regular_file(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a regular file.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a regular file, `false` otherwise.
+	 */
 	bool is_regular_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_regular_file(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a socket.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a socket, `false` otherwise.
+	 */
 	bool is_socket(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::socket;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a socket.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a socket, `false` otherwise.
+	 */
 	bool is_socket(std::filesystem::path const& p) const {
 		return this->is_socket(this->status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a socket.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a socket, `false` otherwise.
+	 */
 	bool is_socket(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_socket(this->status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a symbolic link.
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
+	 */
 	bool is_symlink(std::filesystem::file_status s) const noexcept {
 		return s.type() == std::filesystem::file_type::symlink;
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a symbolic link.
+	 * 
+	 * @param[in] p Path to the file to check.
+	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
+	 */
 	bool is_symlink(std::filesystem::path const& p) const {
 		return this->is_symlink(this->symlink_status(p));
 	}
 
+	/**
+	 * @brief Checks whether the path refers to a symbolic link.
+	 * 
+	 * @param[in]  p  Path to the file to check.
+	 * @param[out] ec Error code to store error status to.
+	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
+	 */
 	bool is_symlink(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		return this->is_symlink(this->symlink_status(p, ec));
 	}
 
+	/**
+	 * @brief Checks whether the file status is known
+	 * 
+	 * @param[in] s File status to check.
+	 * @return `true` if \p s holds known file type, `false` otherwise.
+	 */
 	bool status_known(std::filesystem::file_status s) const noexcept {
 		return s.type() != std::filesystem::file_type::none;
 	}
 };
 
-std::shared_ptr<Fs> make_sys_fs();
+/**
+ * @brief Makes `Fs` that represents the OS-provided file system, which is equivalent to `std::filesystem`.
+ * 
+ * @return New `Fs` that represents the OS-provided file system.
+ */
+std::shared_ptr<Fs> make_os_fs();
+
+/**
+ * @brief Makes empty `Fs` that is virtual. Regular files are written to the temporary directory of the OS and are deleted when the `Fs` is destructed.
+ * 
+ * @param temp_dir Path to the temporary directory in the created Fs.
+ * @return New empty `Fs` that is virtual.
+ */
 std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
 
 }  // namespace vfs
