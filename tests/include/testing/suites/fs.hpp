@@ -419,15 +419,28 @@ class TestFsBasic {
 				CHECK(fs->equivalent("foo", "bar"));
 			}
 
-			SECTION("given path does not exist") {
+			SECTION("one of given path does not exist") {
 				REQUIRE(not fs->exists("bar"));
 
 				std::error_code ec;
-				fs->equivalent("bar", "foo", ec);
+				CHECK(not fs->equivalent("bar", "foo", ec));
+				CHECK(0 == ec.value());
+
+				ec.clear();
+				CHECK(not fs->equivalent("foo", "bar", ec));
+				CHECK(0 == ec.value());
+			}
+
+			SECTION("both given path does not exist") {
+				REQUIRE(not fs->exists("bar"));
+				REQUIRE(not fs->exists("baz"));
+
+				std::error_code ec;
+				CHECK(not fs->equivalent("bar", "baz", ec));
 				CHECK(std::errc::no_such_file_or_directory == ec);
 
 				ec.clear();
-				fs->equivalent("foo", "bar", ec);
+				CHECK(not fs->equivalent("baz", "bar", ec));
 				CHECK(std::errc::no_such_file_or_directory == ec);
 			}
 		}
