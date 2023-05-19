@@ -9,7 +9,7 @@
 class TestVfs: public testing::TestFsFixture {
    public:
 	std::shared_ptr<vfs::Fs> make() override {
-		return vfs::make_sys_fs();
+		return vfs::make_os_fs();
 	}
 };
 

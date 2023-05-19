@@ -29,17 +29,17 @@ class Vfs: public Fs {
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override;
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override;
 
-	void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options) override;
-	void copy(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options, std::error_code& ec) override;
+	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options) override;
+	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options, std::error_code& ec) override;
 
-	bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options) override;
-	bool copy_file(std::filesystem::path const& from, std::filesystem::path const& to, std::filesystem::copy_options options, std::error_code& ec) override;
+	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options) override;
+	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options, std::error_code& ec) override;
 
 	bool create_directory(std::filesystem::path const& p) override;
 	bool create_directory(std::filesystem::path const& p, std::error_code& ec) noexcept override;
 
-	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& existing_p) override;
-	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& existing_p, std::error_code& ec) noexcept override;
+	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr) override;
+	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr, std::error_code& ec) noexcept override;
 
 	bool create_directories(std::filesystem::path const& p) override;
 	bool create_directories(std::filesystem::path const& p, std::error_code& ec) override;
@@ -71,8 +71,8 @@ class Vfs: public Fs {
 	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override;
 	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time) override;
-	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time, std::error_code& ec) noexcept override;
+	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) override;
+	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept override;
 
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts = std::filesystem::perm_options::replace) override;
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) override;
@@ -86,11 +86,11 @@ class Vfs: public Fs {
 	std::uintmax_t remove_all(std::filesystem::path const& p) override;
 	std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) override;
 
-	void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p) override;
-	void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept override;
+	void rename(std::filesystem::path const& src, std::filesystem::path const& dst) override;
+	void rename(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept override;
 
-	void resize_file(std::filesystem::path const& p, std::uintmax_t new_size) override;
-	void resize_file(std::filesystem::path const& p, std::uintmax_t new_size, std::error_code& ec) noexcept override;
+	void resize_file(std::filesystem::path const& p, std::uintmax_t n) override;
+	void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept override;
 
 	std::filesystem::space_info space(std::filesystem::path const& p) const override;
 	std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept override;

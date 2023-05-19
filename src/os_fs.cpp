@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <memory>
 
-#include "vfs/impl/sys_fs.hpp"
+#include "vfs/impl/os_fs.hpp"
 
 namespace vfs {
 

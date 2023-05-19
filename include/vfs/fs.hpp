@@ -163,8 +163,8 @@ class Fs {
 	/**
 	 * @brief Copies a file or directory from a source path to a destination path.
 	 * 
-	 * @param[in] src Source path of the file or directory to be copied.
-	 * @param[in] dst Destination path where \p src will be copied to.
+	 * @param[in] src Path to the file or directory to be copied.
+	 * @param[in] dst Path where \p src will be copied to.
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if the path \p src does not exist.
 	 */
@@ -175,8 +175,8 @@ class Fs {
 	/**
 	 * @brief Copies a file or directory from a source path to a destination path.
 	 * 
-	 * @param[in]  src Source path of the file or directory to be copied.
-	 * @param[in]  dst Destination path where \p src will be copied to.
+	 * @param[in]  src Path to the file or directory to be copied.
+	 * @param[in]  dst Path where \p src will be copied to.
 	 * @param[out] ec  Error code to store error status to.
 	 */
 	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) {
@@ -186,8 +186,8 @@ class Fs {
 	/**
 	 * @brief Copies a file or directory from a source path to a destination path.
 	 * 
-	 * @param[in] src  Source path of the file or directory to be copied.
-	 * @param[in] dst  Destination path where \p from will be copied to.
+	 * @param[in] src  Path to the file or directory to be copied.
+	 * @param[in] dst  Path where \p from will be copied to.
 	 * @param[in] opts Copy options to control the behavior.
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist.
@@ -197,8 +197,8 @@ class Fs {
 	/**
 	 * @brief Copies a file or directory from a source path to a destination path.
 	 * 
-	 * @param[in]  src  Source path of the file or directory to be copied.
-	 * @param[in]  dst  Destination path where \p from will be copied to.
+	 * @param[in]  src  Path to the file or directory to be copied.
+	 * @param[in]  dst  Path where \p from will be copied to.
 	 * @param[in]  opts Copy options to control the behavior.
 	 * @param[out] ec   Error code to store error status to.
 	 * 
@@ -209,8 +209,8 @@ class Fs {
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 
-	 * @param[in] src Source path of the file or directory to be copied.
-	 * @param[in] dst Destination path where \p src will be copied to.
+	 * @param[in] src Path to the file or directory to be copied.
+	 * @param[in] dst Path where \p src will be copied to.
 	 * @return `true` if the file was copied, `false` otherwise.
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if the path \p from does not exist or `!Fs::is_regular_file(from)`.
@@ -222,8 +222,8 @@ class Fs {
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 
-	 * @param[in]  src Source path of the file or directory to be copied.
-	 * @param[in]  dst Destination path where \p src will be copied to.
+	 * @param[in]  src Path to the file or directory to be copied.
+	 * @param[in]  dst Path where \p src will be copied to.
 	 * @param[out] ec  Error code to store error status to.
 	 * @return `true` if the file was copied, `false` otherwise.
 	 */
@@ -234,8 +234,8 @@ class Fs {
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 
-	 * @param[in] src  Source path of the file to be copied.
-	 * @param[in] dst  Destination path where \p src will be copied to.
+	 * @param[in] src  Path to the file to be copied.
+	 * @param[in] dst  Path where \p src will be copied to.
 	 * @param[in] opts Copy options to control the behavior.
 	 * @return `true` if the file was copied, `false` otherwise.
 	 * 
@@ -246,8 +246,8 @@ class Fs {
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 
-	 * @param[in]  src  Source path of the file to be copied.
-	 * @param[in]  dst  Destination path where \p src will be copied to.
+	 * @param[in]  src  Path to the file to be copied.
+	 * @param[in]  dst  Path where \p src will be copied to.
 	 * @param[in]  opts Copy options to control the behavior.
 	 * @param[out] ec   Error code to store error status to.
 	 * @return `true` if the file was copied, `false` otherwise.
@@ -257,8 +257,8 @@ class Fs {
 	/**
 	 * @brief Copies a symbolic link.
 	 * 
-	 * @param[in] src Source path of the symbolic link to be copied.
-	 * @param[in] dst Destination path where \p src will be copied to.
+	 * @param[in] src Path to the symbolic link to be copied.
+	 * @param[in] dst Path where \p src will be copied to.
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if the path \p src does not exist or \p dst does exist.
 	 */
@@ -272,8 +272,8 @@ class Fs {
 	/**
 	 * @brief Copies a symbolic link.
 	 * 
-	 * @param[in]  src Source path of the symbolic link to be copied.
-	 * @param[in]  dst Destination path where \p src will be copied to.
+	 * @param[in]  src Path to the symbolic link to be copied.
+	 * @param[in]  dst Path where \p src will be copied to.
 	 * @param[out] ec  Error code to store error status to.
 	 */
 	void copy_symlink(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept {
@@ -289,7 +289,7 @@ class Fs {
 	/**
 	 * @brief Creates a directory.
 	 * 
-	 * @param[in] p Path of the directory to be created.
+	 * @param[in] p Path to the directory to be created.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
 	virtual bool create_directory(std::filesystem::path const& p) = 0;
@@ -297,7 +297,7 @@ class Fs {
 	/**
 	 * @brief Creates a directory.
 	 * 
-	 * @param[in]  p  Path of the directory to be created.
+	 * @param[in]  p  Path to the directory to be created.
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
@@ -306,8 +306,8 @@ class Fs {
 	/**
 	 * @brief Creates a directory.
 	 * 
-	 * @param[in] p    Path of the directory to be created.
-	 * @param[in] attr Path of the directory to copy the attributes from.
+	 * @param[in] p    Path to the directory to be created.
+	 * @param[in] attr Path to the directory to copy the attributes from.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
 	virtual bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr) = 0;
@@ -315,8 +315,8 @@ class Fs {
 	/**
 	 * @brief Creates a directory.
 	 * 
-	 * @param[in]  p    Path of the directory to be created.
-	 * @param[in]  attr Path of the directory to copy the attributes from.
+	 * @param[in]  p    Path to the directory to be created.
+	 * @param[in]  attr Path to the directory to copy the attributes from.
 	 * @param[out] ec   Error code to store error status to.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
@@ -325,7 +325,7 @@ class Fs {
 	/**
 	 * @brief Creates directories and any missing parent directories.
 	 * 
-	 * @param[in] p  Path of the directory to be created.
+	 * @param[in] p  Path to the directory to be created.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
 	virtual bool create_directories(std::filesystem::path const& p) = 0;
@@ -333,7 +333,7 @@ class Fs {
 	/**
 	 * @brief Creates directories and any missing parent directories.
 	 * 
-	 * @param[in]  p  Path of the directory to be created.
+	 * @param[in]  p  Path to the directory to be created.
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if the directory was successfully created, `false` otherwise.
 	 */
@@ -342,16 +342,16 @@ class Fs {
 	/**
 	 * @brief Creates a hard link.
 	 * 
-	 * @param[in] target Path of the file or directory to link to.
-	 * @param[in] link   Path of the hard link to be created.
+	 * @param[in] target Path to the file or directory to link to.
+	 * @param[in] link   Path to the hard link to be created.
 	 */
 	virtual void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link) = 0;
 
 	/**
 	 * @brief Creates a hard link.
 	 * 
-	 * @param[in]  target Path of the file or directory to link to.
-	 * @param[in]  link   Path of the hard link to be created.
+	 * @param[in]  target Path to the file or directory to link to.
+	 * @param[in]  link   Path to the hard link to be created.
 	 * @param[out] ec     Error code to store error status to.
 	 */
 	virtual void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept = 0;
@@ -359,16 +359,16 @@ class Fs {
 	/**
 	 * @brief Creates a symbolic link.
 	 * 
-	 * @param[in] target Path of the file or directory to link to.
-	 * @param[in] link   Path of the symbolic link to be created.
+	 * @param[in] target Path to the file or directory to link to.
+	 * @param[in] link   Path to the symbolic link to be created.
 	 */
 	virtual void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link) = 0;
 
 	/**
 	 * @brief Creates a symbolic link.
 	 * 
-	 * @param[in]  target Path of the file or directory to link to.
-	 * @param[in]  link   Path of the symbolic link to be created.
+	 * @param[in]  target Path to the file or directory to link to.
+	 * @param[in]  link   Path to the symbolic link to be created.
 	 * @param[out] ec     Error code to store error status to.
 	 */
 	virtual void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept = 0;
@@ -376,8 +376,8 @@ class Fs {
 	/**
 	 * @brief Creates a symbolic link to a directory.
 	 * 
-	 * @param[in] target Path of the directory to link to.
-	 * @param[in] link   Path of the symbolic link to be created.
+	 * @param[in] target Path to the directory to link to.
+	 * @param[in] link   Path to the symbolic link to be created.
 	 */
 	virtual void create_directory_symlink(std::filesystem::path const& target, std::filesystem::path const& link) {
 		this->create_symlink(target, link);
@@ -386,8 +386,8 @@ class Fs {
 	/**
 	 * @brief Creates a symbolic link to a directory
 	 * 
-	 * @param[in]  target Path of the directory to link to.
-	 * @param[in]  link   Path of the symbolic link to be created.
+	 * @param[in]  target Path to the directory to link to.
+	 * @param[in]  link   Path to the symbolic link to be created.
 	 * @param[out] ec     Error code to store error status to.
 	 */
 	virtual void create_directory_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept {
@@ -552,20 +552,45 @@ class Fs {
 	 * @brief Sets the last write time of a file.
 	 * 
 	 * @param[in] p Path to the file for which the last write time is to be set.
+	 * @param[in] t New last write time of the file.
 	 */
-	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time) = 0;
+	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) = 0;
 
 	/**
 	 * @brief Sets the last write time of a file.
 	 * 
 	 * @param[in]  p  Path to the file for which the last write time is to be set.
+	 * @param[in]  t  New last write time of the file.
 	 * @param[out] ec Error code to store error status to.
 	 */
-	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type new_time, std::error_code& ec) noexcept = 0;
+	virtual void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept = 0;
 
+	/**
+	 * @brief Modifies the permissions of a file or directory.
+	 * 
+	 * @param[in] p    Path to the file or directory for which the permissions are to be set.
+	 * @param[in] prms Desired permissions to be set, added, or removed.
+	 * @param[in] opts Options to control the behavior.
+	 */
 	virtual void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts = std::filesystem::perm_options::replace) = 0;
-	virtual void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec)                     = 0;
 
+	/**
+	 * @brief Modifies the permissions of a file or directory.
+	 * 
+	 * @param[in]  p    Path to the file or directory for which the permissions are to be set.
+	 * @param[in]  prms Desired permissions to be set, added, or removed.
+	 * @param[in]  opts Options to control the behavior.
+	 * @param[out] ec   Error code to store error status to.
+	 */
+	virtual void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) = 0;
+
+	/**
+	 * @brief Modifies the permissions of a file or directory.
+	 * 
+	 * @param[in]  p    Path to the file or directory for which the permissions are to be set.
+	 * @param[in]  prms Desired permissions to be set, added, or removed.
+	 * @param[out] ec   Error code to store error status to.
+	 */
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::error_code& ec) noexcept {
 		this->permissions(p, prms, std::filesystem::perm_options::replace, ec);
 	}
@@ -624,24 +649,24 @@ class Fs {
 	/**
 	 * @brief Renames a file or directory.
 	 * 
-	 * @param[in] old_p Path of the file or directory to be renamed.
-	 * @param[in] new_p New path for the file or directory.
+	 * @param[in] src Path to the file or directory to be renamed.
+	 * @param[in] dst New path for the file or directory.
 	 */
-	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p) = 0;
+	virtual void rename(std::filesystem::path const& src, std::filesystem::path const& dst) = 0;
 
 	/**
 	 * @brief Renames a file or directory.
 	 * 
-	 * @param[in]  old_p Path of the file or directory to be renamed.
-	 * @param[in]  new_p New path for the file or directory.
-	 * @param[out] ec    Error code to store error status to.
+	 * @param[in]  src Path to the file or directory to be renamed.
+	 * @param[in]  dst New path for the file or directory.
+	 * @param[out] ec  Error code to store error status to.
 	 */
-	virtual void rename(std::filesystem::path const& old_p, std::filesystem::path const& new_p, std::error_code& ec) noexcept = 0;
+	virtual void rename(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept = 0;
 
 	/**
 	 * @brief Resizes a regular file by truncation or zero-fill.
 	 * 
-	 * @param[in] p Path of the regular file to be resized.
+	 * @param[in] p Path to the regular file to be resized.
 	 * @param[in] n New size of the file in bytes.
 	 */
 	virtual void resize_file(std::filesystem::path const& p, std::uintmax_t n) = 0;
@@ -649,7 +674,7 @@ class Fs {
 	/**
 	 * @brief Resizes a regular file by truncation or zero-fill.
 	 * 
-	 * @param[in]  p  Path of the regular file to be resized.
+	 * @param[in]  p  Path to the regular file to be resized.
 	 * @param[in]  n  New size of the file in bytes.
 	 * @param[out] ec Error code to store error status to.
 	 */

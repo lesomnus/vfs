@@ -21,13 +21,13 @@ add_library(
 
 		internal/vfs/impl/entry.hpp
 		internal/vfs/impl/file.hpp
-		internal/vfs/impl/sys_fs.hpp
+		internal/vfs/impl/os_fs.hpp
 		internal/vfs/impl/utils.hpp
 		internal/vfs/impl/vfs.hpp
 
 		src/entry.cpp
 		src/file.cpp
-		src/sys_fs.cpp
+		src/os_fs.cpp
 		src/utils.cpp
 		src/vfs.cpp
 )
