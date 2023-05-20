@@ -46,6 +46,7 @@ macro(vfs_SIMPLE_TEST NAME)
 	)
 endmacro()
 
+vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
 vfs_SIMPLE_TEST(os_fs)
 vfs_SIMPLE_TEST(vfs)

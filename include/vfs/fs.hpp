@@ -715,7 +715,7 @@ class Fs {
 	virtual std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
-	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed ans status of symbolic link is retrieved.
+	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed and status of symbolic link is retrieved.
 	 * 
 	 * @param[in] p Path to the file or directory for which the status is to be retrieved.
 	 * @return Status of \p p.
@@ -723,7 +723,7 @@ class Fs {
 	virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p) const = 0;
 
 	/**
-	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed ans status of symbolic link is retrieved.
+	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed and status of symbolic link is retrieved.
 	 * 
 	 * @param[in]  p  Path to the file or directory for which the status is to be retrieved.
 	 * @param[out] ec Error code to store error status to.
