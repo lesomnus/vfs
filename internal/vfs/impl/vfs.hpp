@@ -8,6 +8,7 @@
 
 #include "vfs/impl/entry.hpp"
 
+#include "vfs/directory_entry.hpp"
 #include "vfs/fs.hpp"
 
 namespace vfs {
@@ -160,6 +161,30 @@ class Vfs: public Fs {
 	std::shared_ptr<Entry> navigate(std::filesystem::path const& p, std::error_code& ec) {
 		return std::const_pointer_cast<Entry>(static_cast<Vfs const*>(this)->navigate(p, ec));
 	}
+
+   protected:
+	class Cursor: public Fs::Cursor {
+	   public:
+		Cursor(Vfs const& fs, DirectoryEntry const& dir);
+
+		directory_entry const& value() const override {
+			return this->entry_;
+		}
+
+		bool is_end() const override {
+			return this->begin_ == this->end_;
+		}
+
+		Cursor& increment() override;
+
+	   private:
+		Directory::const_iterator begin_;
+		Directory::const_iterator end_;
+
+		directory_entry entry_;
+	};
+
+	std::shared_ptr<Fs::Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
    private:
 	std::shared_ptr<DirectoryEntry> root_;

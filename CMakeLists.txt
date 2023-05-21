@@ -18,7 +18,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(
 	vfs SHARED
 		include/vfs/directory_entry.hpp
+		include/vfs/directory_iterator.hpp
 		include/vfs/fs.hpp
+		include/vfs.hpp
 
 		internal/vfs/impl/entry.hpp
 		internal/vfs/impl/file.hpp
@@ -28,6 +30,7 @@ add_library(
 
 		src/entry.cpp
 		src/file.cpp
+		src/fs.cpp
 		src/os_fs.cpp
 		src/utils.cpp
 		src/vfs.cpp

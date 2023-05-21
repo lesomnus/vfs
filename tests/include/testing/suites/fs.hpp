@@ -1,9 +1,11 @@
 #include <concepts>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include <catch2/catch_template_test_macros.hpp>
 
+#include <vfs/directory_iterator.hpp>
 #include <vfs/fs.hpp>
 
 #include <vfs/impl/utils.hpp>
@@ -608,6 +610,20 @@ class TestFsBasic {
 					CHECK(not fs->exists("foo/bar"));
 				}
 			}
+		}
+
+		SECTION("::iterate_directory") {
+			fs->open_write("foo");
+			fs->open_write("bar");
+
+			std::unordered_set<std::string> filenames;
+
+			for(auto const entry: fs->iterate_directory()) {
+				CHECK(entry.is_regular_file());
+				filenames.insert(entry.path().filename());
+			}
+
+			CHECK(std::unordered_set<std::string>{"foo", "bar"} == filenames);
 		}
 
 		fs->remove_all(sandbox);

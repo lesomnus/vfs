@@ -8,7 +8,7 @@
 namespace vfs {
 
 std::shared_ptr<Fs> make_os_fs() {
-	return std::make_shared<impl::SysFs>(std::filesystem::current_path());
+	return std::make_shared<impl::OsFs>(std::filesystem::current_path());
 }
 
 }  // namespace vfs

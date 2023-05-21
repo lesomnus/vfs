@@ -6,16 +6,17 @@
 #include <iostream>
 #include <system_error>
 
-#include "vfs/fs.hpp"
-
 #include "vfs/impl/utils.hpp"
+
+#include "vfs/directory_entry.hpp"
+#include "vfs/fs.hpp"
 
 namespace vfs {
 namespace impl {
 
-class SysFs: public Fs {
+class OsFs: public Fs {
    public:
-	SysFs(std::filesystem::path const& cwd)
+	OsFs(std::filesystem::path const& cwd)
 	    : cwd_(std::filesystem::canonical(cwd / "")) { }
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override {
@@ -113,11 +114,11 @@ class SysFs: public Fs {
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
-		return std::make_shared<SysFs>(this->normal_(p));
+		return std::make_shared<OsFs>(this->normal_(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
-		return std::make_shared<SysFs>(this->normal_(p));
+		return std::make_shared<OsFs>(this->normal_(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const& noexcept override {
@@ -255,6 +256,49 @@ class SysFs: public Fs {
 
 	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
 		return std::filesystem::is_empty(this->normal_(p), ec);
+	}
+
+   protected:
+	class Cursor: public Fs::Cursor {
+	   public:
+		Cursor(OsFs const& fs, std::filesystem::path const& p)
+		    : it_(fs.absolute(p))
+		    , entry_(fs) {
+			if(!this->is_end()) {
+				this->entry_.assign(this->it_->path());
+			}
+		}
+
+		directory_entry const& value() const override {
+			return this->entry_;
+		}
+
+		bool is_end() const override {
+			return this->it_ == std::filesystem::end(this->it_);
+		}
+
+		Cursor& increment() override {
+			if(this->is_end()) {
+				return *this;
+			}
+
+			this->it_++;
+			if(this->is_end()) {
+				this->entry_ = directory_entry();
+			} else {
+				this->entry_.assign(this->it_->path());
+			}
+			return *this;
+		}
+
+	   private:
+		std::filesystem::directory_iterator it_;
+
+		directory_entry entry_;
+	};
+
+	std::shared_ptr<Fs::Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
+		return std::make_shared<OsFs::Cursor>(*this, p);
 	}
 
    private:

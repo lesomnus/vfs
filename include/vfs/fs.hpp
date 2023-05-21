@@ -9,6 +9,9 @@
 
 namespace vfs {
 
+class directory_iterator;
+class directory_entry;
+
 class Fs {
    public:
 	virtual ~Fs() = default;
@@ -1006,6 +1009,39 @@ class Fs {
 	bool status_known(std::filesystem::file_status s) const noexcept {
 		return s.type() != std::filesystem::file_type::none;
 	}
+
+	directory_iterator iterate_directory(std::filesystem::path const& p) const;
+
+	directory_iterator iterate_directory() const;
+
+   protected:
+	friend directory_iterator;
+
+	class Cursor {
+	   public:
+		virtual ~Cursor() = default;
+
+		virtual directory_entry const& value() const = 0;
+
+		virtual bool is_end() const = 0;
+
+		virtual Cursor& increment() = 0;
+
+		Cursor& increment(std::error_code& ec) {
+			try {
+				this->increment();
+				ec.clear();
+			} catch(std::filesystem::filesystem_error const& err) {
+				ec = err.code();
+			}
+
+			return *this;
+		}
+	};
+
+	virtual std::shared_ptr<Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+
+	std::shared_ptr<Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 };
 
 /**

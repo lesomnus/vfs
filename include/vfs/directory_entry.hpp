@@ -3,6 +3,7 @@
 #include <compare>
 #include <filesystem>
 #include <memory>
+#include <system_error>
 #include <utility>
 
 #include "vfs/fs.hpp"

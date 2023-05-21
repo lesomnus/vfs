@@ -43,6 +43,9 @@ class File {
 
 class Directory: public File {
    public:
+	using iterator       = std::unordered_map<std::string, std::shared_ptr<File>>::iterator;
+	using const_iterator = std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator;
+
 	static constexpr auto DefaultPerms = std::filesystem::perms::all
 	    & ~std::filesystem::perms::group_write
 	    & ~std::filesystem::perms::others_write;

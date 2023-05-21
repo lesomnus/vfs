@@ -739,6 +739,34 @@ bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
 	return handle_error([&] { return this->is_empty(p); }, ec);
 }
 
+std::shared_ptr<Fs::Cursor> Vfs::iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
+	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
+	return std::make_shared<Vfs::Cursor>(*this, *d);
+}
+
+Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir)
+    : begin_(dir.typed_file()->files.begin())
+    , end_(dir.typed_file()->files.end()) {
+	if(this->begin_ != this->end_) {
+		this->entry_ = directory_entry(fs, dir.path() / this->begin_->first);
+	}
+}
+
+Vfs::Cursor& Vfs::Cursor::increment() {
+	if(this->is_end()) {
+		return *this;
+	}
+
+	this->begin_++;
+	if(this->is_end()) {
+		this->entry_ = directory_entry();
+	} else {
+		this->entry_.assign(this->begin_->first);
+	}
+
+	return *this;
+}
+
 }  // namespace impl
 
 std::shared_ptr<Fs> make_vfs(fs::path const& temp_dir) {
