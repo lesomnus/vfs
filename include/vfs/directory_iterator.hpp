@@ -25,8 +25,8 @@ class directory_iterator {
 	    : directory_iterator(fs, p, std::filesystem::directory_options::none) { }
 
 	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options)
-	    : cursor_(fs.iterate_directory_(p, options)) {
-		if(this->cursor_->is_end()) {
+	    : cursor_(fs.cursor_(p, options)) {
+		if(this->cursor_->at_end()) {
 			this->cursor_.reset();
 		}
 	}
@@ -35,7 +35,7 @@ class directory_iterator {
 	    : directory_iterator(fs, p, std::filesystem::directory_options::none, ec) { }
 
 	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options, std::error_code& ec)
-	    : cursor_(fs.iterate_directory_(p, options, ec)) { }
+	    : cursor_(fs.cursor_(p, options, ec)) { }
 
 	directory_iterator(directory_iterator const&) = default;
 	directory_iterator(directory_iterator&&)      = default;
@@ -52,14 +52,19 @@ class directory_iterator {
 	}
 
 	directory_iterator& operator++() {
-		if(this->cursor_->increment().is_end()) {
+		this->cursor_->increment();
+		if(this->cursor_->at_end()) {
 			this->cursor_.reset();
 		}
 		return *this;
 	}
 
 	directory_iterator& increment(std::error_code& ec) {
-		if(this->cursor_->increment(ec).is_end()) {
+		this->cursor_->increment(ec);
+		if(ec) {
+			return *this;
+		}
+		if(this->cursor_->at_end()) {
 			this->cursor_.reset();
 		}
 		return *this;
@@ -77,6 +82,89 @@ directory_iterator begin(directory_iterator iter) noexcept {
 
 directory_iterator end(directory_iterator) noexcept {
 	return directory_iterator();
+}
+
+class recursive_directory_iterator {
+   public:
+	recursive_directory_iterator() noexcept = default;
+
+	explicit recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p)
+	    : recursive_directory_iterator(fs, p, std::filesystem::directory_options::none) { }
+
+	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options)
+	    : cursor_(fs.recursive_cursor_(p, options)) { }
+
+	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options, std::error_code& ec)
+	    : cursor_(fs.recursive_cursor_(p, options, ec)) { }
+
+	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::error_code& ec)
+	    : recursive_directory_iterator(fs, p, std::filesystem::directory_options::none, ec) { }
+
+	recursive_directory_iterator(recursive_directory_iterator const& rhs)     = default;
+	recursive_directory_iterator(recursive_directory_iterator&& rhs) noexcept = default;
+
+	recursive_directory_iterator& operator=(recursive_directory_iterator const& other) = default;
+	recursive_directory_iterator& operator=(recursive_directory_iterator&& other)      = default;
+
+	directory_entry const& operator*() const {
+		return this->cursor_->value();
+	}
+
+	directory_entry const* operator->() const {
+		return &this->cursor_->value();
+	}
+
+	std::filesystem::directory_options options();
+
+	int depth() const {
+		return this->cursor_->depth();
+	}
+
+	bool recursion_pending() const {
+		return this->cursor_->recursion_pending();
+	}
+
+	recursive_directory_iterator& operator++() {
+		this->cursor_->increment();
+		if(this->cursor_->at_end()) {
+			this->cursor_.reset();
+		}
+		return *this;
+	}
+
+	recursive_directory_iterator& increment(std::error_code& ec) {
+		this->cursor_->increment(ec);
+		if(ec) {
+			return *this;
+		}
+		if(this->cursor_->at_end()) {
+			this->cursor_.reset();
+		}
+		return *this;
+	}
+
+	void pop() {
+		return this->cursor_->pop();
+	}
+
+	void pop(std::error_code& ec);
+
+	void disable_recursion_pending() {
+		this->cursor_->disable_recursion_pending();
+	}
+
+	bool operator==(recursive_directory_iterator const& rhs) const noexcept = default;
+
+   private:
+	std::shared_ptr<Fs::RecursiveCursor> cursor_;
+};
+
+recursive_directory_iterator begin(recursive_directory_iterator iter) noexcept {
+	return iter;
+}
+
+recursive_directory_iterator end(recursive_directory_iterator) noexcept {
+	return recursive_directory_iterator();
 }
 
 }  // namespace vfs

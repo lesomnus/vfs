@@ -1,6 +1,7 @@
 #include <concepts>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #include <catch2/catch_template_test_macros.hpp>
@@ -617,13 +618,60 @@ class TestFsBasic {
 			fs->open_write("bar");
 
 			std::unordered_set<std::string> filenames;
-
-			for(auto const entry: fs->iterate_directory()) {
+			for(auto const entry: fs->iterate_directory(".")) {
 				CHECK(entry.is_regular_file());
 				filenames.insert(entry.path().filename());
 			}
 
 			CHECK(std::unordered_set<std::string>{"foo", "bar"} == filenames);
+		}
+
+		SECTION("::iterate_directory_recursively") {
+			// /
+			// + foo/
+			//   + empty/
+			//   + a
+			//   + bar/
+			//     + b
+			//     + baz/
+			//       + c
+			//       + d
+			fs->create_directories("foo/bar/baz");
+			fs->create_directories("foo/empty");
+			fs->open_write("foo/a");
+			fs->open_write("foo/bar/b");
+			fs->open_write("foo/bar/baz/c");
+			fs->open_write("foo/bar/baz/d");
+
+			REQUIRE(fs->is_directory("foo/bar/baz"));
+			REQUIRE(fs->is_directory("foo/empty"));
+			REQUIRE(fs->is_regular_file("foo/a"));
+			REQUIRE(fs->is_regular_file("foo/bar/b"));
+			REQUIRE(fs->is_regular_file("foo/bar/baz/c"));
+
+			std::unordered_map<int, std::unordered_set<std::string>> filenames;
+
+			std::size_t cnt_actual = 0;
+			for(auto it = vfs::begin(fs->iterate_directory_recursively(".")); it != vfs::recursive_directory_iterator(); ++it) {
+				++cnt_actual;
+				auto const [_, ok] = filenames[it.depth()].insert(it->path().filename());
+				CHECK(ok);
+			}
+
+			std::unordered_map<int, std::unordered_set<std::string>> expected_list{
+			    {0,               {"foo"}},
+			    {1, {"empty", "a", "bar"}},
+			    {2,          {"b", "baz"}},
+			    {3,            {"c", "d"}},
+			};
+
+			std::size_t cnt_expected = 0;
+			for(auto const [depth, expected]: expected_list) {
+				cnt_expected += filenames[depth].size();
+				CHECK(expected == filenames[depth]);
+			}
+
+			CHECK(cnt_expected == cnt_actual);
 		}
 
 		fs->remove_all(sandbox);

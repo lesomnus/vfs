@@ -739,32 +739,128 @@ bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
 	return handle_error([&] { return this->is_empty(p); }, ec);
 }
 
-std::shared_ptr<Fs::Cursor> Vfs::iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
+std::shared_ptr<Fs::Cursor> Vfs::cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
 	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
-	return std::make_shared<Vfs::Cursor>(*this, *d);
+	return std::make_shared<Vfs::Cursor>(*this, *d, opts);
 }
 
-Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir)
-    : begin_(dir.typed_file()->files.begin())
-    , end_(dir.typed_file()->files.end()) {
-	if(this->begin_ != this->end_) {
-		this->entry_ = directory_entry(fs, dir.path() / this->begin_->first);
+std::shared_ptr<Fs::RecursiveCursor> Vfs::recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
+	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
+	return std::make_shared<Vfs::RecursiveCursor>(*this, *d, opts);
+}
+
+Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
+    : opts_(opts)
+    , frame_({
+          .begin = dir.typed_file()->files.begin(),
+          .end   = dir.typed_file()->files.end(),
+      }) {
+	if(this->frame_.begin != this->frame_.end) {
+		this->entry_ = directory_entry(fs, dir.path() / this->frame_.begin->first);
 	}
 }
 
-Vfs::Cursor& Vfs::Cursor::increment() {
-	if(this->is_end()) {
-		return *this;
+void Vfs::Cursor::increment() {
+	if(this->at_end()) {
+		return;
 	}
 
-	this->begin_++;
-	if(this->is_end()) {
+	this->frame_.begin++;
+	if(this->at_end()) {
 		this->entry_ = directory_entry();
 	} else {
-		this->entry_.assign(this->begin_->first);
+		this->entry_.assign(this->frame_.begin->first);
 	}
 
-	return *this;
+	return;
+}
+
+Vfs::RecursiveCursor::RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
+    : dir_(dir.shared_from_this()->must_be<DirectoryEntry const>())
+    , opts_(opts) {
+	auto const& files = dir.typed_file()->files;
+
+	Frame frame{
+	    .begin = files.begin(),
+	    .end   = files.end(),
+	};
+	if(!frame.at_end()) {
+		this->entry_ = directory_entry(fs, dir.path() / frame.begin->first);
+		this->frames_.push(std::move(frame));
+	}
+}
+
+void Vfs::RecursiveCursor::increment() {
+	do {
+		if(this->at_end()) {
+			return;
+		}
+
+		auto& frame = this->frames_.top();
+		if(frame.at_end()) {
+			// Step out current directory.
+			this->pop();
+			continue;
+		}
+
+		auto const curr_name = frame.begin->first;
+
+		// Current iterator must be incremented in any case.
+		frame.begin++;
+
+		if(auto d = std::dynamic_pointer_cast<DirectoryEntry const>(this->dir_->next(curr_name)); d && !d->typed_file()->files.empty()) {
+			// Step in the directory if directory is not empty.
+			auto const& files = d->typed_file()->files;
+			this->entry_.assign(d->path() / files.begin()->first);
+			this->frames_.push(Frame{
+			    .begin = files.begin(),
+			    .end   = files.end(),
+			});
+
+			this->dir_ = std::move(d);
+			return;
+		}
+
+		if(!frame.at_end()) {
+			this->entry_.replace_filename(frame.begin->first);
+			break;
+		}
+	} while(true);
+}
+
+bool Vfs::RecursiveCursor::recursion_pending() const {
+	if(this->at_end()) {
+		return false;
+	}
+
+	auto const& frame = this->frames_.top();
+	if(frame.at_end()) {
+		return false;
+	}
+
+	auto const next = this->dir_->next(frame.begin->first);
+	return std::reinterpret_pointer_cast<DirectoryEntry const>(next) != nullptr;
+}
+
+void Vfs::RecursiveCursor::pop() {
+	if(this->at_end()) {
+		return;
+	}
+
+	this->dir_ = this->dir_->prev();
+	this->entry_.assign(this->entry_.path().parent_path());
+	this->frames_.pop();
+
+	// Iterator on parent frame already incremented before step in the current directory.
+}
+
+void Vfs::RecursiveCursor::disable_recursion_pending() {
+	if(!this->recursion_pending()) {
+		return;
+	}
+
+	this->frames_.top().begin++;
+	this->frames_.push(Frame{});  // Causing step out; makes recursion_pending resulting `false`.
 }
 
 }  // namespace impl

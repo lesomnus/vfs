@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iosfwd>
 #include <memory>
+#include <stack>
 #include <system_error>
 
 #include "vfs/impl/entry.hpp"
@@ -163,28 +164,78 @@ class Vfs: public Fs {
 	}
 
    protected:
+	struct Frame {
+		bool at_end() const {
+			return this->begin == this->end;
+		}
+
+		Directory::const_iterator begin;
+		Directory::const_iterator end;
+	};
+
 	class Cursor: public Fs::Cursor {
 	   public:
-		Cursor(Vfs const& fs, DirectoryEntry const& dir);
+		Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
 
 		directory_entry const& value() const override {
 			return this->entry_;
 		}
 
-		bool is_end() const override {
-			return this->begin_ == this->end_;
+		bool at_end() const override {
+			return this->frame_.at_end();
 		}
 
-		Cursor& increment() override;
+		void increment() override;
 
 	   private:
-		Directory::const_iterator begin_;
-		Directory::const_iterator end_;
+		std::filesystem::directory_options opts_;
 
+		Frame           frame_;
 		directory_entry entry_;
 	};
 
-	std::shared_ptr<Fs::Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
+	class RecursiveCursor: public Fs::RecursiveCursor {
+	   public:
+		RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
+
+		directory_entry const& value() const override {
+			return this->entry_;
+		}
+
+		bool at_end() const override {
+			return this->frames_.empty();
+		}
+
+		void increment() override;
+
+		std::filesystem::directory_options options() override {
+			return this->opts_;
+		}
+
+		int depth() const override {
+			if(this->frames_.empty()) {
+				return 0;
+			}
+			return this->frames_.size() - 1;
+		}
+
+		bool recursion_pending() const override;
+
+		void pop() override;
+
+		void disable_recursion_pending() override;
+
+	   private:
+		std::shared_ptr<DirectoryEntry const> dir_;
+		std::filesystem::directory_options    opts_;
+
+		std::stack<Frame> frames_;
+		directory_entry   entry_;
+	};
+
+	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
+
+	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
    private:
 	std::shared_ptr<DirectoryEntry> root_;

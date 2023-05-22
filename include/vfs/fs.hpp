@@ -9,8 +9,9 @@
 
 namespace vfs {
 
-class directory_iterator;
 class directory_entry;
+class directory_iterator;
+class recursive_directory_iterator;
 
 class Fs {
    public:
@@ -1010,12 +1011,21 @@ class Fs {
 		return s.type() != std::filesystem::file_type::none;
 	}
 
-	directory_iterator iterate_directory(std::filesystem::path const& p) const;
+	directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
 
-	directory_iterator iterate_directory() const;
+	directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+
+	directory_iterator iterate_directory(std::filesystem::path const& p, std::error_code& ec) const;
+
+	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
+
+	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+
+	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::error_code& ec) const;
 
    protected:
 	friend directory_iterator;
+	friend recursive_directory_iterator;
 
 	class Cursor {
 	   public:
@@ -1023,25 +1033,35 @@ class Fs {
 
 		virtual directory_entry const& value() const = 0;
 
-		virtual bool is_end() const = 0;
+		virtual bool at_end() const = 0;
 
-		virtual Cursor& increment() = 0;
+		virtual void increment() = 0;
 
-		Cursor& increment(std::error_code& ec) {
-			try {
-				this->increment();
-				ec.clear();
-			} catch(std::filesystem::filesystem_error const& err) {
-				ec = err.code();
-			}
-
-			return *this;
-		}
+		void increment(std::error_code& ec);
 	};
 
-	virtual std::shared_ptr<Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+	class RecursiveCursor: public Cursor {
+	   public:
+		virtual std::filesystem::directory_options options() = 0;
 
-	std::shared_ptr<Cursor> iterate_directory_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+		virtual int depth() const = 0;
+
+		virtual bool recursion_pending() const = 0;
+
+		virtual void pop() = 0;
+
+		void pop(std::error_code& ec);
+
+		virtual void disable_recursion_pending() = 0;
+	};
+
+	virtual std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+
+	std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+
+	virtual std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+
+	std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 };
 
 /**
