@@ -59,16 +59,7 @@ class directory_iterator {
 		return *this;
 	}
 
-	directory_iterator& increment(std::error_code& ec) {
-		this->cursor_->increment(ec);
-		if(ec) {
-			return *this;
-		}
-		if(this->cursor_->at_end()) {
-			this->cursor_.reset();
-		}
-		return *this;
-	}
+	directory_iterator& increment(std::error_code& ec);
 
 	bool operator==(directory_iterator const& rhs) const noexcept = default;
 
@@ -132,19 +123,13 @@ class recursive_directory_iterator {
 		return *this;
 	}
 
-	recursive_directory_iterator& increment(std::error_code& ec) {
-		this->cursor_->increment(ec);
-		if(ec) {
-			return *this;
-		}
+	recursive_directory_iterator& increment(std::error_code& ec);
+
+	void pop() {
+		this->cursor_->pop();
 		if(this->cursor_->at_end()) {
 			this->cursor_.reset();
 		}
-		return *this;
-	}
-
-	void pop() {
-		return this->cursor_->pop();
 	}
 
 	void pop(std::error_code& ec);

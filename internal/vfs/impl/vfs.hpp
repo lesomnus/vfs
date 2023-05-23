@@ -171,6 +171,8 @@ class Vfs: public Fs {
 
 		Directory::const_iterator begin;
 		Directory::const_iterator end;
+
+		std::shared_ptr<DirectoryEntry const> dir;
 	};
 
 	class Cursor: public Fs::Cursor {
@@ -226,8 +228,7 @@ class Vfs: public Fs {
 		void disable_recursion_pending() override;
 
 	   private:
-		std::shared_ptr<DirectoryEntry const> dir_;
-		std::filesystem::directory_options    opts_;
+		std::filesystem::directory_options opts_;
 
 		std::stack<Frame> frames_;
 		directory_entry   entry_;

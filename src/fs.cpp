@@ -9,6 +9,16 @@
 
 namespace vfs {
 
+directory_iterator& directory_iterator::increment(std::error_code& ec) {
+	impl::handle_error([&] { this->operator++(); return 0; }, ec);
+	return *this;
+}
+
+recursive_directory_iterator& recursive_directory_iterator::increment(std::error_code& ec) {
+	impl::handle_error([&] { this->operator++(); return 0; }, ec);
+	return *this;
+}
+
 directory_iterator Fs::iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
 	return directory_iterator(*this, p, opts);
 }

@@ -284,15 +284,19 @@ class OsFs: public Fs {
 			}
 
 			this->it_++;
+			this->refresh_();
+			return;
+		}
+
+	   protected:
+		void refresh_() {
 			if(this->at_end()) {
 				this->entry_ = directory_entry();
 			} else {
 				this->entry_.assign(this->it_->path());
 			}
-			return;
 		}
 
-	   protected:
 		It                                 it_;
 		std::filesystem::directory_options opts_;
 
@@ -320,6 +324,7 @@ class OsFs: public Fs {
 
 		void pop() override {
 			this->it_.pop();
+			this->refresh_();
 		}
 
 		void disable_recursion_pending() override {

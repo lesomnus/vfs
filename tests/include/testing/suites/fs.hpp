@@ -1,4 +1,5 @@
 #include <concepts>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -627,51 +628,163 @@ class TestFsBasic {
 		}
 
 		SECTION("::iterate_directory_recursively") {
-			// /
-			// + foo/
-			//   + empty/
-			//   + a
-			//   + bar/
-			//     + b
-			//     + baz/
-			//       + c
-			//       + d
-			fs->create_directories("foo/bar/baz");
-			fs->create_directories("foo/empty");
-			fs->open_write("foo/a");
-			fs->open_write("foo/bar/b");
-			fs->open_write("foo/bar/baz/c");
-			fs->open_write("foo/bar/baz/d");
+			auto const check =
+			    [](vfs::recursive_directory_iterator                               it,
+			       std::unordered_map<int, std::unordered_set<std::string>> const& expected_list) {
+				    std::unordered_map<int, std::unordered_set<std::string>> filenames;
 
-			REQUIRE(fs->is_directory("foo/bar/baz"));
-			REQUIRE(fs->is_directory("foo/empty"));
-			REQUIRE(fs->is_regular_file("foo/a"));
-			REQUIRE(fs->is_regular_file("foo/bar/b"));
-			REQUIRE(fs->is_regular_file("foo/bar/baz/c"));
+				    std::size_t cnt_actual = 0;
+				    for(; it != vfs::recursive_directory_iterator(); ++it) {
+					    ++cnt_actual;
+					    auto const [_, ok] = filenames[it.depth()].insert(it->path().filename());
+					    CHECK(ok);
+				    }
 
-			std::unordered_map<int, std::unordered_set<std::string>> filenames;
+				    std::size_t cnt_expected = 0;
+				    for(auto const [depth, expected]: expected_list) {
+					    cnt_expected += filenames[depth].size();
+					    CHECK(expected == filenames[depth]);
+				    }
 
-			std::size_t cnt_actual = 0;
-			for(auto it = vfs::begin(fs->iterate_directory_recursively(".")); it != vfs::recursive_directory_iterator(); ++it) {
-				++cnt_actual;
-				auto const [_, ok] = filenames[it.depth()].insert(it->path().filename());
-				CHECK(ok);
+				    CHECK(cnt_expected == cnt_actual);
+			    };
+
+			SECTION("nested directories") {
+				// /
+				// + a
+				// + foo/
+				//   + empty/
+				//   + bar/
+				//     + b
+				//   + baz/
+				//     + qux/
+				fs->create_directories("foo/empty");
+				fs->create_directories("foo/bar");
+				fs->create_directories("foo/baz/qux");
+				fs->open_write("a");
+				fs->open_write("foo/bar/b");
+
+				REQUIRE(fs->is_directory("foo/empty"));
+				REQUIRE(fs->is_directory("foo/bar"));
+				REQUIRE(fs->is_directory("foo/baz/qux"));
+				REQUIRE(fs->is_regular_file("a"));
+				REQUIRE(fs->is_regular_file("foo/bar/b"));
+
+				check(
+				    fs->iterate_directory_recursively("."),
+				    {
+				        {0,            {"a", "foo"}},
+				        {1, {"empty", "bar", "baz"}},
+				        {2,            {"b", "qux"}},
+                });
 			}
 
-			std::unordered_map<int, std::unordered_set<std::string>> expected_list{
-			    {0,               {"foo"}},
-			    {1, {"empty", "a", "bar"}},
-			    {2,          {"b", "baz"}},
-			    {3,            {"c", "d"}},
-			};
+			SECTION("symbolic link to a directory") {
+				// /
+				// + foo/
+				//   + bar/
+				//     + baz/
+				// + qux -> foo/bar
+				fs->create_directories("foo/bar/baz");
+				fs->create_directory_symlink("foo/bar", "qux");
 
-			std::size_t cnt_expected = 0;
-			for(auto const [depth, expected]: expected_list) {
-				cnt_expected += filenames[depth].size();
-				CHECK(expected == filenames[depth]);
+				REQUIRE(fs->is_directory("foo/bar/baz"));
+				REQUIRE(fs->is_directory("qux/"));
+				REQUIRE(fs->is_symlink("qux"));
+
+				check(
+				    fs->iterate_directory_recursively(".", std::filesystem::directory_options::follow_directory_symlink),
+				    {
+				        {0, {"qux", "foo"}},
+				        {1, {"baz", "bar"}},
+				        {2,        {"baz"}},
+                });
 			}
 
-			CHECK(cnt_expected == cnt_actual);
+			SECTION("::recursion_pending") {
+				// /
+				// + foo/
+				//   + bar/
+				fs->create_directories("foo/bar");
+				REQUIRE(fs->is_directory("foo/bar"));
+
+				auto it = fs->iterate_directory_recursively(".");
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				CHECK("foo" == it->path().filename());
+				CHECK(it.recursion_pending());
+
+				++it;
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				CHECK("bar" == it->path().filename());
+				CHECK(it.recursion_pending());  // It returns true, even if the directory is empty.
+			}
+
+			SECTION("::disable_recursion_pending") {
+				// /
+				// + foo/
+				//   + bar/
+				fs->create_directories("foo/bar");
+				REQUIRE(fs->is_directory("foo/bar"));
+
+				auto it = fs->iterate_directory_recursively(".");
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				CHECK("foo" == it->path().filename());
+				CHECK(it.recursion_pending());
+				it.disable_recursion_pending();
+				CHECK(not it.recursion_pending());
+
+				++it;
+				CHECK(vfs::recursive_directory_iterator() == it);
+			}
+
+			SECTION("::pop") {
+				// /
+				// + a/
+				//   + foo/
+				//   + bar/
+				// + b/
+				//   + baz/
+				//   + qux/
+				fs->create_directories("a/foo");
+				fs->create_directories("a/bar");
+				fs->create_directories("b/baz");
+				fs->create_directories("b/qux");
+
+				REQUIRE(fs->is_directory("a/foo"));
+				REQUIRE(fs->is_directory("a/bar"));
+				REQUIRE(fs->is_directory("b/baz"));
+				REQUIRE(fs->is_directory("b/qux"));
+
+				std::unordered_set<std::string> filenames = {"a", "b"};
+				REQUIRE(2 == filenames.size());
+
+				auto it = fs->iterate_directory_recursively(".");
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				filenames.erase(it->path().filename());
+				REQUIRE(1 == filenames.size());
+				CHECK(0 == it.depth());
+				CHECK(it.recursion_pending());
+
+				++it;
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				CHECK(1 == it.depth());
+
+				it.pop();
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+				CHECK(0 == it.depth());
+				CHECK(*filenames.begin() == it->path().filename());
+			}
+
+			SECTION("iterator be end if pop on 0 depth") {
+				fs->create_directories("foo");
+				REQUIRE(fs->is_directory("foo"));
+
+				auto it = fs->iterate_directory_recursively(".");
+				REQUIRE(vfs::recursive_directory_iterator() != it);
+
+				it.pop();
+				CHECK(vfs::recursive_directory_iterator() == it);
+			}
 		}
 
 		fs->remove_all(sandbox);
