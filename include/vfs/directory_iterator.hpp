@@ -59,6 +59,12 @@ class directory_iterator {
 		return *this;
 	}
 
+	/**
+	 * @brief Advances the directory iterator to the next entry.
+	 * 
+	 * @param[out] ec Error code to store error status to.
+	 * @return `*this`.
+	 */
 	directory_iterator& increment(std::error_code& ec);
 
 	bool operator==(directory_iterator const& rhs) const noexcept = default;
@@ -105,12 +111,27 @@ class recursive_directory_iterator {
 		return &this->cursor_->value();
 	}
 
+	/**
+	 * @brief Retrieves the holding directory options.
+	 * 
+	 * @return Directory options.
+	 */
 	std::filesystem::directory_options options();
 
+	/**
+	 * @brief Retrieves the current depth level of the recursive directory iterator.
+	 * 
+	 * @return Current depth level.
+	 */
 	int depth() const {
 		return this->cursor_->depth();
 	}
 
+	/**
+	 * @brief Checks whether the recursion is pending.
+	 * 
+	 * @return `true` if the next increment will iterate into the currently referred directory, `false` otherwise.
+	 */
 	bool recursion_pending() const {
 		return this->cursor_->recursion_pending();
 	}
@@ -123,8 +144,18 @@ class recursive_directory_iterator {
 		return *this;
 	}
 
+	/**
+	 * @brief Advances the directory iterator to the next entry.
+	 * 
+	 * @param[out] ec Error code to store error status to.
+	 * @return `*this`.
+	 */
 	recursive_directory_iterator& increment(std::error_code& ec);
 
+	/**
+	 * @brief Moves the iterator one level up in the directory hierarchy.
+	 * 
+	 */
 	void pop() {
 		this->cursor_->pop();
 		if(this->cursor_->at_end()) {
@@ -132,8 +163,17 @@ class recursive_directory_iterator {
 		}
 	}
 
+	/**
+	 * @brief Moves the iterator one level up in the directory hierarchy.
+	 * 
+	 * @param[out] ec Error code to store error status to.
+	 */
 	void pop(std::error_code& ec);
 
+	/**
+	 * @brief Disables recursion until the next increment.
+	 * 
+	 */
 	void disable_recursion_pending() {
 		this->cursor_->disable_recursion_pending();
 	}

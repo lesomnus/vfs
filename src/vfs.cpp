@@ -218,55 +218,44 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 		throw fs::filesystem_error("not a regular file", src_f->path(), std::make_error_code(std::errc::invalid_argument));
 	}
 
-	auto const t = this->weakly_canonical(dst).lexically_normal();
-	auto [f, it] = this->navigate(t.begin(), t.end());
-
-	auto const distance = std::distance(it, t.end());
-	switch(distance) {
-	default: {  // v > 1;
-		throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::no_such_file_or_directory));
-	}
-	case 1: {
-		auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f);
-		if(!d) {
-			throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::not_a_directory));
-		}
-
+	auto const dst_p = this->weakly_canonical(dst);
+	auto const prev  = this->navigate(dst_p.parent_path() / "")->must_be<DirectoryEntry>();
+	if(!prev->typed_file()->files.contains(dst_p.filename())) {
+		// Destination does not exists.
 		auto dst = std::make_shared<TempFile>(0, 0);
-		*dst->open_write() << src_r->typed_file()->open_read()->rdbuf();
-		d->insert(std::make_pair(*it, std::move(dst)));
+
+		*dst = *src_r->typed_file();
+		prev->insert(std::make_pair(dst_p.filename(), std::move(dst)));
 		return true;
 	}
-	case 0: {
-		auto const r = std::dynamic_pointer_cast<RegularFileEntry>(f);
-		if(!r) {
-			throw fs::filesystem_error("destination not a regular file", f->path(), std::make_error_code(std::errc::invalid_argument));
-		}
 
-		if((opts & fs::copy_options::skip_existing) == fs::copy_options::skip_existing) {
+	auto const dst_f = prev->next(dst_p.filename());
+	auto const dst_r = std::dynamic_pointer_cast<RegularFileEntry>(dst_f);
+	if(!dst_r) {
+		throw fs::filesystem_error("destination not a regular file", dst_f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	if((opts & fs::copy_options::skip_existing) == fs::copy_options::skip_existing) {
+		return false;
+	}
+	if((opts & fs::copy_options::overwrite_existing) == fs::copy_options::overwrite_existing) {
+		*dst_r->typed_file() = *src_r->typed_file();
+		return true;
+	}
+	if((opts & fs::copy_options::update_existing) == fs::copy_options::update_existing) {
+		if(src_r->typed_file()->last_write_time() < dst_r->typed_file()->last_write_time()) {
 			return false;
-		} else if((opts & fs::copy_options::overwrite_existing) == fs::copy_options::overwrite_existing) {
-			auto& dst = *r->typed_file();
-			*dst.open_write() << src_r->typed_file()->open_read()->rdbuf();
-			dst.owner = src_r->owner();
-			dst.group = src_r->group();
-			dst.perms = src_r->perms();
-			return true;
-		} else if((opts & fs::copy_options::update_existing) == fs::copy_options::update_existing) {
-			throw std::runtime_error("not implemented");
-		} else {
-			throw fs::filesystem_error("", src_r->path(), f->path(), std::make_error_code(std::errc::file_exists));
 		}
 
-		// unreachable.
-	}
+		*dst_r->typed_file() = *src_r->typed_file();
+		return true;
 	}
 
-	// unreachable.
+	throw fs::filesystem_error("", src_r->path(), dst_f->path(), std::make_error_code(std::errc::file_exists));
 }
 
 bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
-	return handle_error([&] { return this->copy_file(src, dst, opts); }, ec);
+	return handle_error([&] { return this->copy_file(src, dst, opts); }, ec, false);
 }
 
 bool Vfs::create_directory(fs::path const& p) {
@@ -278,38 +267,22 @@ bool Vfs::create_directory(fs::path const& p, std::error_code& ec) noexcept {
 }
 
 bool Vfs::create_directory(fs::path const& p, fs::path const& attr) {
-	auto const t = this->weakly_canonical(p);
-	auto [f, it] = this->navigate(t.begin(), t.end());
+	auto const dst_p = this->weakly_canonical(p);
+	auto const prev  = this->navigate(p.parent_path() / "")->must_be<DirectoryEntry>();
 
-	switch(std::distance(it, t.end())) {
-	default: {  // v > 1
-		throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::no_such_file_or_directory));
-	}
-	case 0: {
-		if(std::dynamic_pointer_cast<DirectoryEntry>(f)) {
+	auto const& files = prev->typed_file()->files;
+	if(auto it = files.find(dst_p.filename()); it != files.end()) {
+		if(it->second->type() == fs::file_type::directory) {
 			return false;
 		} else {
-			throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::file_exists));
+			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
 		}
 	}
-	case 1: {
-		break;
-	}
-	}
 
-	auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f);
-	if(!d) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
-	}
+	auto const oth_d = this->navigate(attr / "")->must_be<DirectoryEntry>();
 
-	auto const other_f = this->navigate(attr);
-	auto const other_d = std::dynamic_pointer_cast<DirectoryEntry>(other_f);
-	if(!other_d) {
-		throw fs::filesystem_error("", other_f->path(), std::make_error_code(std::errc::not_a_directory));
-	}
-
-	d->insert(std::make_pair(*it, std::make_shared<Directory>(0, 0)));
-	d->perms(other_d->perms());
+	prev->insert(std::make_pair(dst_p.filename(), std::make_shared<Directory>(0, 0)));
+	prev->perms(oth_d->perms());
 
 	return true;
 }
@@ -330,7 +303,7 @@ bool Vfs::create_directories(fs::path const& p) {
 		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
 	}
 
-	auto prev = f->must_be<DirectoryEntry>()->typed_file();
+	auto prev = d->typed_file();
 	for(; it != t.end(); ++it) {
 		auto curr = std::make_shared<Directory>(0, 0);
 		prev->files.insert(std::make_pair(*it, curr));
@@ -357,27 +330,13 @@ void Vfs::create_hard_link(fs::path const& target, fs::path const& link, std::er
 }
 
 void Vfs::create_symlink(fs::path const& target, fs::path const& link) {
-	auto const t = this->weakly_canonical(link);
-	auto [f, it] = this->navigate(t.begin(), t.end());
-
-	switch(std::distance(it, t.end())) {
-	default: {  // v > 1
-		throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::no_such_file_or_directory));
-	}
-	case 0: {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::file_exists));
-	}
-	case 1: {
-		break;
-	}
+	auto const src_p = this->weakly_canonical(link);
+	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
+	if(prev->typed_file()->files.contains(src_p.filename())) {
+		throw fs::filesystem_error("", src_p, std::make_error_code(std::errc::file_exists));
 	}
 
-	auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f);
-	if(!d) {
-		throw fs::filesystem_error("", f->path(), *it, std::make_error_code(std::errc::not_a_directory));
-	}
-
-	d->insert(std::make_pair(*it, std::make_shared<Symlink>(target)));
+	prev->insert(std::make_pair(src_p.filename(), std::make_shared<Symlink>(target)));
 }
 
 void Vfs::create_symlink(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
@@ -393,22 +352,12 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const& {
-	auto f = this->navigate(p);
-	auto d = std::dynamic_pointer_cast<DirectoryEntry const>(f);
-	if(!d) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
-	}
-
+	auto d = this->navigate(p / "")->must_be<DirectoryEntry const>();
 	return std::shared_ptr<Vfs>(new Vfs(*this, const_cast<DirectoryEntry&>(*d)));
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) && {
-	auto f = this->navigate(p);
-	auto d = std::dynamic_pointer_cast<DirectoryEntry>(f);
-	if(!d) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
-	}
-
+	auto d = this->navigate(p / "")->must_be<DirectoryEntry>();
 	return std::shared_ptr<Vfs>(new Vfs(std::move(*this), *d));
 }
 
@@ -418,24 +367,6 @@ std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) co
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) && noexcept {
 	return handle_error([&] { return std::move(*this).current_path(p); }, ec);
-}
-
-std::uintmax_t Vfs::file_size(fs::path const& p) const {
-	auto const f = this->navigate(p)->follow_chain();
-	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
-	}
-
-	auto const r = std::dynamic_pointer_cast<RegularFileEntry const>(f);
-	if(!r) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
-	}
-
-	return r->typed_file()->size();
-}
-
-std::uintmax_t Vfs::file_size(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->file_size(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
@@ -463,6 +394,24 @@ bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2, std::error_code& ec) const noexcept {
 	return handle_error([&] { return this->equivalent(p1, p2); }, ec);
+}
+
+std::uintmax_t Vfs::file_size(fs::path const& p) const {
+	auto const f = this->navigate(p)->follow_chain();
+	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
+	}
+
+	auto const r = std::dynamic_pointer_cast<RegularFileEntry const>(f);
+	if(!r) {
+		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
+	}
+
+	return r->typed_file()->size();
+}
+
+std::uintmax_t Vfs::file_size(fs::path const& p, std::error_code& ec) const noexcept {
+	return handle_error([&] { return this->file_size(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
 std::uintmax_t Vfs::hard_link_count(fs::path const& p) const {
@@ -535,7 +484,7 @@ void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts) 
 
 	default: {
 		auto const v = static_cast<std::underlying_type_t<fs::perm_options>>(opts);
-		throw std::invalid_argument("unexpected value of \"fs::perm_options\": " + std::to_string(v));
+		throw std::invalid_argument("unexpected value of \"std::filesystem::perm_options\": " + std::to_string(v));
 	}
 	}
 }
@@ -545,8 +494,8 @@ void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts, 
 }
 
 fs::path Vfs::read_symlink(fs::path const& p) const {
-	auto       f = this->navigate(p);
-	auto const s = std::dynamic_pointer_cast<SymlinkEntry const>(std::move(f));
+	auto const f = this->navigate(p);
+	auto const s = std::dynamic_pointer_cast<SymlinkEntry const>(f);
 	if(!s) {
 		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
 	}
@@ -594,10 +543,10 @@ std::uintmax_t Vfs::remove_all(fs::path const& p) {
 }
 
 std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
-	return handle_error([&] { return this->remove(p); }, ec, static_cast<std::uintmax_t>(-1));
+	return handle_error([&] { return this->remove_all(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
-void Vfs::rename(std::filesystem::path const& src, std::filesystem::path const& dst) {
+void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	auto const src_f = this->navigate(src);
 
 	auto const dst_p = this->weakly_canonical(dst);
@@ -645,7 +594,7 @@ void Vfs::rename(std::filesystem::path const& src, std::filesystem::path const& 
 	src_f->prev()->typed_file()->files.erase(src_f->name());
 }
 
-void Vfs::rename(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept {
+void Vfs::rename(fs::path const& src, fs::path const& dst, std::error_code& ec) noexcept {
 	handle_error([&] { this->rename(src, dst); return 0; }, ec);
 }
 
@@ -739,17 +688,17 @@ bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
 	return handle_error([&] { return this->is_empty(p); }, ec);
 }
 
-std::shared_ptr<Fs::Cursor> Vfs::cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
+std::shared_ptr<Fs::Cursor> Vfs::cursor_(fs::path const& p, fs::directory_options opts) const {
 	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
 	return std::make_shared<Vfs::Cursor>(*this, *d, opts);
 }
 
-std::shared_ptr<Fs::RecursiveCursor> Vfs::recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
+std::shared_ptr<Fs::RecursiveCursor> Vfs::recursive_cursor_(fs::path const& p, fs::directory_options opts) const {
 	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
 	return std::make_shared<Vfs::RecursiveCursor>(*this, *d, opts);
 }
 
-Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
+Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir, fs::directory_options opts)
     : opts_(opts)
     , frame_({
           .begin = dir.typed_file()->files.begin(),
@@ -775,14 +724,14 @@ void Vfs::Cursor::increment() {
 	return;
 }
 
-Vfs::RecursiveCursor::RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
-    : dir_(dir.shared_from_this()->must_be<DirectoryEntry const>())
-    , opts_(opts) {
+Vfs::RecursiveCursor::RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, fs::directory_options opts)
+    : opts_(opts) {
 	auto const& files = dir.typed_file()->files;
 
 	Frame frame{
 	    .begin = files.begin(),
 	    .end   = files.end(),
+	    .dir   = dir.shared_from_this()->must_be<DirectoryEntry const>(),
 	};
 	if(!frame.at_end()) {
 		this->entry_ = directory_entry(fs, dir.path() / frame.begin->first);
@@ -791,41 +740,50 @@ Vfs::RecursiveCursor::RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, 
 }
 
 void Vfs::RecursiveCursor::increment() {
-	do {
-		if(this->at_end()) {
-			return;
-		}
-
+	bool stepped_out = false;
+	while(!this->at_end()) {
 		auto& frame = this->frames_.top();
 		if(frame.at_end()) {
 			// Step out current directory.
-			this->pop();
+			this->frames_.pop();
+			stepped_out = true;
 			continue;
 		}
 
-		auto const curr_name = frame.begin->first;
+		// When stepping out of a directory, `begin` points to the directory that was just stepped out from.
+		if(!stepped_out) {
+			auto curr_f = frame.dir->next(frame.begin->first);
 
-		// Current iterator must be incremented in any case.
+			if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
+				if(auto const s = std::dynamic_pointer_cast<SymlinkEntry const>(curr_f); s) {
+					curr_f = s->follow_chain();
+				}
+			}
+
+			if(auto d = std::dynamic_pointer_cast<DirectoryEntry const>(curr_f); d && !d->typed_file()->files.empty()) {
+				// Step in the directory if the directory is not empty.
+				auto const& files = d->typed_file()->files;
+
+				Frame frame{
+				    .begin = files.begin(),
+				    .end   = files.end(),
+				    .dir   = std::move(d),
+				};
+				this->entry_.assign(this->entry_.path() / frame.begin->first);
+				this->frames_.push(std::move(frame));
+
+				return;
+			}
+		}
+
 		frame.begin++;
-
-		if(auto d = std::dynamic_pointer_cast<DirectoryEntry const>(this->dir_->next(curr_name)); d && !d->typed_file()->files.empty()) {
-			// Step in the directory if directory is not empty.
-			auto const& files = d->typed_file()->files;
-			this->entry_.assign(d->path() / files.begin()->first);
-			this->frames_.push(Frame{
-			    .begin = files.begin(),
-			    .end   = files.end(),
-			});
-
-			this->dir_ = std::move(d);
-			return;
+		if(frame.at_end()) {
+			continue;
 		}
 
-		if(!frame.at_end()) {
-			this->entry_.replace_filename(frame.begin->first);
-			break;
-		}
-	} while(true);
+		this->entry_.replace_filename(frame.begin->first);
+		break;
+	}
 }
 
 bool Vfs::RecursiveCursor::recursion_pending() const {
@@ -835,23 +793,37 @@ bool Vfs::RecursiveCursor::recursion_pending() const {
 
 	auto const& frame = this->frames_.top();
 	if(frame.at_end()) {
+		// Increment will step out.
 		return false;
 	}
 
-	auto const next = this->dir_->next(frame.begin->first);
-	return std::reinterpret_pointer_cast<DirectoryEntry const>(next) != nullptr;
+	auto const curr = frame.dir->next(frame.begin->first);
+	return std::reinterpret_pointer_cast<DirectoryEntry const>(curr) != nullptr;
 }
 
 void Vfs::RecursiveCursor::pop() {
-	if(this->at_end()) {
-		return;
+	fs::path p = this->entry_.path();
+	while(!this->at_end()) {
+		this->frames_.pop();
+		if(this->at_end()) {
+			return;
+		}
+
+		p = p.parent_path();
+
+		auto& frame = this->frames_.top();
+		if(frame.at_end()) {
+			continue;
+		}
+
+		frame.begin++;
+		if(frame.at_end()) {
+			continue;
+		}
+
+		this->entry_.assign(p.replace_filename(frame.begin->first));
+		break;
 	}
-
-	this->dir_ = this->dir_->prev();
-	this->entry_.assign(this->entry_.path().parent_path());
-	this->frames_.pop();
-
-	// Iterator on parent frame already incremented before step in the current directory.
 }
 
 void Vfs::RecursiveCursor::disable_recursion_pending() {

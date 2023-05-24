@@ -22,6 +22,15 @@ std::uintmax_t Directory::count() const {
 	return cnt;
 }
 
+RegularFile& RegularFile::operator=(RegularFile const& other) {
+	*this->open_write() << other.open_read()->rdbuf();
+	this->owner = other.owner;
+	this->group = other.group;
+	this->perms = other.perms;
+
+	return *this;
+}
+
 std::shared_ptr<std::istream> EmptyFile::open_read(std::ios_base::openmode mode) const {
 	return std::make_shared<std::ifstream>();
 }

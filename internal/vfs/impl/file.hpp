@@ -86,6 +86,8 @@ class RegularFile: public File {
 	RegularFile(RegularFile const& other) = default;
 	RegularFile(RegularFile&& other)      = default;
 
+	RegularFile& operator=(RegularFile const& other);
+
 	std::filesystem::file_type type() const final {
 		return std::filesystem::file_type::regular;
 	}
@@ -138,6 +140,11 @@ class TempFile: public RegularFile {
 	TempFile(TempFile&& other);
 
 	~TempFile();
+
+	TempFile& operator=(RegularFile const& other) {
+		RegularFile::operator=(other);
+		return *this;
+	}
 
 	std::uintmax_t size() const override {
 		return std::filesystem::file_size(this->sys_path_);

@@ -222,7 +222,7 @@ class TestFsBasic {
 				*fs->open_write("bar") << "dolor sit amet";
 				REQUIRE(fs->is_regular_file("bar"));
 
-				SECTION("with skip") {
+				SECTION("skip existing") {
 					fs->copy_file("foo", "bar", copy_options::skip_existing);
 
 					std::string content;
@@ -230,7 +230,7 @@ class TestFsBasic {
 					CHECK("dolor sit amet" == content);
 				}
 
-				SECTION("with overwrite") {
+				SECTION("overwrite existing") {
 					fs->copy_file("foo", "bar", copy_options::overwrite_existing);
 
 					std::string content;
@@ -238,8 +238,24 @@ class TestFsBasic {
 					CHECK("Lorem ipsum" == content);
 				}
 
-				SECTION("with update") {
-					// TODO:
+				SECTION("update existing") {
+					fs->last_write_time("bar", fs->last_write_time("foo") + std::chrono::milliseconds(100));
+					REQUIRE(fs->last_write_time("foo") < fs->last_write_time("bar"));
+
+					CHECK(not fs->copy_file("foo", "bar", copy_options::update_existing));
+
+					std::string content;
+					std::getline(*fs->open_read("foo"), content);
+					CHECK("Lorem ipsum" == content);
+					std::getline(*fs->open_read("bar"), content);
+					CHECK("dolor sit amet" == content);
+
+					CHECK(fs->copy_file("bar", "foo", copy_options::update_existing));
+
+					std::getline(*fs->open_read("foo"), content);
+					CHECK("dolor sit amet" == content);
+					std::getline(*fs->open_read("bar"), content);
+					CHECK("dolor sit amet" == content);
 				}
 			}
 		}
@@ -449,7 +465,18 @@ class TestFsBasic {
 			}
 		}
 
-		SECTION("hard_link_count") {
+		SECTION("::file_size") {
+			constexpr char quote[] = "Lorem ipsum";
+			*fs->open_write("foo") << quote;
+
+			CHECK(sizeof(quote) - 1 == fs->file_size("foo"));
+
+			std::error_code ec;
+			CHECK(static_cast<std::uintmax_t>(-1) == fs->file_size("bar", ec));
+			CHECK(std::errc::no_such_file_or_directory == ec);
+		}
+
+		SECTION("::hard_link_count") {
 			*fs->open_write("foo");
 			REQUIRE(fs->is_regular_file("foo"));
 
