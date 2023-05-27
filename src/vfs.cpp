@@ -27,23 +27,47 @@ namespace vfs {
 
 namespace impl {
 
-Vfs::Vfs(fs::path const& temp_dir)
-    : root_(DirectoryEntry::make_root())
-    , temp_((fs::path("/") / temp_dir).lexically_normal())
-    , cwd_(this->root_) {
-	auto d = Directory::make_temp();
-	this->create_directories(this->temp_);
+Vfs::Vfs(
+    std::shared_ptr<DirectoryEntry> root,
+    std::shared_ptr<DirectoryEntry> cwd,
+    fs::path                        temp_dir)
+    : root_(std::move(root))
+    , cwd_(cwd ? std::move(cwd) : this->root_)
+    , temp_(std::move(temp_dir)) { }
+
+Vfs::Vfs(
+    std::shared_ptr<DirectoryEntry> root,
+    fs::path const&                 temp_dir)
+    : Vfs(root, nullptr, "") {
+	if(temp_dir.empty()) {
+		return;
+	}
+
+	this->temp_ = (fs::path("/") / temp_dir).lexically_normal();
+
+	auto const p = this->temp_.parent_path();
+	if(this->create_directories(p)) {
+		return;
+	}
+
+	auto const d = this->navigate(p)->must_be<DirectoryEntry>();
+	d->insert(std::make_pair(this->temp_.filename(), Directory::make_temp()));
 }
 
+Vfs::Vfs(fs::path const& temp_dir)
+    : Vfs(DirectoryEntry::make_root(), temp_dir) { }
+
 Vfs::Vfs(Vfs const& other, DirectoryEntry& wd)
-    : root_(other.root_)
-    , temp_(other.temp_)
-    , cwd_(wd.shared_from_this()->must_be<DirectoryEntry>()) { }
+    : Vfs(
+        other.root_,
+        wd.shared_from_this()->must_be<DirectoryEntry>(),
+        other.temp_) { }
 
 Vfs::Vfs(Vfs&& other, DirectoryEntry& wd)
-    : root_(std::move(other.root_))
-    , temp_(std::move(other.temp_))
-    , cwd_(wd.shared_from_this()->must_be<DirectoryEntry>()) { }
+    : Vfs(
+        std::move(other.root_),
+        wd.shared_from_this()->must_be<DirectoryEntry>(),
+        std::move(other.temp_)) { }
 
 std::shared_ptr<std::istream> Vfs::open_read(fs::path const& filename, std::ios_base::openmode mode) const {
 	constexpr auto fail = [] {
@@ -109,6 +133,13 @@ std::shared_ptr<std::ostream> Vfs::open_write(fs::path const& filename, std::ios
 	auto stream = r->open_write(mode);
 	d->insert(std::make_pair(name.filename(), std::move(r)));
 	return stream;
+}
+
+std::shared_ptr<Fs const> Vfs::change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const {
+	auto d    = this->navigate(p / "")->must_be<DirectoryEntry const>();
+	auto root = DirectoryEntry::make("/", nullptr, std::const_pointer_cast<Directory>(d->typed_file()));
+
+	return std::make_shared<Vfs>(root, nullptr, temp_dir);
 }
 
 fs::path Vfs::canonical(fs::path const& p) const {
@@ -353,12 +384,12 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const& {
 	auto d = this->navigate(p / "")->must_be<DirectoryEntry const>();
-	return std::shared_ptr<Vfs>(new Vfs(*this, const_cast<DirectoryEntry&>(*d)));
+	return std::make_shared<Vfs>(*this, const_cast<DirectoryEntry&>(*d));
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) && {
 	auto d = this->navigate(p / "")->must_be<DirectoryEntry>();
-	return std::shared_ptr<Vfs>(new Vfs(std::move(*this), *d));
+	return std::make_shared<Vfs>(std::move(*this), *d);
 }
 
 std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const& noexcept {
@@ -665,6 +696,10 @@ fs::file_status Vfs::symlink_status(fs::path const& p, std::error_code& ec) cons
 }
 
 fs::path Vfs::temp_directory_path() const {
+	if(this->temp_.empty()) {
+		throw fs::filesystem_error("", std::make_error_code(std::errc::no_such_file_or_directory));
+	}
+
 	return this->temp_;
 }
 

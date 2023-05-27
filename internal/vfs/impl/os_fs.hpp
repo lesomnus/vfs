@@ -27,6 +27,14 @@ class OsFs: public Fs {
 		return std::make_shared<std::ofstream>(this->normal_(filename), mode);
 	}
 
+	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") const override {
+		throw std::runtime_error("not implemented");
+	}
+
+	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") override {
+		throw std::runtime_error("not implemented");
+	}
+
 	std::filesystem::path canonical(std::filesystem::path const& p) const override {
 		return std::filesystem::canonical(this->normal_(p));
 	}
@@ -259,6 +267,10 @@ class OsFs: public Fs {
 	}
 
    protected:
+	virtual std::filesystem::path normal_(std::filesystem::path const& p) const {
+		return p.is_absolute() ? p : (this->cwd_ / p);
+	}
+
 	template<typename C, typename It>
 	class BasicCursor: public C {
 	   public:
@@ -341,10 +353,6 @@ class OsFs: public Fs {
 	}
 
    private:
-	std::filesystem::path normal_(std::filesystem::path const& p) const {
-		return p.is_absolute() ? p : (this->cwd_ / p);
-	}
-
 	std::filesystem::path cwd_;
 };
 

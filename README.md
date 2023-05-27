@@ -40,9 +40,9 @@ int main(int argc, char* argv[]) {
 
 ### Utilities
 - 🏗️ `vfs::copy` Copies a file between file systems.
-- 🏗️ `vfs::chroot` Changes the root directory.
 - 🏗️ `vfs::with_user` Switches user.
 - 🏗️ `vfs::with_mem_storage` Stores files in the memory.
+- 🏗️ `vfs::Fs::change_root` Changes the root directory.
 
 
 ## About Current Working Directory

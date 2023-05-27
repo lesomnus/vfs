@@ -66,6 +66,21 @@ class TestFsBasic {
 			}
 		}
 
+		SECTION("::change_root") {
+			SECTION("changed filesystem cannot access parent directory") {
+				fs->create_directory("foo");
+				REQUIRE(fs->is_directory("foo"));
+
+				auto foo = fs->change_root("foo");
+				CHECK("/" == foo->current_path());
+				CHECK("/" == foo->canonical(".."));
+
+				foo->create_directory("bar");
+				CHECK(foo->is_directory("bar"));
+				CHECK(fs->is_directory("foo/bar"));
+			}
+		}
+
 		SECTION("::canonical") {
 			// /
 			// + /foo *

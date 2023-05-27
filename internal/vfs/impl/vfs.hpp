@@ -17,6 +17,15 @@ namespace impl {
 
 class Vfs: public Fs {
    public:
+	Vfs(
+	    std::shared_ptr<DirectoryEntry> root,
+	    std::shared_ptr<DirectoryEntry> cwd,
+	    std::filesystem::path           temp_dir);
+
+	Vfs(
+	    std::shared_ptr<DirectoryEntry> root,
+	    std::filesystem::path const&    temp_dir);
+
 	Vfs(std::filesystem::path const& temp_dir);
 
 	Vfs(Vfs const& other, DirectoryEntry& wd);
@@ -24,6 +33,12 @@ class Vfs: public Fs {
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override;
 	std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) override;
+
+	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
+
+	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
+		return std::const_pointer_cast<Fs>(static_cast<Fs const*>(this)->change_root(p, temp_dir));
+	}
 
 	std::filesystem::path canonical(std::filesystem::path const& p) const override;
 	std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override;
