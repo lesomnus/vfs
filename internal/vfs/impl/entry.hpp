@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/storage.hpp"
 
 namespace vfs {
 namespace impl {
@@ -26,49 +27,16 @@ class Entry: public std::enable_shared_from_this<Entry> {
 		this->name_ = std::move(name);
 	}
 
-	std::intmax_t owner() const {
-		return this->file_->owner;
-	}
-
-	void owner(std::intmax_t id) {
-		this->file_->owner = id;
-	}
-
-	std::intmax_t group() const {
-		return this->file_->group;
-	}
-
-	void group(std::intmax_t id) {
-		this->file_->group = id;
-	}
-
-	std::filesystem::perms perms() const {
-		return this->file_->perms;
-	}
-
-	void perms(std::filesystem::perms perms) {
-		this->file_->perms = perms;
-	}
-
-	std::filesystem::file_type type() const {
-		return this->file_->type();
-	}
-
 	bool holds(std::shared_ptr<File> const& file) const {
-		return this->file_ == file;
+		return this->file() == file;
 	}
 
 	bool holds_same_file_with(Entry const& other) const {
-		return this->file_ == other.file_;
+		return this->file() == other.file();
 	}
 
-	std::shared_ptr<File const> file() const {
-		return this->file_;
-	}
-
-	std::shared_ptr<File> const& file() {
-		return this->file_;
-	}
+	virtual std::shared_ptr<File const> file() const = 0;
+	virtual std::shared_ptr<File>       file()       = 0;
 
 	virtual std::shared_ptr<DirectoryEntry const> prev() const;
 
@@ -118,13 +86,11 @@ class Entry: public std::enable_shared_from_this<Entry> {
 	std::string name_;
 
    protected:
-	Entry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<File> file)
+	Entry(std::string name, std::shared_ptr<DirectoryEntry> prev)
 	    : name_(std::move(name))
-	    , prev_(std::move(prev))
-	    , file_(std::move(file)) { }
+	    , prev_(std::move(prev)) { }
 
 	std::shared_ptr<DirectoryEntry> prev_;
-	std::shared_ptr<File>           file_;
 };
 
 template<std::derived_from<File> F>
@@ -140,6 +106,14 @@ class TypedEntry: public Entry {
    public:
 	using FileType = F;
 
+	std::shared_ptr<File const> file() const override {
+		return std::static_pointer_cast<File const>(this->file_);
+	}
+
+	std::shared_ptr<File> file() override {
+		return std::static_pointer_cast<File>(this->file_);
+	}
+
 	std::shared_ptr<F const> typed_file() const {
 		return std::static_pointer_cast<F const>(this->file_);
 	}
@@ -149,11 +123,14 @@ class TypedEntry: public Entry {
 	}
 
    protected:
-	TypedEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<File> file)
-	    : Entry(std::move(name), std::move(prev), std::move(file)) { }
+	TypedEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<F> file)
+	    : Entry(std::move(name), std::move(prev))
+	    , file_(std::move(file)) { }
 
 	using Entry::follow;
 	using Entry::follow_chain;
+
+	std::shared_ptr<F> file_;
 };
 
 class RegularFileEntry: public TypedEntry<RegularFile> {
@@ -186,20 +163,20 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return this->prev_ == nullptr;
 	}
 
-	std::shared_ptr<Entry const> next(std::string const& name) const;
+	std::shared_ptr<Entry const> next(std::string name) const;
 
-	std::shared_ptr<Entry> next(std::string const& name) {
-		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->next(name));
+	std::shared_ptr<Entry> next(std::string name) {
+		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->next(std::move(name)));
 	}
 
 	template<std::derived_from<Entry> E>
-	std::shared_ptr<E const> next(std::string const& name) const {
-		return this->next(name)->must_be<E>();
+	std::shared_ptr<E const> next(std::string name) const {
+		return this->next(std::move(name))->must_be<E>();
 	}
 
 	template<std::derived_from<Entry> E>
-	std::shared_ptr<E> next(std::string const& name) {
-		return this->next(name)->must_be<E>();
+	std::shared_ptr<E> next(std::string name) {
+		return this->next(std::move(name))->must_be<E>();
 	}
 
 	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
@@ -229,7 +206,7 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p, ec));
 	}
 
-	void insert(std::pair<std::string, std::shared_ptr<File>> entry);
+	void insert(std::string const& name, std::shared_ptr<File> file);
 
 	std::shared_ptr<Entry> next_insert(std::string name, std::shared_ptr<File> file);
 
@@ -238,8 +215,12 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::static_pointer_cast<EntryTypeOf<F>>(this->next_insert(std::move(name), std::static_pointer_cast<File>(std::move(file))));
 	}
 
+	std::shared_ptr<Storage> resolve_storage() const;
+
+	std::shared_ptr<Storage> storage;
+
    protected:
-	DirectoryEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<File> file)
+	DirectoryEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Directory> file)
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 

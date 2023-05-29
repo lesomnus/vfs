@@ -27,11 +27,11 @@ class OsFs: public Fs {
 		return std::make_shared<std::ofstream>(this->normal_(filename), mode);
 	}
 
-	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") const override {
+	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override {
 		throw std::runtime_error("not implemented");
 	}
 
-	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") override {
+	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
 		throw std::runtime_error("not implemented");
 	}
 

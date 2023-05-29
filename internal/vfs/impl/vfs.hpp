@@ -179,17 +179,6 @@ class Vfs: public Fs {
 	}
 
    protected:
-	struct Frame {
-		bool at_end() const {
-			return this->begin == this->end;
-		}
-
-		Directory::const_iterator begin;
-		Directory::const_iterator end;
-
-		std::shared_ptr<DirectoryEntry const> dir;
-	};
-
 	class Cursor: public Fs::Cursor {
 	   public:
 		Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
@@ -199,15 +188,15 @@ class Vfs: public Fs {
 		}
 
 		bool at_end() const override {
-			return this->frame_.at_end();
+			return this->cursor_->at_end();
 		}
 
 		void increment() override;
 
 	   private:
+		std::shared_ptr<Directory::Cursor> cursor_;
 		std::filesystem::directory_options opts_;
 
-		Frame           frame_;
 		directory_entry entry_;
 	};
 
@@ -220,7 +209,7 @@ class Vfs: public Fs {
 		}
 
 		bool at_end() const override {
-			return this->frames_.empty();
+			return this->cursors_.empty();
 		}
 
 		void increment() override;
@@ -230,10 +219,10 @@ class Vfs: public Fs {
 		}
 
 		int depth() const override {
-			if(this->frames_.empty()) {
+			if(this->cursors_.empty()) {
 				return 0;
 			}
-			return this->frames_.size() - 1;
+			return this->cursors_.size() - 1;
 		}
 
 		bool recursion_pending() const override;
@@ -243,10 +232,11 @@ class Vfs: public Fs {
 		void disable_recursion_pending() override;
 
 	   private:
-		std::filesystem::directory_options opts_;
+		std::shared_ptr<DirectoryEntry>                cwd_;
+		std::stack<std::shared_ptr<Directory::Cursor>> cursors_;
+		std::filesystem::directory_options             opts_;
 
-		std::stack<Frame> frames_;
-		directory_entry   entry_;
+		directory_entry entry_;
 	};
 
 	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/vfile.hpp"
 
 namespace fs = std::filesystem;
 
@@ -26,11 +27,11 @@ inline std::shared_ptr<Entry> make_entry<File>(std::string name, std::shared_ptr
 
 	switch(file->type()) {
 	case file_type::regular:
-		return EntryTypeOf<RegularFile>::make(std::move(name), std::move(prev), std::static_pointer_cast<RegularFile>(std::move(file)));
+		return EntryTypeOf<RegularFile>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(file)));
 	case file_type::directory:
-		return EntryTypeOf<Directory>::make(std::move(name), std::move(prev), std::static_pointer_cast<Directory>(std::move(file)));
+		return EntryTypeOf<Directory>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(file)));
 	case file_type::symlink:
-		return EntryTypeOf<Symlink>::make(std::move(name), std::move(prev), std::static_pointer_cast<Symlink>(std::move(file)));
+		return EntryTypeOf<Symlink>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(file)));
 
 	default:
 		throw std::logic_error("unexpected type of file");
@@ -72,7 +73,7 @@ std::filesystem::path Entry::path() const {
 }
 
 std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
-	auto d = std::make_shared<Directory>(0, 0, Directory::DefaultPerms);
+	auto d = std::make_shared<VDirectory>(0, 0);
 	return DirectoryEntry::make("/", nullptr, std::move(d));
 }
 
@@ -84,14 +85,13 @@ std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
 	}
 }
 
-std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const {
-	auto const& files = this->typed_file()->files;
-	auto const  it    = files.find(name);
-	if(it == files.end()) {
+std::shared_ptr<Entry const> DirectoryEntry::next(std::string name) const {
+	auto next = this->typed_file()->next(name);
+	if(next == nullptr) {
 		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::no_such_file_or_directory));
 	}
 
-	return make_entry(name, std::static_pointer_cast<DirectoryEntry const>(this->shared_from_this()), it->second);
+	return make_entry(std::move(name), this->shared_from_this()->must_be<DirectoryEntry>(), std::move(next));
 }
 
 void navigate(
@@ -130,13 +130,7 @@ void navigate(
 			continue;
 		}
 
-		auto const& files = d->typed_file()->files;
-		auto const  it    = files.find(name);
-		if(it == files.end()) {
-			throw fs::filesystem_error("", d->path(), name, std::make_error_code(std::errc::no_such_file_or_directory));
-		}
-
-		entry = make_entry(name, d, it->second);
+		entry = d->next(name);
 	}
 }
 
@@ -160,17 +154,28 @@ std::shared_ptr<Entry const> DirectoryEntry::navigate(std::filesystem::path cons
 	return entry;
 }
 
-void DirectoryEntry::insert(std::pair<std::string, std::shared_ptr<File>> entry) {
-	auto [it, ok] = this->typed_file()->files.insert(std::move(entry));
+void DirectoryEntry::insert(std::string const& name, std::shared_ptr<File> file) {
+	auto const ok = this->typed_file()->insert(name, std::move(file));
 	if(!ok) {
-		throw fs::filesystem_error("", this->path(), it->first, std::make_error_code(std::errc::file_exists));
+		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
 	}
 }
 
 std::shared_ptr<Entry> DirectoryEntry::next_insert(std::string name, std::shared_ptr<File> file) {
-	this->insert(std::make_pair(name, file));
+	this->insert(name, std::move(file));
 
 	return impl::make_entry(std::move(name), std::static_pointer_cast<DirectoryEntry>(this->shared_from_this()), std::move(file));
+}
+
+std::shared_ptr<Storage> DirectoryEntry::resolve_storage() const {
+	if(this->storage) {
+		return this->storage;
+	} else if(this->is_root()) {
+		// Fallback storage.
+		return std::make_shared<VStorage>();
+	} else {
+		return this->prev()->resolve_storage();
+	}
 }
 
 std::shared_ptr<Entry const> SymlinkEntry::follow() const {
