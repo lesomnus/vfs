@@ -14,37 +14,6 @@ namespace fs = std::filesystem;
 namespace vfs {
 namespace impl {
 
-namespace {
-
-template<std::derived_from<File> F>
-inline std::shared_ptr<EntryTypeOf<F>> make_entry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<F> file) {
-	return EntryTypeOf<F>::make(std::move(name), std::move(prev), std::move(file));
-}
-
-template<>
-inline std::shared_ptr<Entry> make_entry<File>(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<File> file) {
-	using fs::file_type;
-
-	switch(file->type()) {
-	case file_type::regular:
-		return EntryTypeOf<RegularFile>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(file)));
-	case file_type::directory:
-		return EntryTypeOf<Directory>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(file)));
-	case file_type::symlink:
-		return EntryTypeOf<Symlink>::make(std::move(name), std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(file)));
-
-	default:
-		throw std::logic_error("unexpected type of file");
-	}
-}
-
-template<std::derived_from<File> F>
-inline std::shared_ptr<Entry> make_entry(std::string name, std::shared_ptr<DirectoryEntry const> prev, std::shared_ptr<F> file) {
-	return make_entry(std::move(name), std::const_pointer_cast<DirectoryEntry>(std::move(prev)), std::move(file));
-}
-
-}  // namespace
-
 std::shared_ptr<DirectoryEntry const> Entry::prev() const {
 	if(this->prev_) {
 		return this->prev_;
@@ -85,13 +54,13 @@ std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
 	}
 }
 
-std::shared_ptr<Entry const> DirectoryEntry::next(std::string name) const {
-	auto next = this->typed_file()->next(name);
+std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const {
+	auto next = this->typed_file()->next_entry(name, const_cast<DirectoryEntry*>(this)->shared_from_this()->must_be<DirectoryEntry>());
 	if(next == nullptr) {
 		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::no_such_file_or_directory));
 	}
 
-	return make_entry(std::move(name), this->shared_from_this()->must_be<DirectoryEntry>(), std::move(next));
+	return next;
 }
 
 void navigate(
@@ -159,12 +128,6 @@ void DirectoryEntry::insert(std::string const& name, std::shared_ptr<File> file)
 	if(!ok) {
 		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
 	}
-}
-
-std::shared_ptr<Entry> DirectoryEntry::next_insert(std::string name, std::shared_ptr<File> file) {
-	this->insert(name, std::move(file));
-
-	return impl::make_entry(std::move(name), std::static_pointer_cast<DirectoryEntry>(this->shared_from_this()), std::move(file));
 }
 
 std::shared_ptr<Storage> DirectoryEntry::resolve_storage() const {

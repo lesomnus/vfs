@@ -30,6 +30,17 @@ class TestStorage {
 			CHECK(d->end() == d->begin());
 		}
 
+		SECTION("iterate nested empty directory") {
+			auto foo = storage->make_directory();
+			auto bar = storage->make_directory();
+
+			foo->insert("bar", bar);
+			for(auto const& [name, file]: *foo) {
+				CHECK("bar" == name);
+				CHECK(bar == file);
+			}
+		}
+
 		SECTION("iterate directory") {
 			auto d = storage->make_directory();
 			d->insert("a", storage->make_regular_file());

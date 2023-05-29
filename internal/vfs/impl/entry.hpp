@@ -163,20 +163,10 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return this->prev_ == nullptr;
 	}
 
-	std::shared_ptr<Entry const> next(std::string name) const;
+	std::shared_ptr<Entry const> next(std::string const& name) const;
 
-	std::shared_ptr<Entry> next(std::string name) {
-		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->next(std::move(name)));
-	}
-
-	template<std::derived_from<Entry> E>
-	std::shared_ptr<E const> next(std::string name) const {
-		return this->next(std::move(name))->must_be<E>();
-	}
-
-	template<std::derived_from<Entry> E>
-	std::shared_ptr<E> next(std::string name) {
-		return this->next(std::move(name))->must_be<E>();
+	std::shared_ptr<Entry> next(std::string const& name) {
+		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->next(name));
 	}
 
 	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
@@ -207,13 +197,6 @@ class DirectoryEntry: public TypedEntry<Directory> {
 	}
 
 	void insert(std::string const& name, std::shared_ptr<File> file);
-
-	std::shared_ptr<Entry> next_insert(std::string name, std::shared_ptr<File> file);
-
-	template<std::derived_from<File> F>
-	std::shared_ptr<EntryTypeOf<F>> next_insert(std::string name, std::shared_ptr<F> file) {
-		return std::static_pointer_cast<EntryTypeOf<F>>(this->next_insert(std::move(name), std::static_pointer_cast<File>(std::move(file))));
-	}
 
 	std::shared_ptr<Storage> resolve_storage() const;
 

@@ -78,7 +78,7 @@ class NilFile
 
 class VRegularFile
     : public VFile
-    , public RegularFile {
+    , public TempFile {
    public:
 	static std::filesystem::path temp_directory() {
 		return std::filesystem::temp_directory_path() / "vfs";
@@ -91,38 +91,6 @@ class VRegularFile
 
 	VRegularFile(VRegularFile const& other) = delete;
 	VRegularFile(VRegularFile&& other)      = default;
-
-	~VRegularFile();
-
-	std::uintmax_t size() const override {
-		return std::filesystem::file_size(this->sys_path_);
-	}
-
-	std::filesystem::file_time_type last_write_time() const {
-		return std::filesystem::last_write_time(this->sys_path_);
-	}
-
-	void last_write_time(std::filesystem::file_time_type new_time) override {
-		std::filesystem::last_write_time(this->sys_path_, new_time);
-	}
-
-	void resize(std::uintmax_t new_size) override {
-		std::filesystem::resize_file(this->sys_path_, new_size);
-	}
-
-	std::filesystem::space_info space() const {
-		return std::filesystem::space(this->sys_path_);
-	}
-
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const override;
-	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out) override;
-
-	std::filesystem::path sys_path() const {
-		return this->sys_path_;
-	}
-
-   private:
-	std::filesystem::path sys_path_;
 };
 
 class VDirectory
@@ -135,10 +103,6 @@ class VDirectory
 	VDirectory(VDirectory const& other) = default;
 	VDirectory(VDirectory&& other)      = default;
 
-	std::uintmax_t count() const override {
-		return this->files.size();
-	}
-
 	bool empty() const override {
 		return this->files.empty();
 	}
@@ -149,6 +113,8 @@ class VDirectory
 
 	std::shared_ptr<File> next(std::string const& name) const override;
 
+	std::shared_ptr<Entry> next_entry(std::string const& name, std::shared_ptr<DirectoryEntry> const& prev) const override;
+
 	bool insert(std::string const& name, std::shared_ptr<File> file) override {
 		return this->files.insert(std::make_pair(name, std::move(file))).second;
 	}
@@ -157,9 +123,7 @@ class VDirectory
 		return this->files.insert_or_assign(name, std::move(file)).second;
 	}
 
-	bool erase(std::string const& name) override {
-		return this->files.erase(name) == 1;
-	}
+	std::uintmax_t erase(std::string const& name) override;
 
 	std::shared_ptr<Cursor> cursor() const override {
 		return std::make_shared<Cursor_>(this->files);

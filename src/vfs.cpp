@@ -524,10 +524,9 @@ bool Vfs::remove(fs::path const& p) {
 		throw fs::filesystem_error("", d->path(), std::make_error_code(std::errc::directory_not_empty));
 	}
 
-	auto const ok = f->prev()->typed_file()->erase(f->name());
-	assert(ok);
-
-	return ok;
+	auto const cnt = f->prev()->typed_file()->erase(f->name());
+	assert(cnt == 1);
+	return true;
 }
 
 bool Vfs::remove(fs::path const& p, std::error_code& ec) noexcept {
@@ -541,11 +540,7 @@ std::uintmax_t Vfs::remove_all(fs::path const& p) {
 		return 0;
 	}
 
-	auto const cnt = f->file()->count();
-	auto const ok  = f->prev()->typed_file()->erase(f->name());
-	assert(ok);
-
-	return cnt;
+	return f->prev()->typed_file()->erase(f->name());
 }
 
 std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {

@@ -564,6 +564,31 @@ class TestFsBasic {
 			}
 		}
 
+		SECTION("::remove_all") {
+			// /
+			// + foo/
+			//   + empty/
+			//   + bar/
+			//     + a
+			//   + baz/
+			//     + qux/
+			//   + link->baz
+			fs->create_directories("foo/empty");
+			fs->create_directories("foo/bar");
+			fs->create_directories("foo/baz/qux");
+			fs->open_write("foo/bar/a");
+			fs->create_symlink("baz", "foo/link");
+
+			REQUIRE(fs->is_directory("foo/empty"));
+			REQUIRE(fs->is_directory("foo/bar"));
+			REQUIRE(fs->is_directory("foo/baz/qux"));
+			REQUIRE(fs->is_regular_file("foo/bar/a"));
+			REQUIRE(fs->is_symlink("foo/link"));
+
+			auto const cnt = fs->remove_all("foo");
+			CHECK(7 == cnt);
+		}
+
 		SECTION("::rename") {
 			SECTION("from file") {
 				*fs->open_write("foo") << "Lorem ipsum";
