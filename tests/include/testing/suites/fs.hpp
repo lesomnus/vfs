@@ -79,6 +79,18 @@ class TestFsBasic {
 				CHECK(foo->is_directory("bar"));
 				CHECK(fs->is_directory("foo/bar"));
 			}
+
+			SECTION("symlink cannot jailbreak") {
+				fs->create_directory("foo");
+				fs->create_directory("bar");
+				REQUIRE(fs->is_directory("foo"));
+				REQUIRE(fs->is_directory("bar"));
+
+				auto foo = fs->change_root("foo");
+				foo->create_symlink("../bar", "link");
+				CHECK(not foo->exists("link/"));
+				CHECK(fs->equivalent("foo/link/", "bar"));
+			}
 		}
 
 		SECTION("::canonical") {

@@ -6,11 +6,13 @@
 
 #include "testing/suites/fs.hpp"
 
-class TestVfs: public testing::TestFsFixture {
+class TestOsFs: public testing::TestFsFixture {
    public:
 	std::shared_ptr<vfs::Fs> make() override {
 		return vfs::make_os_fs();
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFsBasic<TestVfs>::test, "SysFs");
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestOsFs>::test, "SysFs");
+
+// TODO: Test ChRootedFs

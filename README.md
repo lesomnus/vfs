@@ -39,10 +39,11 @@ int main(int argc, char* argv[]) {
 - 🏗️ `vfs::make_strict_vfs` Basic file system with permissions.
 
 ### Utilities
+- `vfs::Fs::change_root` Changes the root directory.
+- 🏗️ `vfs::Fs::mount` Mounts different file system.
 - 🏗️ `vfs::copy` Copies a file between file systems.
 - 🏗️ `vfs::with_user` Switches user.
 - 🏗️ `vfs::with_mem_storage` Stores files in the memory.
-- 🏗️ `vfs::Fs::change_root` Changes the root directory.
 
 
 ## About Current Working Directory
