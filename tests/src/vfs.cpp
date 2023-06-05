@@ -14,3 +14,16 @@ class TestVfs: public testing::TestFsFixture {
 };
 
 METHOD_AS_TEST_CASE(testing::TestFsBasic<TestVfs>::test, "Vfs");
+
+class TestChRootedVfs: public testing::TestFsFixture {
+   public:
+	std::shared_ptr<vfs::Fs> make() override {
+		auto fs = vfs::make_vfs();
+		fs->create_directories("root_/tmp");
+		REQUIRE(fs->is_directory("root_/tmp"));
+
+		return fs->change_root("root_");
+	}
+};
+
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestChRootedVfs>::test, "Vfs with chroot");

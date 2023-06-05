@@ -13,6 +13,19 @@ class TestOsFs: public testing::TestFsFixture {
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFsBasic<TestOsFs>::test, "SysFs");
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestOsFs>::test, "OsFs");
 
-// TODO: Test ChRootedFs
+class TestChRootedOsFs: public testing::TestFsFixture {
+   public:
+	std::shared_ptr<vfs::Fs> make() override {
+		auto fs = vfs::make_vfs();
+
+		auto const tmp = fs->temp_directory_path();
+		fs->create_directories(tmp / "tmp");
+		REQUIRE(fs->is_directory(tmp / "tmp"));
+
+		return fs->change_root(tmp);
+	}
+};
+
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestChRootedOsFs>::test, "OsFs with chroot");
