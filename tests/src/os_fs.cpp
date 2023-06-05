@@ -6,11 +6,26 @@
 
 #include "testing/suites/fs.hpp"
 
-class TestVfs: public testing::TestFsFixture {
+class TestOsFs: public testing::TestFsFixture {
    public:
 	std::shared_ptr<vfs::Fs> make() override {
 		return vfs::make_os_fs();
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFsBasic<TestVfs>::test, "SysFs");
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestOsFs>::test, "OsFs");
+
+class TestChRootedOsFs: public testing::TestFsFixture {
+   public:
+	std::shared_ptr<vfs::Fs> make() override {
+		auto fs = vfs::make_vfs();
+
+		auto const tmp = fs->temp_directory_path();
+		fs->create_directories(tmp / "tmp");
+		REQUIRE(fs->is_directory(tmp / "tmp"));
+
+		return fs->change_root(tmp);
+	}
+};
+
+METHOD_AS_TEST_CASE(testing::TestFsBasic<TestChRootedOsFs>::test, "OsFs with chroot");

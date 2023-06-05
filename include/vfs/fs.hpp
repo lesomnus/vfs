@@ -35,6 +35,9 @@ class Fs {
 	 */
 	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
 
+	virtual std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") const = 0;
+	virtual std::shared_ptr<Fs>       change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp")       = 0;
+
 	/**
 	 * @brief Converts a given path to its absolute form, which is a fully qualified path that includes the root directory.
 	 * 

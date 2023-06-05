@@ -66,6 +66,33 @@ class TestFsBasic {
 			}
 		}
 
+		SECTION("::change_root") {
+			SECTION("changed filesystem cannot access parent directory") {
+				fs->create_directory("foo");
+				REQUIRE(fs->is_directory("foo"));
+
+				auto foo = fs->change_root("foo");
+				CHECK("/" == foo->current_path());
+				CHECK("/" == foo->canonical(".."));
+
+				foo->create_directory("bar");
+				CHECK(foo->is_directory("bar"));
+				CHECK(fs->is_directory("foo/bar"));
+			}
+
+			SECTION("symlink cannot jailbreak") {
+				fs->create_directory("foo");
+				fs->create_directory("bar");
+				REQUIRE(fs->is_directory("foo"));
+				REQUIRE(fs->is_directory("bar"));
+
+				auto foo = fs->change_root("foo");
+				foo->create_symlink("../bar", "link");
+				CHECK(not foo->exists("link/"));
+				CHECK(fs->equivalent("foo/link/", "bar"));
+			}
+		}
+
 		SECTION("::canonical") {
 			// /
 			// + /foo *
@@ -547,6 +574,31 @@ class TestFsBasic {
 				CHECK(fs->remove("bar"));
 				CHECK(fs->exists("foo"));
 			}
+		}
+
+		SECTION("::remove_all") {
+			// /
+			// + foo/
+			//   + empty/
+			//   + bar/
+			//     + a
+			//   + baz/
+			//     + qux/
+			//   + link->baz
+			fs->create_directories("foo/empty");
+			fs->create_directories("foo/bar");
+			fs->create_directories("foo/baz/qux");
+			fs->open_write("foo/bar/a");
+			fs->create_symlink("baz", "foo/link");
+
+			REQUIRE(fs->is_directory("foo/empty"));
+			REQUIRE(fs->is_directory("foo/bar"));
+			REQUIRE(fs->is_directory("foo/baz/qux"));
+			REQUIRE(fs->is_regular_file("foo/bar/a"));
+			REQUIRE(fs->is_symlink("foo/link"));
+
+			auto const cnt = fs->remove_all("foo");
+			CHECK(7 == cnt);
 		}
 
 		SECTION("::rename") {

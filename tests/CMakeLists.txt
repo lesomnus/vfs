@@ -49,6 +49,7 @@ endmacro()
 vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
 vfs_SIMPLE_TEST(os_fs)
+vfs_SIMPLE_TEST(storage)
 vfs_SIMPLE_TEST(vfs)
 
 vfs_SIMPLE_TEST(example)
