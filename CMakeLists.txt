@@ -25,7 +25,7 @@ add_library(
 		internal/vfs/impl/entry.hpp
 		internal/vfs/impl/file.hpp
 		# internal/vfs/impl/os_entry.hpp
-		# internal/vfs/impl/os_file.hpp
+		internal/vfs/impl/os_file.hpp
 		internal/vfs/impl/os_fs.hpp
 		internal/vfs/impl/storage.hpp
 		internal/vfs/impl/utils.hpp
@@ -35,7 +35,7 @@ add_library(
 		src/entry.cpp
 		src/file.cpp
 		src/fs.cpp
-		# src/os_file.cpp
+		src/os_file.cpp
 		src/os_fs.cpp
 		src/utils.cpp
 		src/vfile.cpp

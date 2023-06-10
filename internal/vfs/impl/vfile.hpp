@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/os_file.hpp"
 #include "vfs/impl/storage.hpp"
 
 namespace vfs {
@@ -49,6 +50,10 @@ class VFile: virtual public File {
 
 	void perms(std::filesystem::perms perms, std::filesystem::perm_options opts) override;
 
+	bool operator==(File const& other) const override {
+		return this == &other;
+	}
+
    protected:
 	std::intmax_t          owner_;
 	std::intmax_t          group_;
@@ -72,18 +77,14 @@ class NilFile
 
 	void resize(std::uintmax_t new_size) override { }
 
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const override;
-	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out) override;
+	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override;
+	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode) override;
 };
 
 class VRegularFile
     : public VFile
-    , public TempFile {
+    , public TempRegularFile {
    public:
-	static std::filesystem::path temp_directory() {
-		return std::filesystem::temp_directory_path() / "vfs";
-	}
-
 	VRegularFile(
 	    std::intmax_t          owner,
 	    std::intmax_t          group,
@@ -91,6 +92,34 @@ class VRegularFile
 
 	VRegularFile(VRegularFile const& other) = delete;
 	VRegularFile(VRegularFile&& other)      = default;
+
+	std::intmax_t owner() const override {
+		return VFile::owner();
+	}
+
+	void owner(std::intmax_t owner) override {
+		VFile::owner(owner);
+	}
+
+	std::intmax_t group() const override {
+		return VFile::group();
+	}
+
+	void group(std::intmax_t group) override {
+		VFile::group(group);
+	}
+
+	std::filesystem::perms perms() const override {
+		return VFile::perms();
+	}
+
+	void perms(std::filesystem::perms perms, std::filesystem::perm_options opts) override {
+		VFile::perms(perms, opts);
+	}
+
+	bool operator==(File const& other) const override {
+		return VFile::operator==(other);
+	}
 };
 
 class VDirectory
@@ -104,35 +133,39 @@ class VDirectory
 	VDirectory(VDirectory&& other)      = default;
 
 	bool empty() const override {
-		return this->files.empty();
+		return this->files_.empty();
 	}
 
 	bool contains(std::string const& name) const override {
-		return this->files.contains(name);
+		return this->files_.contains(name);
 	}
 
 	std::shared_ptr<File> next(std::string const& name) const override;
 
-	std::shared_ptr<Entry> next_entry(std::string const& name, std::shared_ptr<DirectoryEntry> const& prev) const override;
-
 	bool insert(std::string const& name, std::shared_ptr<File> file) override {
-		return this->files.insert(std::make_pair(name, std::move(file))).second;
+		return this->files_.insert(std::make_pair(name, std::move(file))).second;
 	}
 
 	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override {
-		return this->files.insert_or_assign(name, std::move(file)).second;
+		return this->files_.insert_or_assign(name, std::move(file)).second;
+	}
+
+	bool unlink(std::string const& name) override {
+		return !this->files_.extract(name).empty();
 	}
 
 	std::uintmax_t erase(std::string const& name) override;
 
+	std::uintmax_t clear() override;
+
 	std::shared_ptr<Cursor> cursor() const override {
-		return std::make_shared<Cursor_>(this->files);
+		return std::make_shared<Cursor_>(this->files_);
 	}
 
-	std::unordered_map<std::string, std::shared_ptr<File>> files;
-	std::shared_ptr<Storage>                               storage;
-
    private:
+	std::unordered_map<std::string, std::shared_ptr<File>> files_;
+	std::shared_ptr<Storage>                               storage_;
+
 	class Cursor_: public Cursor {
 	   public:
 		Cursor_(std::unordered_map<std::string, std::shared_ptr<File>> const& files)

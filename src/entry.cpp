@@ -55,12 +55,24 @@ std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
 }
 
 std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const {
-	auto next = this->typed_file()->next_entry(name, const_cast<DirectoryEntry*>(this)->shared_from_this()->must_be<DirectoryEntry>());
-	if(next == nullptr) {
+	auto f = this->typed_file()->next(name);
+	if(!f) {
 		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::no_such_file_or_directory));
 	}
 
-	return next;
+	auto prev = const_cast<DirectoryEntry*>(this)->shared_from_this()->must_be<DirectoryEntry>();
+	using fs::file_type;
+	switch(f->type()) {
+	case file_type::regular:
+		return RegularFileEntry::make(name, std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(f)));
+	case file_type::directory:
+		return DirectoryEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(f)));
+	case file_type::symlink:
+		return SymlinkEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+
+	default:
+		return UnknownTypeEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+	}
 }
 
 void navigate(

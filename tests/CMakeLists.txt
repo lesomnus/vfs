@@ -16,11 +16,15 @@ include(Catch)
 
 
 
-add_custom_target(all-test)
+add_custom_target(
+	test-all
+		COMMAND ${CMAKE_CTEST_COMMAND}
+)
 
 macro(vfs_SIMPLE_TEST NAME)
 	add_executable(
 		${NAME}-test
+			include/testing/suites/file.hpp
 			include/testing/suites/fs.hpp
 
 			src/${NAME}.cpp
@@ -41,15 +45,16 @@ macro(vfs_SIMPLE_TEST NAME)
 	catch_discover_tests(${NAME}-test)
 	
 	add_dependencies(
-		all-test
+		test-all
 			${NAME}-test
 	)
 endmacro()
 
 vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
+vfs_SIMPLE_TEST(os_file)
 vfs_SIMPLE_TEST(os_fs)
-vfs_SIMPLE_TEST(storage)
+vfs_SIMPLE_TEST(vfile)
 vfs_SIMPLE_TEST(vfs)
 
 vfs_SIMPLE_TEST(example)

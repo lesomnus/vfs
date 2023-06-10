@@ -567,7 +567,7 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	if(auto const f = prev->typed_file()->next(dst_p.filename()); f) {
 		// Destination is existing file.
 
-		if(src_f->holds(f)) {
+		if(src_f->holds(*f)) {
 			// Source file and destination file are equivalent.
 			return;
 		}
@@ -591,7 +591,7 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	}
 
 	prev->typed_file()->insert_or_assign(dst_p.filename(), src_f->file());
-	src_f->prev()->typed_file()->erase(src_f->name());
+	src_f->prev()->typed_file()->unlink(src_f->name());
 }
 
 void Vfs::rename(fs::path const& src, fs::path const& dst, std::error_code& ec) noexcept {

@@ -95,8 +95,8 @@ class TestFsBasic {
 
 		SECTION("::canonical") {
 			// /
-			// + /foo *
-			//   + /bar
+			// + foo *
+			//   + bar/
 			// + baz -> foo/bar
 			// + qux -> baz
 			// + dog
@@ -168,9 +168,9 @@ class TestFsBasic {
 
 		SECTION("::copy") {
 			// /
-			// + /foo
-			//   + /bar
-			//     + /baz
+			// + foo/
+			//   + bar/
+			//     + baz/
 			//   + dog
 			//   + cat -> ./dog
 			fs->create_directories("foo/bar/baz");

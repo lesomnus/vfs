@@ -1,35 +1,78 @@
+#include <memory>
+#include <string>
+#include <utility>
+
 #include <catch2/catch_template_test_macros.hpp>
 
 #include <vfs/impl/entry.hpp>
 #include <vfs/impl/file.hpp>
 
-TEST_CASE("DirectoryEntry") {
-	// /
-	// + /foo
-	//   + /bar
-	auto root = vfs::impl::DirectoryEntry::make_root();
-	auto foo  = root->next_insert("foo", std::make_shared<vfs::impl::Directory>(*root->typed_file()));
-	auto bar  = foo->next_insert("bar", std::make_shared<vfs::impl::Directory>(*foo->typed_file()));
+vfs::impl::VStorage storage;
 
-	SECTION("::prev()") {
+namespace {
+
+template<typename Entry>
+std::shared_ptr<Entry> next_insert_(vfs::impl::DirectoryEntry& entry, std::string const& name, std::shared_ptr<vfs::impl::File> file) {
+	entry.insert(name, std::move(file));
+	return entry.next(name)->must_be<Entry>();
+}
+
+}  // namespace
+
+TEST_CASE("Entry") {
+	// /
+	// + foo/
+	//   + bar
+	auto root = vfs::impl::DirectoryEntry::make_root();
+	auto foo  = next_insert_<vfs::impl::DirectoryEntry>(*root, "foo", storage.make_directory());
+	auto bar  = next_insert_<vfs::impl::RegularFileEntry>(*foo, "bar", storage.make_regular_file());
+
+	SECTION("::name") {
+		CHECK("foo" == foo->name());
+		CHECK("bar" == bar->name());
+	}
+
+	SECTION("::holds_same_file_with") {
+		CHECK(foo->holds_same_file_with(*foo));
+		CHECK(bar->holds_same_file_with(*bar));
+		CHECK(not foo->holds_same_file_with(*bar));
+	}
+
+	SECTION("::prev") {
 		CHECK(root == root->prev());
 		CHECK(root == foo->prev());
 		CHECK(foo == bar->prev());
 	}
 
-	SECTION("::root()") {
+	SECTION("::root") {
 		CHECK(root == root->root());
 		CHECK(root == foo->root());
 		CHECK(root == bar->root());
 	}
 
-	SECTION("::path()") {
+	SECTION("::path") {
 		CHECK("/" == root->path());
 		CHECK("/foo" == foo->path());
 		CHECK("/foo/bar" == bar->path());
 	}
 
-	SECTION("::next()") {
+	SECTION("::must_be") {
+		CHECK_NOTHROW([&] {
+			foo->must_be<vfs::impl::DirectoryEntry>();
+			bar->must_be<vfs::impl::RegularFileEntry>();
+		});
+	}
+}
+
+TEST_CASE("DirectoryEntry") {
+	// /
+	// + foo/
+	//   + bar
+	auto root = vfs::impl::DirectoryEntry::make_root();
+	auto foo  = next_insert_<vfs::impl::DirectoryEntry>(*root, "foo", storage.make_directory());
+	auto bar  = next_insert_<vfs::impl::RegularFileEntry>(*foo, "bar", storage.make_regular_file());
+
+	SECTION("::next") {
 		CHECK(foo->holds_same_file_with(*root->next("foo")));
 		CHECK(bar->holds_same_file_with(*foo->next("bar")));
 	}
@@ -45,36 +88,33 @@ TEST_CASE("DirectoryEntry") {
 		}
 
 		SECTION("to entry that does not exist") {
-			std::error_code ec;
-
 			std::filesystem::path p = "foo/bar/baz";
 
+			std::error_code ec;
 			auto const [entry, it] = root->navigate(p.begin(), p.end(), ec);
-
 			CHECK(bar->holds_same_file_with(*entry));
 			CHECK("baz" == *it);
-			CHECK(std::errc::no_such_file_or_directory == ec);
+			CHECK(std::errc::not_a_directory == ec);
 		}
 	}
 }
 
 TEST_CASE("SymlinkEntry") {
 	// /
-	// + /foo
-	//   + /bar
+	// + foo/
+	//   + bar/
 	//     + root_a -> /
 	//     + parent -> ..
 	//   + root_b -> ./bar/root_a
 	// + foobar -> /foo/bar
-
 	auto root = vfs::impl::DirectoryEntry::make_root();
-	auto foo  = root->next_insert("foo", std::make_shared<vfs::impl::Directory>(*root->typed_file()));
-	auto bar  = foo->next_insert("bar", std::make_shared<vfs::impl::Directory>(*foo->typed_file()));
+	auto foo  = next_insert_<vfs::impl::DirectoryEntry>(*root, "foo", storage.make_directory());
+	auto bar  = next_insert_<vfs::impl::DirectoryEntry>(*foo, "bar", storage.make_directory());
 
-	auto root_a = bar->next_insert("root_a", std::make_shared<vfs::impl::Symlink>("/"));
-	auto parent = bar->next_insert("parent", std::make_shared<vfs::impl::Symlink>(".."));
-	auto root_b = foo->next_insert("root_b", std::make_shared<vfs::impl::Symlink>("./bar/root_a"));
-	auto foobar = root->next_insert("foobar", std::make_shared<vfs::impl::Symlink>("/foo/bar"));
+	auto root_a = next_insert_<vfs::impl::SymlinkEntry>(*bar, "root_a", storage.make_symlink("/"));
+	auto parent = next_insert_<vfs::impl::SymlinkEntry>(*bar, "parent", storage.make_symlink(".."));
+	auto root_b = next_insert_<vfs::impl::SymlinkEntry>(*foo, "root_b", storage.make_symlink("./bar/root_a"));
+	auto foobar = next_insert_<vfs::impl::SymlinkEntry>(*root, "foobar", storage.make_symlink("/foo/bar"));
 
 	SECTION("::path()") {
 		CHECK("/foo/bar/root_a" == root_a->path());

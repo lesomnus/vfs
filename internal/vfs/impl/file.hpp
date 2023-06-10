@@ -36,7 +36,13 @@ class File {
 
 	virtual std::filesystem::perms perms() const = 0;
 
-	virtual void perms(std::filesystem::perms perms, std::filesystem::perm_options opts) = 0;
+	virtual void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) = 0;
+
+	void perms(std::filesystem::perms prms) {
+		this->perms(prms, std::filesystem::perm_options::replace);
+	}
+
+	virtual bool operator==(File const& other) const = 0;
 };
 
 class RegularFile: virtual public File {
@@ -64,48 +70,17 @@ class RegularFile: virtual public File {
 
 	virtual void resize(std::uintmax_t new_size) = 0;
 
-	virtual std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const = 0;
-	virtual std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out)     = 0;
-};
+	virtual std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const = 0;
 
-class TempFile: public RegularFile {
-   public:
-	static std::filesystem::path temp_directory() {
-		return std::filesystem::temp_directory_path() / "vfs";
+	std::shared_ptr<std::istream> open_read() const {
+		return this->open_read(std::ios_base::in);
 	}
 
-	TempFile();
+	virtual std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode) = 0;
 
-	TempFile(TempFile const& other) = delete;
-	TempFile(TempFile&& other)      = default;
-
-	~TempFile();
-
-	std::uintmax_t size() const override {
-		return std::filesystem::file_size(this->path_);
+	std::shared_ptr<std::ostream> open_write() {
+		return this->open_write(std::ios_base::out);
 	}
-
-	std::filesystem::file_time_type last_write_time() const {
-		return std::filesystem::last_write_time(this->path_);
-	}
-
-	void last_write_time(std::filesystem::file_time_type new_time) override {
-		std::filesystem::last_write_time(this->path_, new_time);
-	}
-
-	void resize(std::uintmax_t new_size) override {
-		std::filesystem::resize_file(this->path_, new_size);
-	}
-
-	std::filesystem::space_info space() const {
-		return std::filesystem::space(this->path_);
-	}
-
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode = std::ios_base::in) const override;
-	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode = std::ios_base::out) override;
-
-   private:
-	std::filesystem::path path_;
 };
 
 class Directory: virtual public File {
@@ -151,14 +126,7 @@ class Directory: virtual public File {
 	struct Iterator {
 		Iterator() { }
 
-		Iterator(std::shared_ptr<Cursor> cursor)
-		    : cursor_(std::move(cursor)) {
-			if(this->cursor_->at_end()) {
-				return;
-			}
-
-			this->value_ = std::make_pair(this->cursor_->name(), this->cursor_->file());
-		}
+		Iterator(std::shared_ptr<Cursor> cursor);
 
 		Iterator& operator=(Iterator const&) = default;
 		Iterator& operator=(Iterator&&)      = default;
@@ -171,20 +139,7 @@ class Directory: virtual public File {
 			return &this->value_;
 		}
 
-		Iterator& operator++() {
-			if(!this->cursor_) {
-				return *this;
-			}
-
-			this->cursor_->increment();
-			if(this->cursor_->at_end()) {
-				this->cursor_.reset();
-			} else {
-				this->value_ = std::make_pair(this->cursor_->name(), this->cursor_->file());
-			}
-
-			return *this;
-		}
+		Iterator& operator++();
 
 		bool operator==(Iterator const& rhs) const noexcept {
 			return this->cursor_ == rhs.cursor_;
@@ -210,22 +165,22 @@ class Directory: virtual public File {
 	// returns nullptr if not exists.
 	virtual std::shared_ptr<File> next(std::string const& name) const = 0;
 
-	virtual std::shared_ptr<Entry> next_entry(std::string const& name, std::shared_ptr<DirectoryEntry> const& prev) const = 0;
-
 	virtual bool insert(std::string const& name, std::shared_ptr<File> file) = 0;
 
 	virtual bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) = 0;
 
+	virtual bool unlink(std::string const& name) = 0;
+
 	virtual std::uintmax_t erase(std::string const& name) = 0;
+
+	virtual std::uintmax_t clear() = 0;
 
 	virtual std::shared_ptr<Cursor> cursor() const = 0;
 
 	Iterator begin() const {
-		if(this->empty()) {
-			return Iterator();
-		} else {
-			return Iterator(this->cursor());
-		}
+		return this->empty()
+		    ? Iterator()
+		    : Iterator(this->cursor());
 	}
 
 	Iterator end() const {
