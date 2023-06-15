@@ -6,7 +6,9 @@
 #include <iostream>
 #include <system_error>
 
+#include "vfs/impl/fs_proxy.hpp"
 #include "vfs/impl/utils.hpp"
+#include "vfs/impl/vfs.hpp"
 
 #include "vfs/directory_entry.hpp"
 #include "vfs/fs.hpp"
@@ -16,7 +18,48 @@ namespace impl {
 
 class OsFs: public Fs {
    public:
-	OsFs(std::filesystem::path const& cwd)
+	virtual std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) = 0;
+
+	virtual std::filesystem::path base_path() const {
+		return "/";
+	}
+
+	std::filesystem::path current_os_path() const {
+		return this->base_path() / this->current_path();
+	}
+
+	std::filesystem::path temp_directory_os_path() const {
+		return this->base_path() / this->temp_directory_path();
+	}
+
+	std::filesystem::path temp_directory_os_path(std::error_code ec) const {
+		return this->base_path() / this->temp_directory_path(ec);
+	}
+
+   private:
+	void mount(std::filesystem::path const& target, Fs& other) final {
+		throw std::logic_error("use make_mount");
+	}
+
+	void unmount(std::filesystem::path const& target) final;
+};
+
+class OsFsProxy: public FsProxy {
+   public:
+	OsFsProxy(std::shared_ptr<Fs> fs)
+	    : FsProxy(std::move(fs)) { }
+
+	void mount(std::filesystem::path const& target, Fs& other) override;
+
+   protected:
+	std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const override {
+		return std::make_shared<OsFsProxy>(std::move(fs));
+	}
+};
+
+class StdFs: public OsFs {
+   public:
+	StdFs(std::filesystem::path const& cwd)
 	    : cwd_(std::filesystem::canonical(cwd / "")) { }
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override {
@@ -30,8 +73,10 @@ class OsFs: public Fs {
 	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
 
 	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
-		return std::const_pointer_cast<Fs>(static_cast<OsFs const*>(this)->change_root(p, temp_dir));
+		return std::const_pointer_cast<Fs>(static_cast<StdFs const*>(this)->change_root(p, temp_dir));
 	}
+
+	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) override;
 
 	std::filesystem::path canonical(std::filesystem::path const& p) const override {
 		return std::filesystem::canonical(this->normal_(p));
@@ -120,12 +165,12 @@ class OsFs: public Fs {
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
-		return std::make_shared<OsFs>(this->canonical(p));
+		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
 		// TODO: move
-		return std::make_shared<OsFs>(this->canonical(p));
+		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const& noexcept override {
@@ -272,7 +317,7 @@ class OsFs: public Fs {
 	template<typename C, typename It>
 	class BasicCursor: public C {
 	   public:
-		BasicCursor(OsFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
+		BasicCursor(StdFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
 		    : it_(fs.absolute(p), opts)
 		    , entry_(fs) {
 			if(!this->at_end()) {
@@ -317,7 +362,7 @@ class OsFs: public Fs {
 
 	class RecursiveCursor: public BasicCursor<Fs::RecursiveCursor, std::filesystem::recursive_directory_iterator> {
 	   public:
-		RecursiveCursor(OsFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
+		RecursiveCursor(StdFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
 		    : BasicCursor(fs, p, opts) { }
 
 		std::filesystem::directory_options options() override {
@@ -343,45 +388,45 @@ class OsFs: public Fs {
 	};
 
 	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<OsFs::Cursor>(*this, this->normal_(p), opts);
+		return std::make_shared<StdFs::Cursor>(*this, this->normal_(p), opts);
 	}
 
 	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<OsFs::RecursiveCursor>(*this, this->normal_(p), opts);
+		return std::make_shared<StdFs::RecursiveCursor>(*this, this->normal_(p), opts);
 	}
 
 	std::filesystem::path cwd_;
 };
 
-class ChRootedOsFs: public OsFs {
+class ChRootedStdFs: public StdFs {
    public:
-	ChRootedOsFs(
+	ChRootedStdFs(
 	    std::filesystem::path const& base,
 	    std::filesystem::path const& cwd,
 	    std::filesystem::path const& temp_dir)
-	    : OsFs(cwd)
+	    : StdFs(cwd)
 	    , base_(std::filesystem::canonical(base))
 	    , temp_dir_(("/" / temp_dir).lexically_normal()) { }
 
-	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override {
-		return std::make_shared<ChRootedOsFs>(this->canonical(p), "/", temp_dir);
+	std::filesystem::path base_path() const override {
+		return this->base_;
 	}
 
 	std::filesystem::path canonical(std::filesystem::path const& p) const override {
-		return this->confine_(OsFs::canonical(p));
+		return this->confine_(StdFs::canonical(p));
 	}
 
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
-		return this->confine_(OsFs::weakly_canonical(p));
+		return this->confine_(StdFs::weakly_canonical(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
-		return std::make_shared<ChRootedOsFs>(this->base_, this->canonical(p), this->temp_dir_);
+		return std::make_shared<ChRootedStdFs>(this->base_, this->canonical(p), this->temp_dir_);
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
 		// TODO: move
-		return std::make_shared<ChRootedOsFs>(this->base_, this->canonical(p), this->temp_dir_);
+		return std::make_shared<ChRootedStdFs>(this->base_, this->canonical(p), this->temp_dir_);
 	}
 
 	std::filesystem::path temp_directory_path() const override {

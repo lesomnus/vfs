@@ -38,14 +38,6 @@ Vfs::Vfs(
 	}
 
 	this->temp_ = (fs::path("/") / temp_dir).lexically_normal();
-
-	auto const p = this->temp_.parent_path();
-	if(this->create_directories(p)) {
-		return;
-	}
-
-	auto const d = this->navigate(p)->must_be<DirectoryEntry>();
-	d->insert(this->temp_.filename(), std::make_shared<VDirectory>(0, 0, Directory::DefaultPerms | fs::perms::sticky_bit));
 }
 
 Vfs::Vfs(fs::path const& temp_dir)

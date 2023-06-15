@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 #include <utility>
 
 #include "vfs/impl/file.hpp"
@@ -13,8 +14,17 @@ namespace impl {
 
 class OsFile: virtual public File {
    public:
+	struct Context {
+		std::unordered_map<std::filesystem::path, std::shared_ptr<MountPoint>> mount_points;
+	};
+
+	OsFile(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : context_(std::move(context))
+	    , path_(std::move(p)) { }
+
 	OsFile(std::filesystem::path p)
-	    : path_(std::move(p)) { }
+	    : context_(std::make_shared<Context>())
+	    , path_(std::move(p)) { }
 
 	std::intmax_t owner() const override {
 		// TODO:
@@ -60,8 +70,13 @@ class OsFile: virtual public File {
 		this->path_ = p;
 	}
 
+	std::shared_ptr<Context> const& context() const {
+		return this->context_;
+	}
+
    protected:
-	std::filesystem::path path_;
+	std::shared_ptr<Context> context_;
+	std::filesystem::path    path_;
 };
 
 class UnkownOsFile: public OsFile {
@@ -78,6 +93,9 @@ class OsRegularFile
     : public OsFile
     , public RegularFile {
    public:
+	OsRegularFile(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : OsFile(std::move(context), std::move(p)) { }
+
 	OsRegularFile(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 
@@ -119,15 +137,20 @@ class OsDirectory
     : public OsFile
     , public Directory {
    public:
+	OsDirectory(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : OsFile(std::move(context), std::move(p)) { }
+
 	OsDirectory(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
+
+	bool exists(std::filesystem::path const& p) const;
 
 	bool empty() const override {
 		return std::filesystem::is_empty(this->path_);
 	}
 
 	bool contains(std::string const& name) const override {
-		return std::filesystem::exists(this->path_ / name);
+		return this->exists(this->path_ / name);
 	}
 
 	std::shared_ptr<File> next(std::string const& name) const override;
@@ -139,6 +162,10 @@ class OsDirectory
 	bool unlink(std::string const& name) override {
 		return this->erase(name) > 0;
 	}
+
+	void mount_next(std::string const& name, std::shared_ptr<File> file) override;
+
+	void unmount_next(std::string const& name) override;
 
 	std::uintmax_t erase(std::string const& name) override {
 		return std::filesystem::remove_all(this->path_ / name);
@@ -162,6 +189,9 @@ class OsSymlink
     : public OsFile
     , public Symlink {
    public:
+	OsSymlink(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : OsFile(std::move(context), std::move(p)) { }
+
 	OsSymlink(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 

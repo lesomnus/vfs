@@ -140,6 +140,8 @@ class DirectoryEntry: public TypedEntry<Directory> {
 
 	static std::shared_ptr<DirectoryEntry> make_root();
 
+	using Entry::prev;
+
 	std::shared_ptr<DirectoryEntry const> prev() const override;
 
 	bool is_root() const {

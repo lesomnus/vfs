@@ -26,6 +26,7 @@ macro(vfs_SIMPLE_TEST NAME)
 		${NAME}-test
 			include/testing/suites/file.hpp
 			include/testing/suites/fs.hpp
+			include/testing/utils.hpp
 
 			src/${NAME}.cpp
 	)
@@ -52,6 +53,7 @@ endmacro()
 
 vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
+vfs_SIMPLE_TEST(mount)
 vfs_SIMPLE_TEST(os_file)
 vfs_SIMPLE_TEST(os_fs)
 vfs_SIMPLE_TEST(vfile)

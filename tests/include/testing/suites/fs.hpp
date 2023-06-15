@@ -10,7 +10,7 @@
 #include <vfs/directory_iterator.hpp>
 #include <vfs/fs.hpp>
 
-#include <vfs/impl/utils.hpp>
+#include "testing/utils.hpp"
 
 namespace testing {
 
@@ -27,15 +27,11 @@ class TestFsBasic {
 
 		Fixture fixture;
 
-		std::shared_ptr<vfs::Fs> fs = fixture.make();
+		std::shared_ptr<vfs::Fs> fs = cd_temp_dir(*fixture.make());
 
-		auto const sandbox = fs->temp_directory_path() / "vfs-test" / vfs::impl::random_string(32, vfs::impl::Alphanumeric);
-		INFO("sandbox: " + sandbox.string());
-
-		fs->create_directories(sandbox);
-		fs = fs->current_path(sandbox);
-		REQUIRE(sandbox.is_absolute());
-		REQUIRE(sandbox == fs->current_path());
+		auto const test_path = fs->current_path();
+		INFO("test_path: " + test_path.string());
+		REQUIRE(test_path.is_absolute());
 
 		SECTION("::open_*") {
 			SECTION("reading a file that does not exist fails") {
@@ -111,36 +107,36 @@ class TestFsBasic {
 
 			SECTION("valid paths") {
 				CHECK("/" == fs->canonical("/"));
-				CHECK("/" == fs->canonical("/.."));           // Parent of root is root.
-				CHECK(sandbox / "foo" == fs->canonical(""));  // Empty resolved to current directory.
-				CHECK(sandbox / "foo" == fs->canonical("."));
-				CHECK(sandbox / "foo/bar" == fs->canonical("bar"));
-				CHECK(sandbox / "foo/bar" == fs->canonical("./bar"));
-				CHECK(sandbox / "foo/bar" == fs->canonical("././bar"));
-				CHECK(sandbox / "foo/bar" == fs->canonical("../baz"));
-				CHECK(sandbox / "foo/bar" == fs->canonical("../baz/../../baz"));
-				CHECK(sandbox / "foo/bar" == fs->canonical("../qux"));  // Symlink chain is followed.
-				CHECK(sandbox / "foo" == fs->canonical("../baz/.."));   // No lexical normalize.
-				CHECK(sandbox / "dog" == fs->canonical("../cat"));
+				CHECK("/" == fs->canonical("/.."));             // Parent of root is root.
+				CHECK(test_path / "foo" == fs->canonical(""));  // Empty resolved to current directory.
+				CHECK(test_path / "foo" == fs->canonical("."));
+				CHECK(test_path / "foo/bar" == fs->canonical("bar"));
+				CHECK(test_path / "foo/bar" == fs->canonical("./bar"));
+				CHECK(test_path / "foo/bar" == fs->canonical("././bar"));
+				CHECK(test_path / "foo/bar" == fs->canonical("../baz"));
+				CHECK(test_path / "foo/bar" == fs->canonical("../baz/../../baz"));
+				CHECK(test_path / "foo/bar" == fs->canonical("../qux"));  // Symlink chain is followed.
+				CHECK(test_path / "foo" == fs->canonical("../baz/.."));   // No lexical normalize.
+				CHECK(test_path / "dog" == fs->canonical("../cat"));
 			}
 
 			SECTION("weakly") {
 				CHECK("/" == fs->weakly_canonical("/"));
 				CHECK("/" == fs->weakly_canonical("/.."));  // Parent of root is root.
 				CHECK("" == fs->weakly_canonical(""));      // Empty resolved to empty.
-				CHECK(sandbox / "foo" == fs->weakly_canonical("."));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("bar"));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("./bar"));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("././bar"));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("../baz"));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("../baz/../../baz"));
-				CHECK(sandbox / "foo/bar" == fs->weakly_canonical("../qux"));  // Symlink chain is followed.
-				CHECK(sandbox / "foo" == fs->weakly_canonical("../baz/.."));   // No lexical normalize.
-				CHECK(sandbox / "dog" == fs->weakly_canonical("../cat"));
+				CHECK(test_path / "foo" == fs->weakly_canonical("."));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("bar"));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("./bar"));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("././bar"));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("../baz"));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("../baz/../../baz"));
+				CHECK(test_path / "foo/bar" == fs->weakly_canonical("../qux"));  // Symlink chain is followed.
+				CHECK(test_path / "foo" == fs->weakly_canonical("../baz/.."));   // No lexical normalize.
+				CHECK(test_path / "dog" == fs->weakly_canonical("../cat"));
 
-				CHECK(sandbox / "foo/" == fs->weakly_canonical("bar/baz/../.."));                // Resulting path is in normal form.
-				CHECK(sandbox / "not-exists" == fs->weakly_canonical("../not-exists"));
-				CHECK(sandbox / "void/somewhere" == fs->weakly_canonical("../void/somewhere"));  // Symlink path is resolved if the target is not exists.
+				CHECK(test_path / "foo/" == fs->weakly_canonical("bar/baz/../.."));                // Resulting path is in normal form.
+				CHECK(test_path / "not-exists" == fs->weakly_canonical("../not-exists"));
+				CHECK(test_path / "void/somewhere" == fs->weakly_canonical("../void/somewhere"));  // Symlink path is resolved if the target is not exists.
 
 				// Resulting lexical normal of given path if the first entry does not exist.
 				CHECK("not-exists" == fs->weakly_canonical("not-exists"));
@@ -149,7 +145,7 @@ class TestFsBasic {
 
 			SECTION("file is accessed as a directory if there is trailing slash") {
 				std::error_code ec;
-				fs->canonical(sandbox / "dog/", ec);
+				fs->canonical(test_path / "dog/", ec);
 				CHECK(std::errc::not_a_directory == ec);
 			}
 
@@ -161,7 +157,7 @@ class TestFsBasic {
 
 			SECTION("target of symlink must exist") {
 				std::error_code ec;
-				fs->canonical(sandbox / "void", ec);
+				fs->canonical(test_path / "void", ec);
 				CHECK(std::errc::no_such_file_or_directory == ec);
 			}
 		}
@@ -413,7 +409,7 @@ class TestFsBasic {
 				REQUIRE(fs->is_directory("foo"));
 
 				auto const foo = fs->current_path("foo");
-				CHECK(sandbox / "foo" == foo->current_path());
+				CHECK(test_path / "foo" == foo->current_path());
 			}
 
 			SECTION("change to existing directory with an r-value of Fs") {
@@ -421,7 +417,7 @@ class TestFsBasic {
 				REQUIRE(fs->is_directory("foo"));
 
 				auto const bar = fs->current_path("foo")->current_path("./bar");
-				CHECK(sandbox / "foo/bar" == bar->current_path());
+				CHECK(test_path / "foo/bar" == bar->current_path());
 			}
 
 			SECTION("change to a path that does not exist") {
@@ -449,8 +445,8 @@ class TestFsBasic {
 				CHECK(fs->equivalent("/", "/"));
 				CHECK(fs->equivalent("/", "/.."));
 				CHECK(fs->equivalent("/..", "/"));
-				CHECK(fs->equivalent(".", sandbox));
-				CHECK(fs->equivalent(sandbox, "."));
+				CHECK(fs->equivalent(".", test_path));
+				CHECK(fs->equivalent(test_path, "."));
 				CHECK(fs->equivalent("foo", "foo"));
 			}
 
@@ -866,7 +862,7 @@ class TestFsBasic {
 			}
 		}
 
-		fs->remove_all(sandbox);
+		fs->remove_all(test_path);
 	}
 };
 

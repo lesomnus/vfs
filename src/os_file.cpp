@@ -24,14 +24,14 @@ bool is_in_temp_directory_(fs::path const& p) {
 	return p.parent_path() == temp_directory_();
 }
 
-std::shared_ptr<File> make_file_(fs::path const& p, fs::file_type type) {
+std::shared_ptr<File> make_file_(fs::file_type type, std::shared_ptr<OsFile::Context> context, fs::path const& p) {
 	switch(type) {
 	case fs::file_type::regular:
-		return std::make_shared<OsRegularFile>(p);
+		return std::make_shared<OsRegularFile>(std::move(context), p);
 	case fs::file_type::directory:
-		return std::make_shared<OsDirectory>(p);
+		return std::make_shared<OsDirectory>(std::move(context), p);
 	case fs::file_type::symlink:
-		return std::make_shared<OsSymlink>(p);
+		return std::make_shared<OsSymlink>(std::move(context), p);
 
 	default:
 		return std::make_shared<UnkownOsFile>(p);
@@ -40,8 +40,9 @@ std::shared_ptr<File> make_file_(fs::path const& p, fs::file_type type) {
 
 class Cursor_: public Directory::Cursor {
    public:
-	Cursor_(fs::path const& p)
-	    : it_(p) {
+	Cursor_(std::shared_ptr<OsFile::Context> context, fs::path const& p)
+	    : context_(std::move(context))
+	    , it_(p) {
 		this->refresh();
 	}
 
@@ -72,11 +73,13 @@ class Cursor_: public Directory::Cursor {
 			this->file_ = nullptr;
 		} else {
 			this->name_ = this->it_->path().filename();
-			this->file_ = make_file_(this->it_->path(), this->it_->status().type());
+			this->file_ = make_file_(this->it_->status().type(), this->context_, this->it_->path());
 		}
 	}
 
    private:
+	std::shared_ptr<OsFile::Context> context_;
+
 	fs::directory_iterator it_;
 	fs::directory_iterator end_;
 
@@ -111,14 +114,22 @@ TempRegularFile::~TempRegularFile() {
 	fs::remove(this->path_);
 }
 
+bool OsDirectory::exists(std::filesystem::path const& p) const {
+	return this->context_->mount_points.contains(p) || std::filesystem::exists(p);
+}
+
 std::shared_ptr<File> OsDirectory::next(std::string const& name) const {
 	auto const next_p = this->path_ / name;
+	if(auto it = this->context_->mount_points.find(next_p); it != this->context_->mount_points.end()) {
+		return it->second;
+	}
+
 	auto const status = fs::symlink_status(next_p);
 	if(not fs::exists(status)) {
 		return nullptr;
 	}
 
-	return make_file_(next_p, status.type());
+	return make_file_(status.type(), this->context_, next_p);
 }
 
 bool OsDirectory::insert(std::string const& name, std::shared_ptr<File> file) {
@@ -128,7 +139,7 @@ bool OsDirectory::insert(std::string const& name, std::shared_ptr<File> file) {
 	}
 
 	auto const next_p = this->path_ / name;
-	if(fs::exists(next_p)) {
+	if(this->exists(next_p)) {
 		return false;
 	}
 
@@ -159,7 +170,7 @@ std::uintmax_t OsDirectory::clear() {
 }
 
 std::shared_ptr<Directory::Cursor> OsDirectory::cursor() const {
-	return std::make_shared<Cursor_>(this->path_);
+	return std::make_shared<Cursor_>(this->context_, this->path_);
 }
 
 TempDirectory::TempDirectory()
