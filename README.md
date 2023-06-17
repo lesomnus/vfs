@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 
 ### Utilities
 - `vfs::Fs::change_root` Changes the root directory.
-- 🏗️ `vfs::Fs::mount` Mounts different file system.
+- `vfs::Fs::mount` Mounts different file system.
 - 🏗️ `vfs::copy` Copies a file between file systems.
 - 🏗️ `vfs::with_user` Switches user.
 - 🏗️ `vfs::with_mem_storage` Stores files in the memory.
@@ -84,3 +84,49 @@ int main(int argc, char* argv[]) {
 Standard `std::filesystem::current_path(std::filesystem::path const& p)` changes the Current Working Directory (CWD), which can have an impact on any code in the current process that relies on relative paths, potentially causing unintended results.
 
 In *vfs*, since the file system is an object, each `vfs::Fs` holds its own CWD. `vfs::Fs::current_path(...)` returns a new instance that references the same file system but has a different CWD, instead of replacing the CWD of the existing instance.
+
+
+## Mount
+
+```cpp
+#include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#include <vfs.hpp>
+
+int main(int argc, char* argv[]) {
+	namespace fs = std::filesystem;
+
+	auto const sandbox = vfs::make_vfs();
+	sandbox->create_directories("foo/bar");
+
+	sandbox->mount("foo/bar", *vfs::make_os_fs()->current_path("/tmp"));
+	*sandbox->open_write("foo/bar/food") << "Royale with cheese";
+	asser(sandbox->exists("foo/bar/food"));
+	asser(fs::exists("/tmp/food"));
+
+	{
+		std::string line;
+		std::getline(*sandbox->open_read("foo/bar/food"), line);
+		asser(line == "Royale with cheese");
+	}
+
+	{
+		std::ifstream food("/tmp/food");
+		std::string   line;
+		std::getline(food, line);
+		asser(line == "Royale with cheese");
+	}
+
+	sandbox->unmount("foo/bar");
+	asser(not sandbox->exists("foo/bar/food"));
+	asser(fs::exists("/tmp/food"));
+
+	return 0;
+}
+```
+
+`Fs::mount` is similar to a bind mount.
+It allows you to mount a file from a filesystem to a different path or mount a file from a different filesystem.
