@@ -14,6 +14,7 @@
 namespace fs = std::filesystem;
 
 namespace testing {
+namespace suites {
 
 class TestFileFixture {
    public:
@@ -143,4 +144,5 @@ class TestFile {
 	}
 };
 
+}  // namespace suites
 }  // namespace testing

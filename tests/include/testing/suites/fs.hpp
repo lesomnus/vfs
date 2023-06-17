@@ -13,6 +13,7 @@
 #include "testing/utils.hpp"
 
 namespace testing {
+namespace suites {
 
 class TestFsFixture {
    public:
@@ -866,4 +867,5 @@ class TestFsBasic {
 	}
 };
 
+}  // namespace suites
 }  // namespace testing

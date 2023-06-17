@@ -173,9 +173,9 @@ class Directory: virtual public File {
 
 	virtual bool unlink(std::string const& name) = 0;
 
-	virtual void mount_next(std::string const& name, std::shared_ptr<File> file) = 0;
+	virtual void mount(std::string const& name, std::shared_ptr<File> file) = 0;
 
-	virtual void unmount_next(std::string const& name) = 0;
+	virtual void unmount(std::string const& name) = 0;
 
 	virtual std::uintmax_t erase(std::string const& name) = 0;
 
@@ -330,12 +330,12 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 		return this->attachment_->unlink(name);
 	}
 
-	void mount_next(std::string const& name, std::shared_ptr<File> file) override {
-		this->attachment_->mount_next(name, std::move(file));
+	void mount(std::string const& name, std::shared_ptr<File> file) override {
+		this->attachment_->mount(name, std::move(file));
 	}
 
-	void unmount_next(std::string const& name) override {
-		this->attachment_->unmount_next(name);
+	void unmount(std::string const& name) override {
+		this->attachment_->unmount(name);
 	}
 
 	std::uintmax_t erase(std::string const& name) override {

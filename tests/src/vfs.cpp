@@ -6,16 +6,16 @@
 
 #include "testing/suites/fs.hpp"
 
-class TestVfs: public testing::TestFsFixture {
+class TestVfs: public testing::suites::TestFsFixture {
    public:
 	std::shared_ptr<vfs::Fs> make() override {
 		return vfs::make_vfs();
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFsBasic<TestVfs>::test, "Vfs");
+METHOD_AS_TEST_CASE(testing::suites::TestFsBasic<TestVfs>::test, "Vfs");
 
-class TestChRootedVfs: public testing::TestFsFixture {
+class TestChRootedVfs: public testing::suites::TestFsFixture {
    public:
 	std::shared_ptr<vfs::Fs> make() override {
 		auto fs = vfs::make_vfs();
@@ -26,4 +26,4 @@ class TestChRootedVfs: public testing::TestFsFixture {
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFsBasic<TestChRootedVfs>::test, "Vfs with chroot");
+METHOD_AS_TEST_CASE(testing::suites::TestFsBasic<TestChRootedVfs>::test, "Vfs with chroot");

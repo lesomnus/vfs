@@ -87,10 +87,10 @@ std::shared_ptr<Directory> get_cwd_(Fs& other) {
 }  // namespace
 
 //
-// Next file should not be a Symlink and it must be checked by caller who calls mount_next or unmount_next.
+// Next file should not be a Symlink and it must be checked by caller who calls mount or unmount.
 //
 
-void OsDirectory::mount_next(std::string const& name, std::shared_ptr<File> file) {
+void OsDirectory::mount(std::string const& name, std::shared_ptr<File> file) {
 	auto const next_p = this->path_ / name;
 	auto const status = fs::status(next_p);
 	test_mount_point_(next_p, status.type(), file->type());
@@ -106,7 +106,7 @@ void OsDirectory::mount_next(std::string const& name, std::shared_ptr<File> file
 	mount_points.insert(std::make_pair(next_p, std::move(mount_point)));
 }
 
-void OsDirectory::unmount_next(std::string const& name) {
+void OsDirectory::unmount(std::string const& name) {
 	auto const next_p = this->path_ / name;
 
 	auto& mount_points = this->context_->mount_points;
@@ -143,7 +143,7 @@ std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other) {
 
 	auto attachment = get_cwd_(other);
 	auto parent     = std::make_shared<OsDirectory>(original_p.parent_path());
-	parent->mount_next(original_p.filename(), std::move(attachment));
+	parent->mount(original_p.filename(), std::move(attachment));
 
 	auto root = std::make_shared<OsDirectory>(parent->context(), this->base_path());
 	auto vfs  = std::make_shared<Vfs>(DirectoryEntry::make(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_os_path());
@@ -160,7 +160,7 @@ void OsFsProxy::mount(fs::path const& target, Fs& other) {
 	}
 }
 
-void VDirectory::mount_next(std::string const& name, std::shared_ptr<File> file) {
+void VDirectory::mount(std::string const& name, std::shared_ptr<File> file) {
 	auto const it = this->files_.find(name);
 	if(it == this->files_.end()) {
 		throw err_mount_point_does_not_exist("");
@@ -172,7 +172,7 @@ void VDirectory::mount_next(std::string const& name, std::shared_ptr<File> file)
 	next = make_mount_point_(file, std::move(next));
 }
 
-void VDirectory::unmount_next(std::string const& name) {
+void VDirectory::unmount(std::string const& name) {
 	auto const it = this->files_.find(name);
 	if(it == this->files_.end()) {
 		throw err_mount_point_does_not_exist("");
@@ -193,7 +193,7 @@ void Vfs::mount(fs::path const& target, Fs& other) {
 	auto original   = this->navigate(target)->follow_chain();
 	auto attachment = get_cwd_(other);
 
-	original->prev()->typed_file()->mount_next(original->name(), std::move(attachment));
+	original->prev()->typed_file()->mount(original->name(), std::move(attachment));
 }
 
 void Vfs::unmount(fs::path const& target) {
@@ -204,7 +204,7 @@ void Vfs::unmount(fs::path const& target) {
 		throw err_not_a_mount_point(d->path());
 	}
 
-	d->prev()->typed_file()->unmount_next(d->name());
+	d->prev()->typed_file()->unmount(d->name());
 }
 
 }  // namespace impl

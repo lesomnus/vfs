@@ -6,11 +6,11 @@
 
 #include <vfs/impl/storage.hpp>
 
-class TestVFile: public testing::TestFileFixture {
+class TestVFile: public testing::suites::TestFileFixture {
    public:
 	std::shared_ptr<vfs::impl::Storage> make() {
 		return std::make_shared<vfs::impl::VStorage>();
 	}
 };
 
-METHOD_AS_TEST_CASE(testing::TestFile<TestVFile>::test, "VFile");
+METHOD_AS_TEST_CASE(testing::suites::TestFile<TestVFile>::test, "VFile");

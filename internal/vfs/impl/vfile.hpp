@@ -154,9 +154,9 @@ class VDirectory
 		return !this->files_.extract(name).empty();
 	}
 
-	void mount_next(std::string const& name, std::shared_ptr<File> file) override;
+	void mount(std::string const& name, std::shared_ptr<File> file) override;
 
-	void unmount_next(std::string const& name) override;
+	void unmount(std::string const& name) override;
 
 	std::uintmax_t erase(std::string const& name) override;
 
