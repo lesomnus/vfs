@@ -23,16 +23,12 @@ class Entry: public std::enable_shared_from_this<Entry> {
 		return this->name_;
 	}
 
-	void name(std::string name) {
-		this->name_ = std::move(name);
+	bool holds(File const& file) const {
+		return *this->file() == file;
 	}
 
-	bool holds(std::shared_ptr<File> const& file) const {
-		return this->file() == file;
-	}
-
-	bool holds_same_file_with(Entry const& other) const {
-		return this->file() == other.file();
+	bool holds_same_file_with(Entry const& entry) const {
+		return this->holds(*entry.file());
 	}
 
 	virtual std::shared_ptr<File const> file() const = 0;
@@ -94,14 +90,6 @@ class Entry: public std::enable_shared_from_this<Entry> {
 };
 
 template<std::derived_from<File> F>
-struct EntryTypeOfImpl {
-	using Type = Entry;
-};
-
-template<std::derived_from<File> F>
-using EntryTypeOf = typename EntryTypeOfImpl<F>::Type;
-
-template<std::derived_from<File> F>
 class TypedEntry: public Entry {
    public:
 	using FileType = F;
@@ -144,11 +132,6 @@ class RegularFileEntry: public TypedEntry<RegularFile> {
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 
-template<>
-struct EntryTypeOfImpl<RegularFile> {
-	using Type = RegularFileEntry;
-};
-
 class DirectoryEntry: public TypedEntry<Directory> {
    public:
 	static std::shared_ptr<DirectoryEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Directory> file) {
@@ -156,6 +139,8 @@ class DirectoryEntry: public TypedEntry<Directory> {
 	}
 
 	static std::shared_ptr<DirectoryEntry> make_root();
+
+	using Entry::prev;
 
 	std::shared_ptr<DirectoryEntry const> prev() const override;
 
@@ -207,11 +192,6 @@ class DirectoryEntry: public TypedEntry<Directory> {
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 
-template<>
-struct EntryTypeOfImpl<Directory> {
-	using Type = DirectoryEntry;
-};
-
 class SymlinkEntry: public TypedEntry<Symlink> {
    public:
 	static std::shared_ptr<SymlinkEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file) {
@@ -235,9 +215,29 @@ class SymlinkEntry: public TypedEntry<Symlink> {
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 
-template<>
-struct EntryTypeOfImpl<Symlink> {
-	using Type = SymlinkEntry;
+class UnknownTypeEntry: public Entry {
+   public:
+	static std::shared_ptr<UnknownTypeEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file) {
+		return std::shared_ptr<UnknownTypeEntry>(new UnknownTypeEntry(std::move(name), std::move(prev), std::move(file)));
+	}
+
+	std::shared_ptr<File const> file() const override {
+		return this->file_;
+	}
+
+	std::shared_ptr<File> file() override {
+		return this->file_;
+	}
+
+   protected:
+	UnknownTypeEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<File> file)
+	    : Entry(std::move(name), std::move(prev))
+	    , file_(std::move(file)) { }
+
+	using Entry::follow;
+	using Entry::follow_chain;
+
+	std::shared_ptr<File> file_;
 };
 
 }  // namespace impl

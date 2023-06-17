@@ -6,13 +6,9 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <queue>
+#include <stdexcept>
 #include <string>
-#include <vector>
-
-#include "vfs/impl/entry.hpp"
-#include "vfs/impl/file.hpp"
-#include "vfs/impl/utils.hpp"
+#include <type_traits>
 
 namespace fs = std::filesystem;
 
@@ -60,36 +56,16 @@ VRegularFile::VRegularFile(
     : VFile(owner, group, perms) { }
 
 std::shared_ptr<File> VDirectory::next(std::string const& name) const {
-	auto it = this->files.find(name);
-	if(it == this->files.end()) {
+	auto it = this->files_.find(name);
+	if(it == this->files_.end()) {
 		return nullptr;
 	}
 
 	return it->second;
 }
 
-std::shared_ptr<Entry> VDirectory::next_entry(std::string const& name, std::shared_ptr<DirectoryEntry> const& prev) const {
-	auto f = this->next(name);
-	if(!f) {
-		return nullptr;
-	}
-
-	using fs::file_type;
-	switch(f->type()) {
-	case file_type::regular:
-		return EntryTypeOf<RegularFile>::make(std::move(name), prev, std::dynamic_pointer_cast<RegularFile>(std::move(f)));
-	case file_type::directory:
-		return EntryTypeOf<Directory>::make(std::move(name), prev, std::dynamic_pointer_cast<Directory>(std::move(f)));
-	case file_type::symlink:
-		return EntryTypeOf<Symlink>::make(std::move(name), prev, std::dynamic_pointer_cast<Symlink>(std::move(f)));
-
-	default:
-		throw std::logic_error("unexpected type of file");
-	}
-}
-
 std::uintmax_t VDirectory::erase(std::string const& name) {
-	auto node = this->files.extract(name);
+	auto node = this->files_.extract(name);
 	if(node.empty()) {
 		return 0;
 	}
@@ -100,24 +76,23 @@ std::uintmax_t VDirectory::erase(std::string const& name) {
 		return 1;
 	}
 
-	std::uintmax_t cnt = 1;
-	for(auto const& [_, next_f]: *d) {
-		++cnt;
-		auto next_d = std::dynamic_pointer_cast<Directory>(next_f);
-		if(!next_d) {
-			continue;
-		}
+	return d->clear() + 1;
+}
 
-		std::vector<std::string> names;
-		for(auto const& [name, _]: *next_d) {
-			names.push_back(name);
-		}
-		for(auto const& name: names) {
-			cnt += next_d->erase(name);
+std::uintmax_t VDirectory::clear() {
+	auto files = std::move(this->files_);
+
+	std::uintmax_t n = 0;
+	for(auto const& [_, f]: files) {
+		auto d = std::dynamic_pointer_cast<Directory>(f);
+		if(d) {
+			n += d->clear() + 1;
+		} else {
+			n += 1;
 		}
 	}
 
-	return cnt;
+	return n;
 }
 
 std::shared_ptr<RegularFile> VStorage::make_regular_file() const {

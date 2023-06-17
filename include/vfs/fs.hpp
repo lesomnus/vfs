@@ -24,7 +24,17 @@ class Fs {
 	 * @param mode     Open mode for the file.
 	 * @return Input stream of the opened file.
 	 */
-	virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const = 0;
+	virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode) const = 0;
+
+	/**
+	 * @brief Opens a file for reading.
+	 * 
+	 * @param filename Name of the file to be opened.
+	 * @return Input stream of the opened file.
+	 */
+	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename) const {
+		return this->open_read(filename, std::ios_base::in);
+	}
 
 	/**
 	 * @brief Opens a file for writing.
@@ -33,10 +43,33 @@ class Fs {
 	 * @param mode     Open mode for the file.
 	 * @return Output stream of the opened file.
 	 */
-	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
+	virtual std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode) = 0;
 
-	virtual std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp") const = 0;
-	virtual std::shared_ptr<Fs>       change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir = "/tmp")       = 0;
+	/**
+	 * @brief Opens a file for writing.
+	 * 
+	 * @param filename Name of the file to be opened.
+	 * @return Output stream of the opened file.
+	 */
+	std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename) {
+		return this->open_write(filename, std::ios_base::out);
+	}
+
+	virtual std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const = 0;
+
+	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p) const {
+		return this->change_root(p, "/tmp");
+	}
+
+	virtual std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) = 0;
+
+	std::shared_ptr<Fs> change_root(std::filesystem::path const& p) {
+		return this->change_root(p, "/tmp");
+	}
+
+	virtual void mount(std::filesystem::path const& target, Fs& other) = 0;
+
+	virtual void unmount(std::filesystem::path const& target) = 0;
 
 	/**
 	 * @brief Converts a given path to its absolute form, which is a fully qualified path that includes the root directory.
@@ -584,6 +617,16 @@ class Fs {
 	/**
 	 * @brief Modifies the permissions of a file or directory.
 	 * 
+	 * @param[in] p    Path to the file or directory for which the permissions are to be set.
+	 * @param[in] prms Desired permissions to be set, added, or removed.
+	 */
+	void permissions(std::filesystem::path const& p, std::filesystem::perms prms) {
+		this->permissions(p, prms, std::filesystem::perm_options::replace);
+	}
+
+	/**
+	 * @brief Modifies the permissions of a file or directory.
+	 * 
 	 * @param[in]  p    Path to the file or directory for which the permissions are to be set.
 	 * @param[in]  prms Desired permissions to be set, added, or removed.
 	 * @param[in]  opts Options to control the behavior.
@@ -1065,6 +1108,14 @@ class Fs {
 	virtual std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
 
 	std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+
+	static std::shared_ptr<Cursor> cursor_of_(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts) {
+		return fs.cursor_(p, opts);
+	}
+
+	static std::shared_ptr<RecursiveCursor> recursive_cursor_of_(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts) {
+		return fs.recursive_cursor_(p, opts);
+	}
 };
 
 /**

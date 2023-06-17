@@ -40,6 +40,13 @@ class Vfs: public Fs {
 		return std::const_pointer_cast<Fs>(static_cast<Fs const*>(this)->change_root(p, temp_dir));
 	}
 
+	void mount(std::filesystem::path const& target, Fs& other) override;
+	void unmount(std::filesystem::path const& target) override;
+
+	std::shared_ptr<DirectoryEntry> const& current_working_directory_entry() {
+		return this->cwd_;
+	}
+
 	std::filesystem::path canonical(std::filesystem::path const& p) const override;
 	std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override;
 
@@ -123,15 +130,6 @@ class Vfs: public Fs {
 
 	bool is_empty(std::filesystem::path const& p) const override;
 	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
-
-   protected:
-	std::shared_ptr<DirectoryEntry const> from_of_(std::filesystem::path const& p) const {
-		return p.is_absolute() ? this->root_ : this->cwd_;
-	}
-
-	std::shared_ptr<DirectoryEntry>& from_of_(std::filesystem::path const& p) {
-		return p.is_absolute() ? this->root_ : this->cwd_;
-	}
 
 	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
@@ -238,6 +236,14 @@ class Vfs: public Fs {
 
 		directory_entry entry_;
 	};
+
+	std::shared_ptr<DirectoryEntry const> from_of_(std::filesystem::path const& p) const {
+		return p.is_absolute() ? this->root_ : this->cwd_;
+	}
+
+	std::shared_ptr<DirectoryEntry>& from_of_(std::filesystem::path const& p) {
+		return p.is_absolute() ? this->root_ : this->cwd_;
+	}
 
 	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
