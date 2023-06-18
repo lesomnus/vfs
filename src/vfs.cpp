@@ -91,11 +91,12 @@ std::shared_ptr<std::ostream> Vfs::open_write(fs::path const& filename, std::ios
 	auto [f, it] = this->navigate(filename.begin(), filename.end(), ec);
 	if(!ec) {
 		auto const r = std::dynamic_pointer_cast<RegularFile>(std::move(f));
-		if(r) {
-			return r->open_write(mode);
-		} else {
+		if(!r) {
+			// File exists but not a regular file.
 			return fail();
 		}
+
+		return r->open_write(mode);
 	}
 
 	auto d = std::dynamic_pointer_cast<DirectoryEntry>(std::move(f));
@@ -114,10 +115,8 @@ std::shared_ptr<std::ostream> Vfs::open_write(fs::path const& filename, std::ios
 		return fail();
 	}
 
-	auto r  = d->resolve_storage()->make_regular_file();
-	auto os = r->open_write(mode);
-	d->insert(name.filename(), std::move(r));
-	return os;
+	auto r = d->emplace_regular_file(name);
+	return r->open_write(mode);
 }
 
 std::shared_ptr<Fs const> Vfs::change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const {
@@ -236,38 +235,33 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 
 	auto const dst_p = this->weakly_canonical(dst);
 	auto const prev  = this->navigate(dst_p.parent_path() / "")->must_be<DirectoryEntry>();
-	if(!prev->typed_file()->next(dst_p.filename())) {
+	auto [dst_r, ok] = prev->typed_file()->emplace_regular_file(dst_p.filename());
+	if(ok) {
 		// Destination does not exists.
-		auto f = prev->resolve_storage()->make_regular_file();
-
-		*f = *src_r->typed_file();
-		prev->insert(dst_p.filename(), std::move(f));
+		*dst_r = *src_r->typed_file();
 		return true;
 	}
-
-	auto const dst_f = prev->next(dst_p.filename());
-	auto const dst_r = std::dynamic_pointer_cast<RegularFileEntry>(dst_f);
 	if(!dst_r) {
-		throw fs::filesystem_error("destination not a regular file", dst_f->path(), std::make_error_code(std::errc::invalid_argument));
+		throw fs::filesystem_error("destination not a regular file", dst_p, std::make_error_code(std::errc::invalid_argument));
 	}
 
 	if((opts & fs::copy_options::skip_existing) == fs::copy_options::skip_existing) {
 		return false;
 	}
 	if((opts & fs::copy_options::overwrite_existing) == fs::copy_options::overwrite_existing) {
-		*dst_r->typed_file() = *src_r->typed_file();
+		*dst_r = *src_r->typed_file();
 		return true;
 	}
 	if((opts & fs::copy_options::update_existing) == fs::copy_options::update_existing) {
-		if(src_r->typed_file()->last_write_time() < dst_r->typed_file()->last_write_time()) {
+		if(src_r->typed_file()->last_write_time() < dst_r->last_write_time()) {
 			return false;
 		}
 
-		*dst_r->typed_file() = *src_r->typed_file();
+		*dst_r = *src_r->typed_file();
 		return true;
 	}
 
-	throw fs::filesystem_error("", src_r->path(), dst_f->path(), std::make_error_code(std::errc::file_exists));
+	throw fs::filesystem_error("", src_r->path(), dst_p, std::make_error_code(std::errc::file_exists));
 }
 
 bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
@@ -286,20 +280,17 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& attr) {
 	auto const dst_p = this->weakly_canonical(p);
 	auto const prev  = this->navigate(p.parent_path() / "")->must_be<DirectoryEntry>();
 
-	if(auto f = prev->typed_file()->next(dst_p.filename()); f) {
-		if(f->type() != fs::file_type::directory) {
-			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
-		} else {
-			return false;
-		}
+	auto [new_d, ok] = prev->typed_file()->emplace_directory(dst_p.filename());
+	if(!new_d) {
+		throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
 	}
 
-	auto const oth_d = this->navigate(attr / "")->must_be<DirectoryEntry>();
+	if(ok) {
+		auto const oth_d = this->navigate(attr / "")->must_be<DirectoryEntry>();
+		new_d->perms(oth_d->typed_file()->perms(), fs::perm_options::replace);
+	}
 
-	auto new_d = prev->resolve_storage()->make_directory();
-	new_d->perms(oth_d->typed_file()->perms(), fs::perm_options::replace);
-	prev->insert(dst_p.filename(), std::move(new_d));
-	return true;
+	return ok;
 }
 
 bool Vfs::create_directory(fs::path const& p, fs::path const& attr, std::error_code& ec) noexcept {
@@ -318,11 +309,11 @@ bool Vfs::create_directories(fs::path const& p) {
 		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::not_a_directory));
 	}
 
-	auto storage = d->resolve_storage();
-	auto prev    = d->typed_file();
+	auto prev = d->typed_file();
 	for(; it != t.end(); ++it) {
-		auto curr = storage->make_directory();
-		prev->insert(*it, curr);
+		auto [curr, ok] = prev->emplace_directory(*it);
+		assert(ok);
+
 		prev = std::move(curr);
 	}
 
@@ -352,8 +343,7 @@ void Vfs::create_symlink(fs::path const& target, fs::path const& link) {
 		throw fs::filesystem_error("", src_p, std::make_error_code(std::errc::file_exists));
 	}
 
-	auto const storage = prev->resolve_storage();
-	prev->insert(src_p.filename(), storage->make_symlink(target));
+	prev->emplace_symlink(src_p.filename(), target);
 }
 
 void Vfs::create_symlink(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {

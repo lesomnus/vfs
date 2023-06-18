@@ -9,7 +9,6 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 #include <vfs/impl/file.hpp>
-#include <vfs/impl/storage.hpp>
 
 namespace fs = std::filesystem;
 
@@ -18,7 +17,7 @@ namespace suites {
 
 class TestFileFixture {
    public:
-	virtual std::shared_ptr<vfs::impl::Storage> make() = 0;
+	virtual std::shared_ptr<vfs::impl::Directory> make() = 0;
 };
 
 template<std::derived_from<TestFileFixture> Fixture>
@@ -27,26 +26,29 @@ class TestFile {
 	void test() {
 		Fixture fixture;
 
-		std::shared_ptr<vfs::impl::Storage> const storage = fixture.make();
+		std::shared_ptr<vfs::impl::Directory> const sandbox = fixture.make();
 
 		SECTION("File") {
 			SECTION("::operator==()") {
-				auto d1 = storage->make_directory();
-				CHECK(*d1 == *d1);
+				auto [foo, ok1] = sandbox->emplace_directory("foo");
+				REQUIRE(ok1);
+				CHECK(*foo == *foo);
 
-				auto d2 = storage->make_directory();
-				CHECK(*d1 != *d2);
+				auto [bar, ok2] = sandbox->emplace_directory("bar");
+				REQUIRE(ok2);
+				CHECK(*foo != *bar);
 
-				d1->insert("foo", d2);
-				auto foo = d1->next("foo");
-				CHECK(nullptr != foo);
-				CHECK(*d2 == *foo);
+				foo->insert("baz", bar);
+				auto baz = foo->next("baz");
+				CHECK(nullptr != baz);
+				CHECK(*bar == *baz);
 			}
 		}
 
 		SECTION("RegularFile") {
 			SECTION("::size") {
-				auto f = storage->make_regular_file();
+				auto [f, ok] = sandbox->emplace_regular_file("foo");
+				REQUIRE(ok);
 				CHECK(0 == f->size());
 
 				constexpr char quote[] = "Lorem ipsum";
@@ -55,7 +57,8 @@ class TestFile {
 			}
 
 			SECTION("::last_write_time") {
-				auto f = storage->make_regular_file();
+				auto [f, ok] = sandbox->emplace_regular_file("foo");
+				REQUIRE(ok);
 
 				auto const t0 = f->last_write_time();
 				std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -71,74 +74,82 @@ class TestFile {
 
 		SECTION("Directory") {
 			SECTION("insert a file into the directory") {
-				auto root = storage->make_directory();
-				{
-					auto f = storage->make_regular_file();
-					*f->open_write() << "Lorem ipsum";
+				auto [foo, ok] = sandbox->emplace_directory("foo");
+				REQUIRE(ok);
 
-					CHECK(root->insert("foo", f));
+				{
+					auto [bar, ok] = sandbox->emplace_regular_file("bar");
+					REQUIRE(ok);
+
+					*bar->open_write() << "Lorem ipsum";
+					CHECK(foo->insert("bar", bar));
 				}
 
-				auto foo_f = root->next("foo");
-				REQUIRE(nullptr != foo_f);
+				auto bar_f = foo->next("bar");
+				REQUIRE(nullptr != bar_f);
 
-				auto foo_r = std::dynamic_pointer_cast<vfs::impl::RegularFile>(foo_f);
-				REQUIRE(nullptr != foo_r);
+				auto bar = std::dynamic_pointer_cast<vfs::impl::RegularFile>(bar_f);
+				REQUIRE(nullptr != bar);
 
 				std::string line;
-				std::getline(*foo_r->open_read(), line);
+				std::getline(*bar->open_read(), line);
 				CHECK("Lorem ipsum" == line);
 			}
 
 			SECTION("insert a directory into the directory") {
-				auto root = storage->make_directory();
-				{
-					auto d = storage->make_directory();
-					auto f = storage->make_regular_file();
-					*f->open_write() << "Lorem ipsum";
+				auto [foo, ok] = sandbox->emplace_directory("foo");
+				REQUIRE(ok);
 
-					CHECK(root->insert("foo", d));
-					CHECK(d->insert("bar", f));
+				{
+					auto [bar, ok1] = foo->emplace_directory("bar");
+					REQUIRE(ok1);
+
+					auto [baz, ok2] = bar->emplace_regular_file("baz");
+					REQUIRE(ok2);
+
+					*baz->open_write() << "Lorem ipsum";
 				}
 
-				auto foo_f = root->next("foo");
-				REQUIRE(nullptr != foo_f);
+				auto bar_f = foo->next("bar");
+				REQUIRE(nullptr != bar_f);
 
-				auto foo_d = std::dynamic_pointer_cast<vfs::impl::Directory>(foo_f);
-				REQUIRE(nullptr != foo_d);
+				auto bar = std::dynamic_pointer_cast<vfs::impl::Directory>(bar_f);
+				REQUIRE(nullptr != bar);
 
-				auto bar_f = foo_d->next("bar");
-				REQUIRE(nullptr != foo_f);
+				auto baz_f = bar->next("baz");
+				REQUIRE(nullptr != baz_f);
 
-				auto bar_r = std::dynamic_pointer_cast<vfs::impl::RegularFile>(bar_f);
-				REQUIRE(nullptr != bar_r);
+				auto baz = std::dynamic_pointer_cast<vfs::impl::RegularFile>(baz_f);
+				REQUIRE(nullptr != baz);
 
 				std::string line;
-				std::getline(*bar_r->open_read(), line);
+				std::getline(*baz->open_read(), line);
 				CHECK("Lorem ipsum" == line);
 			}
 
 			SECTION("iterate a directory") {
-				auto root = storage->make_directory();
-				CHECK(root->empty());
-				CHECK(root->end() == root->begin());
+				auto [foo, ok] = sandbox->emplace_directory("foo");
+				REQUIRE(ok);
 
-				root->insert("foo", storage->make_regular_file());
-				root->insert("bar", storage->make_directory());
-				CHECK(not root->empty());
-				CHECK(root->end() != root->begin());
+				CHECK(foo->empty());
+				CHECK(foo->end() == foo->begin());
+
+				foo->emplace_directory("bar");
+				foo->emplace_regular_file("baz");
+				CHECK(not foo->empty());
+				CHECK(foo->end() != foo->begin());
 
 				std::unordered_map<std::string, std::shared_ptr<vfs::impl::File>> files;
-				for(auto const& [name, file]: *root) {
+				for(auto const& [name, file]: *foo) {
 					files.insert(std::make_pair(name, file));
 				}
 
 				CHECK(2 == files.size());
-				REQUIRE(files.contains("foo"));
 				REQUIRE(files.contains("bar"));
+				REQUIRE(files.contains("baz"));
 
-				CHECK(nullptr != std::dynamic_pointer_cast<vfs::impl::RegularFile>(files.at("foo")));
 				CHECK(nullptr != std::dynamic_pointer_cast<vfs::impl::Directory>(files.at("bar")));
+				CHECK(nullptr != std::dynamic_pointer_cast<vfs::impl::RegularFile>(files.at("baz")));
 			}
 		}
 	}

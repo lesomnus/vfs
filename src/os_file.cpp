@@ -1,5 +1,4 @@
 #include "vfs/impl/os_file.hpp"
-#include "vfs/impl/storage.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -160,6 +159,48 @@ bool OsDirectory::insert_or_assign(std::string const& name, std::shared_ptr<File
 	return is_inserted;
 }
 
+std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(std::string const& name) {
+	auto const next_p = this->path_ / name;
+
+	auto*      f  = std::fopen(next_p.c_str(), "wx");
+	auto const ok = f != nullptr;
+	if(ok) {
+		std::fclose(f);
+	} else if(not fs::is_regular_file(next_p)) {
+		return std::make_pair(nullptr, false);
+	}
+
+	return std::make_pair(std::make_shared<OsRegularFile>(this->context_, next_p), ok);
+}
+
+std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::string const& name) {
+	auto const next_p = this->path_ / name;
+	auto const ok     = fs::create_directory(next_p);
+	if(not ok && not fs::is_directory(next_p)) {
+		return std::make_pair(nullptr, false);
+	}
+
+	return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
+}
+
+std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {
+	auto const next_p = this->path_ / name;
+
+	auto ok = false;
+	try {
+		fs::create_symlink(target, next_p);
+		ok = true;
+	} catch(std::filesystem::filesystem_error const& error) {
+		if(error.code() != std::errc::file_exists) {
+			throw error;
+		} else if(not fs::is_symlink(next_p)) {
+			return std::make_pair(nullptr, false);
+		}
+	}
+
+	return std::make_pair(std::make_shared<OsSymlink>(this->context_, next_p), ok);
+}
+
 std::uintmax_t OsDirectory::clear() {
 	std::uintmax_t cnt = 0;
 	for(auto const& dir_entry: fs::directory_iterator{this->path_}) {
@@ -214,18 +255,6 @@ TempSymlink::~TempSymlink() {
 	}
 
 	fs::remove(this->path_);
-}
-
-std::shared_ptr<RegularFile> OsStorage::make_regular_file() const {
-	return std::make_shared<TempRegularFile>();
-}
-
-std::shared_ptr<Directory> OsStorage::make_directory() const {
-	return std::make_shared<TempDirectory>();
-}
-
-std::shared_ptr<Symlink> OsStorage::make_symlink(std::filesystem::path target) const {
-	return std::make_shared<TempSymlink>(std::move(target));
 }
 
 }  // namespace impl

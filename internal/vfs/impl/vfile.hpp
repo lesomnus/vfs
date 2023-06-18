@@ -10,7 +10,6 @@
 
 #include "vfs/impl/file.hpp"
 #include "vfs/impl/os_file.hpp"
-#include "vfs/impl/storage.hpp"
 
 namespace vfs {
 namespace impl {
@@ -122,6 +121,22 @@ class VRegularFile
 	}
 };
 
+class VSymlink
+    : public VFile
+    , public Symlink {
+   public:
+	VSymlink(std::filesystem::path target)
+	    : VFile(0, 0, std::filesystem::perms::all)
+	    , target_(std::move(target)) { }
+
+	std::filesystem::path target() const override {
+		return this->target_;
+	}
+
+   private:
+	std::filesystem::path target_;
+};
+
 class VDirectory
     : public VFile
     , public Directory {
@@ -150,6 +165,12 @@ class VDirectory
 		return this->files_.insert_or_assign(name, std::move(file)).second;
 	}
 
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
+
 	bool unlink(std::string const& name) override {
 		return !this->files_.extract(name).empty();
 	}
@@ -168,7 +189,6 @@ class VDirectory
 
    private:
 	std::unordered_map<std::string, std::shared_ptr<File>> files_;
-	std::shared_ptr<Storage>                               storage_;
 
 	class Cursor_: public Cursor {
 	   public:
@@ -199,22 +219,6 @@ class VDirectory
 		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator it;
 		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator end;
 	};
-};
-
-class VSymlink
-    : public VFile
-    , public Symlink {
-   public:
-	VSymlink(std::filesystem::path target)
-	    : VFile(0, 0, std::filesystem::perms::all)
-	    , target_(std::move(target)) { }
-
-	std::filesystem::path target() const override {
-		return this->target_;
-	}
-
-   private:
-	std::filesystem::path target_;
 };
 
 }  // namespace impl

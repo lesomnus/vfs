@@ -11,9 +11,6 @@
 namespace vfs {
 namespace impl {
 
-class Entry;
-class DirectoryEntry;
-
 class File {
    public:
 	virtual ~File() = default;
@@ -83,6 +80,15 @@ class RegularFile: virtual public File {
 	std::shared_ptr<std::ostream> open_write() {
 		return this->open_write(std::ios_base::out);
 	}
+};
+
+class Symlink: virtual public File {
+   public:
+	std::filesystem::file_type type() const final {
+		return std::filesystem::file_type::symlink;
+	}
+
+	virtual std::filesystem::path target() const = 0;
 };
 
 class Directory: virtual public File {
@@ -171,6 +177,12 @@ class Directory: virtual public File {
 
 	virtual bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) = 0;
 
+	virtual std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) = 0;
+
+	virtual std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) = 0;
+
+	virtual std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) = 0;
+
 	virtual bool unlink(std::string const& name) = 0;
 
 	virtual void mount(std::string const& name, std::shared_ptr<File> file) = 0;
@@ -192,15 +204,6 @@ class Directory: virtual public File {
 	Iterator end() const {
 		return Iterator();
 	}
-};
-
-class Symlink: virtual public File {
-   public:
-	std::filesystem::file_type type() const final {
-		return std::filesystem::file_type::symlink;
-	}
-
-	virtual std::filesystem::path target() const = 0;
 };
 
 class MountPoint: virtual public File {
@@ -324,6 +327,18 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 
 	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override {
 		return this->attachment_->insert_or_assign(name, std::move(file));
+	}
+
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
+		return this->attachment_->emplace_regular_file(name);
+	}
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
+		return this->attachment_->emplace_directory(name);
+	}
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
+		return this->attachment_->emplace_symlink(name, std::move(target));
 	}
 
 	bool unlink(std::string const& name) override {

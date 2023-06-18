@@ -133,6 +133,21 @@ class TempRegularFile: public OsRegularFile {
 	~TempRegularFile();
 };
 
+class OsSymlink
+    : public OsFile
+    , public Symlink {
+   public:
+	OsSymlink(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : OsFile(std::move(context), std::move(p)) { }
+
+	OsSymlink(std::filesystem::path p)
+	    : OsFile(std::move(p)) { }
+
+	std::filesystem::path target() const override {
+		return std::filesystem::read_symlink(this->path_);
+	}
+};
+
 class OsDirectory
     : public OsFile
     , public Directory {
@@ -159,6 +174,12 @@ class OsDirectory
 
 	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override;
 
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
+
 	bool unlink(std::string const& name) override {
 		return this->erase(name) > 0;
 	}
@@ -183,21 +204,6 @@ class TempDirectory: public OsDirectory {
 	TempDirectory(TempDirectory const& other) = default;
 
 	~TempDirectory();
-};
-
-class OsSymlink
-    : public OsFile
-    , public Symlink {
-   public:
-	OsSymlink(std::shared_ptr<Context> context, std::filesystem::path p)
-	    : OsFile(std::move(context), std::move(p)) { }
-
-	OsSymlink(std::filesystem::path p)
-	    : OsFile(std::move(p)) { }
-
-	std::filesystem::path target() const override {
-		return std::filesystem::read_symlink(this->path_);
-	}
 };
 
 class TempSymlink: public OsSymlink {
