@@ -55,6 +55,8 @@ class RegularFile: virtual public File {
 		return std::filesystem::file_type::regular;
 	}
 
+	void copy_content_to(RegularFile& other) const;
+
 	virtual RegularFile& operator=(RegularFile const& other);
 
 	virtual std::uintmax_t size() const {
@@ -96,6 +98,15 @@ class Directory: virtual public File {
 	static constexpr auto DefaultPerms = std::filesystem::perms::all
 	    & ~std::filesystem::perms::group_write
 	    & ~std::filesystem::perms::others_write;
+
+	class RemovableFile {
+	   public:
+		virtual ~RemovableFile() = default;
+
+		virtual std::shared_ptr<File> value() = 0;
+
+		virtual void commit() = 0;
+	};
 
 	class Cursor {
 	   public:
@@ -177,11 +188,17 @@ class Directory: virtual public File {
 
 	virtual bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) = 0;
 
+	virtual bool insert(std::string const& name, RemovableFile& file) = 0;
+
+	virtual bool insert_or_assign(std::string const& name, RemovableFile& file) = 0;
+
 	virtual std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) = 0;
 
 	virtual std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) = 0;
 
 	virtual std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) = 0;
+
+	virtual std::shared_ptr<RemovableFile> removable(std::string const& name) = 0;
 
 	virtual bool unlink(std::string const& name) = 0;
 
@@ -329,6 +346,14 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 		return this->attachment_->insert_or_assign(name, std::move(file));
 	}
 
+	bool insert(std::string const& name, RemovableFile& file) {
+		return this->insert(name, file);
+	}
+
+	bool insert_or_assign(std::string const& name, RemovableFile& file) {
+		return this->insert_or_assign(name, file);
+	}
+
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
 		return this->attachment_->emplace_regular_file(name);
 	}
@@ -339,6 +364,10 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 
 	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
 		return this->attachment_->emplace_symlink(name, std::move(target));
+	}
+
+	std::shared_ptr<RemovableFile> removable(std::string const& name) override {
+		return this->attachment_->removable(name);
 	}
 
 	bool unlink(std::string const& name) override {

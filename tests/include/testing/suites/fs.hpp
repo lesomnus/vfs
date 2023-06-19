@@ -28,7 +28,9 @@ class TestFsBasic {
 
 		Fixture fixture;
 
-		std::shared_ptr<vfs::Fs> fs = cd_temp_dir(*fixture.make());
+		auto root = fixture.make();
+
+		std::shared_ptr<vfs::Fs> fs = cd_temp_dir(*root);
 
 		auto const test_path = fs->current_path();
 		INFO("test_path: " + test_path.string());

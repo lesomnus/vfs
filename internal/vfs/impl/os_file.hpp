@@ -124,15 +124,6 @@ class OsRegularFile
 	}
 };
 
-class TempRegularFile: public OsRegularFile {
-   public:
-	TempRegularFile();
-
-	TempRegularFile(TempRegularFile const& other) = delete;
-
-	~TempRegularFile();
-};
-
 class OsSymlink
     : public OsFile
     , public Symlink {
@@ -174,11 +165,17 @@ class OsDirectory
 
 	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override;
 
+	bool insert(std::string const& name, RemovableFile& file) override;
+
+	bool insert_or_assign(std::string const& name, RemovableFile& file) override;
+
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
 
 	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
 
 	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
+
+	std::shared_ptr<RemovableFile> removable(std::string const& name) override;
 
 	bool unlink(std::string const& name) override {
 		return this->erase(name) > 0;
@@ -195,6 +192,15 @@ class OsDirectory
 	std::uintmax_t clear() override;
 
 	std::shared_ptr<Cursor> cursor() const override;
+};
+
+class TempRegularFile: public OsRegularFile {
+   public:
+	TempRegularFile();
+
+	TempRegularFile(TempRegularFile const& other) = delete;
+
+	~TempRegularFile();
 };
 
 class TempDirectory: public OsDirectory {

@@ -9,8 +9,12 @@ namespace fs = std::filesystem;
 namespace vfs {
 namespace impl {
 
+void RegularFile::copy_content_to(RegularFile& other) const {
+	*other.open_write() << this->open_read()->rdbuf();
+}
+
 RegularFile& RegularFile::operator=(RegularFile const& other) {
-	*this->open_write() << other.open_read()->rdbuf();
+	other.copy_content_to(*this);
 	this->owner(other.owner());
 	this->group(other.group());
 	this->perms(other.perms(), fs::perm_options::replace);

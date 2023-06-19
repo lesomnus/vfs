@@ -60,7 +60,7 @@ class OsFsProxy: public FsProxy {
 class StdFs: public OsFs {
    public:
 	StdFs(std::filesystem::path const& cwd)
-	    : cwd_(std::filesystem::canonical(cwd / "")) { }
+	    : cwd_(cwd) { }
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override {
 		return std::make_shared<std::ifstream>(this->normal_(filename), mode);
@@ -89,7 +89,8 @@ class StdFs: public OsFs {
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
 		if(p.empty()) {
 			return p;
-		} else if(p.is_relative() && !std::filesystem::exists(this->cwd_ / *p.begin())) {
+		}
+		if(p.is_relative() && !this->exists(this->cwd_ / *p.begin())) {
 			return p.lexically_normal();
 		}
 
@@ -165,11 +166,21 @@ class StdFs: public OsFs {
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
+		auto c = this->canonical(p);
+		if(!this->is_directory(c)) {
+			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
+		}
+
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
 		// TODO: move
+		auto c = this->canonical(p);
+		if(!this->is_directory(c)) {
+			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
+		}
+
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
@@ -311,7 +322,7 @@ class StdFs: public OsFs {
 
    protected:
 	virtual std::filesystem::path normal_(std::filesystem::path const& p) const {
-		return p.is_absolute() ? p : (this->cwd_ / p);
+		return this->cwd_ / p;
 	}
 
 	template<typename C, typename It>
@@ -388,11 +399,11 @@ class StdFs: public OsFs {
 	};
 
 	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<StdFs::Cursor>(*this, this->normal_(p), opts);
+		return std::make_shared<StdFs::Cursor>(*this, p, opts);
 	}
 
 	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<StdFs::RecursiveCursor>(*this, this->normal_(p), opts);
+		return std::make_shared<StdFs::RecursiveCursor>(*this, p, opts);
 	}
 
 	std::filesystem::path cwd_;
@@ -417,16 +428,30 @@ class ChRootedStdFs: public StdFs {
 	}
 
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
+		if(p.empty()) {
+			return p;
+		}
+
 		return this->confine_(StdFs::weakly_canonical(p));
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
-		return std::make_shared<ChRootedStdFs>(this->base_, this->canonical(p), this->temp_dir_);
+		auto c = this->canonical(p);
+		if(!this->is_directory(c)) {
+			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
+		}
+
+		return std::make_shared<ChRootedStdFs>(this->base_, std::move(c), this->temp_dir_);
 	}
 
 	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
 		// TODO: move
-		return std::make_shared<ChRootedStdFs>(this->base_, this->canonical(p), this->temp_dir_);
+		auto c = this->canonical(p);
+		if(!this->is_directory(c)) {
+			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
+		}
+
+		return std::make_shared<ChRootedStdFs>(this->base_, std::move(c), this->temp_dir_);
 	}
 
 	std::filesystem::path temp_directory_path() const override {
@@ -441,6 +466,10 @@ class ChRootedStdFs: public StdFs {
 	std::filesystem::path normal_(std::filesystem::path const& p) const override;
 
 	std::filesystem::path confine_(std::filesystem::path const& normal) const {
+		if(normal.is_relative()) {
+			return normal;
+		}
+
 		return ("/" / normal.lexically_relative(this->base_)).lexically_normal();
 	}
 

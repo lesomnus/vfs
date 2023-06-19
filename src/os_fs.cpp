@@ -13,24 +13,26 @@ namespace vfs {
 namespace impl {
 
 std::shared_ptr<Fs const> StdFs::change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const {
-	return std::make_shared<ChRootedStdFs>(this->canonical(p), "/", temp_dir);
+	return std::make_shared<ChRootedStdFs>(StdFs::canonical(p), "/", temp_dir);
 }
 
 std::filesystem::path ChRootedStdFs::normal_(std::filesystem::path const& p) const {
-	auto const a = std::filesystem::weakly_canonical(this->base_ / (p.is_absolute() ? p : (this->cwd_ / p)).relative_path());
-	auto const r = a.lexically_relative(this->base_);
+	auto const a = this->base_ / (this->cwd_ / p).relative_path();
+	auto const c = std::filesystem::weakly_canonical(a);
+	auto const r = c.lexically_relative(this->base_);
 	if(r.empty() || (*r.begin() == ".")) {
 		return this->base_;
-	} else if(*r.begin() == "..") {
+	}
+	if(*r.begin() == "..") {
 		auto it = std::find_if(r.begin(), r.end(), [](auto entry) { return entry != ".."; });
 		if(it == r.end()) {
 			return this->base_;
 		} else {
 			return this->base_ / acc_paths(it, r.end());
 		}
-	} else {
-		return a;
 	}
+
+	return a;
 }
 
 }  // namespace impl

@@ -404,7 +404,7 @@ class directory_entry {
 		if(this->type_ != std::filesystem::file_type::none && this->type_ != std::filesystem::file_type::symlink) {
 			return this->type_;
 		}
-		return status().type();
+		return this->status().type();
 	}
 
 	std::filesystem::file_type get_type_(std::error_code& ec) const {
@@ -412,7 +412,7 @@ class directory_entry {
 			ec.clear();
 			return this->type_;
 		}
-		return status().type();
+		return this->status().type();
 	}
 
 	std::shared_ptr<Fs>        fs_;

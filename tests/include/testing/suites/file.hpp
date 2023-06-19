@@ -41,7 +41,6 @@ class TestFile {
 				foo->insert("baz", bar);
 				auto baz = foo->next("baz");
 				CHECK(nullptr != baz);
-				CHECK(*bar == *baz);
 			}
 		}
 

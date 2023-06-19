@@ -26,11 +26,13 @@ class FsProxy: public Fs {
 	}
 
 	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override {
-		return this->fs_->change_root(p, temp_dir);
+		auto fs = this->fs_->change_root(p, temp_dir);
+		return this->make_proxy_(std::move(fs));
 	}
 
 	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
-		return this->fs_->change_root(p, temp_dir);
+		auto fs = this->fs_->change_root(p, temp_dir);
+		return this->make_proxy_(std::move(fs));
 	}
 
 	void mount(std::filesystem::path const& target, Fs& other) override {
