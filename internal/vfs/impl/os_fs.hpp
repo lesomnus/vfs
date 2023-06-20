@@ -329,11 +329,11 @@ class StdFs: public OsFs {
 	class BasicCursor: public C {
 	   public:
 		BasicCursor(StdFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
-		    : it_(fs.absolute(p), opts)
+		    : path_(p)
+		    , normal_path_(fs.normal_(p))
+		    , it_(this->normal_path_, opts)
 		    , entry_(fs) {
-			if(!this->at_end()) {
-				this->entry_.assign(this->it_->path());
-			}
+			this->refresh_();
 		}
 
 		directory_entry const& value() const override {
@@ -359,9 +359,15 @@ class StdFs: public OsFs {
 			if(this->at_end()) {
 				this->entry_ = directory_entry();
 			} else {
-				this->entry_.assign(this->it_->path());
+				auto const p = this->it_->path();
+				auto const r = p.lexically_relative(this->normal_path_);
+
+				this->entry_.assign(this->path_ / r);
 			}
 		}
+
+		std::filesystem::path path_;
+		std::filesystem::path normal_path_;
 
 		It                                 it_;
 		std::filesystem::directory_options opts_;

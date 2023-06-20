@@ -12,6 +12,13 @@ namespace vfs {
 
 namespace impl {
 
+namespace {
+
+class Cursor_ {
+};
+
+}  // namespace
+
 std::shared_ptr<Fs const> StdFs::change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const {
 	return std::make_shared<ChRootedStdFs>(StdFs::canonical(p), "/", temp_dir);
 }
