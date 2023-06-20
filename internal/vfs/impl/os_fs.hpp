@@ -321,96 +321,18 @@ class StdFs: public OsFs {
 	}
 
    protected:
+	template<typename C, typename It>
+	class Cursor_;
+
+	class RecursiveCursor_;
+
 	virtual std::filesystem::path normal_(std::filesystem::path const& p) const {
 		return this->cwd_ / p;
 	}
 
-	template<typename C, typename It>
-	class BasicCursor: public C {
-	   public:
-		BasicCursor(StdFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
-		    : path_(p)
-		    , normal_path_(fs.normal_(p))
-		    , it_(this->normal_path_, opts)
-		    , entry_(fs) {
-			this->refresh_();
-		}
+	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
-		directory_entry const& value() const override {
-			return this->entry_;
-		}
-
-		bool at_end() const override {
-			return this->it_ == std::filesystem::end(this->it_);
-		}
-
-		void increment() override {
-			if(this->at_end()) {
-				return;
-			}
-
-			this->it_++;
-			this->refresh_();
-			return;
-		}
-
-	   protected:
-		void refresh_() {
-			if(this->at_end()) {
-				this->entry_ = directory_entry();
-			} else {
-				auto const p = this->it_->path();
-				auto const r = p.lexically_relative(this->normal_path_);
-
-				this->entry_.assign(this->path_ / r);
-			}
-		}
-
-		std::filesystem::path path_;
-		std::filesystem::path normal_path_;
-
-		It                                 it_;
-		std::filesystem::directory_options opts_;
-
-		directory_entry entry_;
-	};
-
-	using Cursor = BasicCursor<Fs::Cursor, std::filesystem::directory_iterator>;
-
-	class RecursiveCursor: public BasicCursor<Fs::RecursiveCursor, std::filesystem::recursive_directory_iterator> {
-	   public:
-		RecursiveCursor(StdFs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
-		    : BasicCursor(fs, p, opts) { }
-
-		std::filesystem::directory_options options() override {
-			return this->it_.options();
-		}
-
-		int depth() const override {
-			return this->it_.depth();
-		}
-
-		bool recursion_pending() const override {
-			return this->it_.recursion_pending();
-		}
-
-		void pop() override {
-			this->it_.pop();
-			this->refresh_();
-		}
-
-		void disable_recursion_pending() override {
-			this->it_.disable_recursion_pending();
-		}
-	};
-
-	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<StdFs::Cursor>(*this, p, opts);
-	}
-
-	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override {
-		return std::make_shared<StdFs::RecursiveCursor>(*this, p, opts);
-	}
+	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
 	std::filesystem::path cwd_;
 };
