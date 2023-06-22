@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <memory>
 
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/os_file.hpp"
 #include "vfs/impl/utils.hpp"
 #include "vfs/impl/vfs.hpp"
 
@@ -19,7 +21,7 @@ class StdFs::Cursor_: public C {
    public:
 	Cursor_(StdFs const& fs, fs::path const& p, fs::directory_options opts)
 	    : path_(p)
-	    , normal_path_(fs.normal_(p))
+	    , normal_path_(fs.os_path_of(p))
 	    , it_(this->normal_path_, opts)
 	    , entry_(fs) {
 		this->refresh_();
@@ -94,6 +96,26 @@ std::shared_ptr<Fs const> StdFs::change_root(fs::path const& p, fs::path const& 
 	return std::make_shared<ChRootedStdFs>(StdFs::canonical(p), "/", temp_dir);
 }
 
+std::shared_ptr<File const> StdFs::file_at(std::filesystem::path const& p) const {
+	auto const status = this->symlink_status(p);
+	auto const type   = status.type();
+	switch(type) {
+	case fs::file_type::regular: {
+		return std::make_shared<OsRegularFile>(p);
+	}
+	case fs::file_type::directory: {
+		return std::make_shared<OsDirectory>(p);
+	}
+	case fs::file_type::symlink: {
+		return std::make_shared<OsSymlink>(p);
+	}
+
+	default: {
+		return std::make_shared<UnkownOsFile>(p);
+	}
+	}
+}
+
 std::shared_ptr<Fs::Cursor> StdFs::cursor_(fs::path const& p, fs::directory_options opts) const {
 	return std::make_shared<StdFs::Cursor_<Fs::Cursor, fs::directory_iterator>>(*this, p, opts);
 }
@@ -102,7 +124,7 @@ std::shared_ptr<Fs::RecursiveCursor> StdFs::recursive_cursor_(fs::path const& p,
 	return std::make_shared<StdFs::RecursiveCursor_>(*this, p, opts);
 }
 
-fs::path ChRootedStdFs::normal_(fs::path const& p) const {
+fs::path ChRootedStdFs::os_path_of(fs::path const& p) const {
 	auto const a = this->base_ / (this->cwd_ / p).relative_path();
 	auto const c = fs::weakly_canonical(a);
 	auto const r = c.lexically_relative(this->base_);

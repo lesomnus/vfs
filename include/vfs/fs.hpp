@@ -246,6 +246,8 @@ class Fs {
 	 */
 	virtual void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) = 0;
 
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const;
+
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 
@@ -1100,6 +1102,8 @@ class Fs {
 
 		virtual void disable_recursion_pending() = 0;
 	};
+
+	virtual void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const = 0;
 
 	virtual std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
 

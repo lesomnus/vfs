@@ -7,14 +7,19 @@
 #include <system_error>
 #include <utility>
 
+#include "vfs/impl/fs.hpp"
+
 #include "vfs/fs.hpp"
 
 namespace vfs {
 namespace impl {
 
-class FsProxy: public Fs {
+class FsProxy: public FsBase {
    public:
 	FsProxy(std::shared_ptr<Fs> fs)
+	    : fs_(fs_base(fs)) { }
+
+	FsProxy(std::shared_ptr<FsBase> fs)
 	    : fs_(std::move(fs)) { }
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode) const override {
@@ -277,11 +282,35 @@ class FsProxy: public Fs {
 		return this->fs_->is_empty(p, ec);
 	}
 
-	Fs& underlying_fs() {
-		return *this->fs_;
+	std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {
+		return this->fs_->file_at(p);
+	}
+
+	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
+		return this->fs_->file_at(p);
+	}
+
+	std::shared_ptr<Directory const> cwd() const override {
+		return this->fs_->cwd();
+	}
+
+	std::shared_ptr<Directory> cwd() override {
+		return this->fs_->cwd();
+	}
+
+	std::shared_ptr<FsBase const> source_fs() const {
+		return this->fs_;
+	}
+
+	std::shared_ptr<FsBase> const& source_fs() {
+		return this->fs_;
 	}
 
    protected:
+	void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const override {
+		this->fs_->copy(src, other, dst, opts);
+	}
+
 	virtual std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const {
 		return std::make_shared<FsProxy>(std::move(fs));
 	}
@@ -294,8 +323,17 @@ class FsProxy: public Fs {
 		return Fs::recursive_cursor_of_(*this->fs_, p, opts);
 	}
 
-	std::shared_ptr<Fs> fs_;
+	std::shared_ptr<FsBase> fs_;
 };
+
+template<std::derived_from<Fs> T>
+T* fs_cast(std::conditional_t<std::is_const_v<T>, Fs const, Fs>* fs) {
+	if(auto proxy = dynamic_cast<std::conditional_t<std::is_const_v<T>, FsProxy const, FsProxy>*>(fs); proxy) {
+		return fs_cast<T>(proxy->source_fs().get());
+	}
+
+	return dynamic_cast<T*>(fs);
+}
 
 }  // namespace impl
 }  // namespace vfs

@@ -6,7 +6,10 @@
 #include <iostream>
 #include <system_error>
 
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/fs.hpp"
 #include "vfs/impl/fs_proxy.hpp"
+#include "vfs/impl/os_file.hpp"
 #include "vfs/impl/utils.hpp"
 #include "vfs/impl/vfs.hpp"
 
@@ -16,16 +19,37 @@
 namespace vfs {
 namespace impl {
 
-class OsFs: public Fs {
+class OsFsProxy: public FsProxy {
+   public:
+	OsFsProxy(std::shared_ptr<FsBase> fs)
+	    : FsProxy(std::move(fs)) { }
+
+	void mount(std::filesystem::path const& target, Fs& other) override;
+
+   protected:
+	std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const override {
+		return std::make_shared<OsFsProxy>(fs_base(std::move(fs)));
+	}
+};
+
+class OsFs: public FsBase {
    public:
 	virtual std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) = 0;
+
+	std::shared_ptr<Directory const> cwd() const override {
+		return std::make_shared<OsDirectory>(this->current_os_path());
+	}
+
+	std::shared_ptr<Directory> cwd() override {
+		return std::const_pointer_cast<Directory>(static_cast<OsFs const*>(this)->cwd());
+	}
 
 	virtual std::filesystem::path base_path() const {
 		return "/";
 	}
 
 	std::filesystem::path current_os_path() const {
-		return this->base_path() / this->current_path();
+		return this->base_path() / this->current_path().relative_path();
 	}
 
 	std::filesystem::path temp_directory_os_path() const {
@@ -36,6 +60,8 @@ class OsFs: public Fs {
 		return this->base_path() / this->temp_directory_path(ec);
 	}
 
+	virtual std::filesystem::path os_path_of(std::filesystem::path const& p) const = 0;
+
    private:
 	void mount(std::filesystem::path const& target, Fs& other) final {
 		throw std::logic_error("use make_mount");
@@ -44,30 +70,17 @@ class OsFs: public Fs {
 	void unmount(std::filesystem::path const& target) final;
 };
 
-class OsFsProxy: public FsProxy {
-   public:
-	OsFsProxy(std::shared_ptr<Fs> fs)
-	    : FsProxy(std::move(fs)) { }
-
-	void mount(std::filesystem::path const& target, Fs& other) override;
-
-   protected:
-	std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const override {
-		return std::make_shared<OsFsProxy>(std::move(fs));
-	}
-};
-
 class StdFs: public OsFs {
    public:
 	StdFs(std::filesystem::path const& cwd)
 	    : cwd_(cwd) { }
 
 	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override {
-		return std::make_shared<std::ifstream>(this->normal_(filename), mode);
+		return std::make_shared<std::ifstream>(this->os_path_of(filename), mode);
 	}
 
 	std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) override {
-		return std::make_shared<std::ofstream>(this->normal_(filename), mode);
+		return std::make_shared<std::ofstream>(this->os_path_of(filename), mode);
 	}
 
 	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
@@ -76,10 +89,8 @@ class StdFs: public OsFs {
 		return std::const_pointer_cast<Fs>(static_cast<StdFs const*>(this)->change_root(p, temp_dir));
 	}
 
-	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) override;
-
 	std::filesystem::path canonical(std::filesystem::path const& p) const override {
-		return std::filesystem::canonical(this->normal_(p));
+		return std::filesystem::canonical(this->os_path_of(p));
 	}
 
 	std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override {
@@ -94,7 +105,7 @@ class StdFs: public OsFs {
 			return p.lexically_normal();
 		}
 
-		return std::filesystem::weakly_canonical(this->normal_(p));
+		return std::filesystem::weakly_canonical(this->os_path_of(p));
 	}
 
 	std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
@@ -102,59 +113,59 @@ class StdFs: public OsFs {
 	}
 
 	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override {
-		std::filesystem::copy(this->normal_(src), this->normal_(dst), opts);
+		std::filesystem::copy(this->os_path_of(src), this->os_path_of(dst), opts);
 	}
 
 	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override {
-		std::filesystem::copy(this->normal_(src), this->normal_(dst), opts, ec);
+		std::filesystem::copy(this->os_path_of(src), this->os_path_of(dst), opts, ec);
 	}
 
 	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override {
-		return std::filesystem::copy_file(this->normal_(src), this->normal_(dst), opts);
+		return std::filesystem::copy_file(this->os_path_of(src), this->os_path_of(dst), opts);
 	}
 
 	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override {
-		return std::filesystem::copy_file(this->normal_(src), this->normal_(dst), opts, ec);
+		return std::filesystem::copy_file(this->os_path_of(src), this->os_path_of(dst), opts, ec);
 	}
 
 	bool create_directory(std::filesystem::path const& p) override {
-		return std::filesystem::create_directory(this->normal_(p));
+		return std::filesystem::create_directory(this->os_path_of(p));
 	}
 
 	bool create_directory(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		return std::filesystem::create_directory(this->normal_(p), ec);
+		return std::filesystem::create_directory(this->os_path_of(p), ec);
 	}
 
 	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr) override {
-		return std::filesystem::create_directory(this->normal_(p), this->normal_(attr));
+		return std::filesystem::create_directory(this->os_path_of(p), this->os_path_of(attr));
 	}
 
 	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr, std::error_code& ec) noexcept override {
-		return std::filesystem::create_directory(this->normal_(p), this->normal_(attr), ec);
+		return std::filesystem::create_directory(this->os_path_of(p), this->os_path_of(attr), ec);
 	}
 
 	bool create_directories(std::filesystem::path const& p) override {
-		return std::filesystem::create_directories(this->normal_(p));
+		return std::filesystem::create_directories(this->os_path_of(p));
 	}
 
 	bool create_directories(std::filesystem::path const& p, std::error_code& ec) override {
-		return std::filesystem::create_directories(this->normal_(p), ec);
+		return std::filesystem::create_directories(this->os_path_of(p), ec);
 	}
 
 	void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link) override {
-		std::filesystem::create_hard_link(this->normal_(target), this->normal_(link));
+		std::filesystem::create_hard_link(this->os_path_of(target), this->os_path_of(link));
 	}
 
 	void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override {
-		std::filesystem::create_hard_link(this->normal_(target), this->normal_(link), ec);
+		std::filesystem::create_hard_link(this->os_path_of(target), this->os_path_of(link), ec);
 	}
 
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link) override {
-		std::filesystem::create_symlink(target, this->normal_(link));
+		std::filesystem::create_symlink(target, this->os_path_of(link));
 	}
 
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override {
-		std::filesystem::create_symlink(target, this->normal_(link), ec);
+		std::filesystem::create_symlink(target, this->os_path_of(link), ec);
 	}
 
 	std::filesystem::path current_path() const override {
@@ -193,7 +204,7 @@ class StdFs: public OsFs {
 	}
 
 	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override {
-		return std::filesystem::equivalent(this->normal_(p1), this->normal_(p2));
+		return std::filesystem::equivalent(this->os_path_of(p1), this->os_path_of(p2));
 	}
 
 	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
@@ -201,107 +212,107 @@ class StdFs: public OsFs {
 	}
 
 	std::uintmax_t file_size(std::filesystem::path const& p) const override {
-		return std::filesystem::file_size(this->normal_(p));
+		return std::filesystem::file_size(this->os_path_of(p));
 	}
 
 	std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::file_size(this->normal_(p), ec);
+		return std::filesystem::file_size(this->os_path_of(p), ec);
 	}
 
 	std::uintmax_t hard_link_count(std::filesystem::path const& p) const override {
-		return std::filesystem::hard_link_count(this->normal_(p));
+		return std::filesystem::hard_link_count(this->os_path_of(p));
 	}
 
 	std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::hard_link_count(this->normal_(p), ec);
+		return std::filesystem::hard_link_count(this->os_path_of(p), ec);
 	}
 
 	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override {
-		return std::filesystem::last_write_time(this->normal_(p));
+		return std::filesystem::last_write_time(this->os_path_of(p));
 	}
 
 	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::last_write_time(this->normal_(p), ec);
+		return std::filesystem::last_write_time(this->os_path_of(p), ec);
 	}
 
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) override {
-		std::filesystem::last_write_time(this->normal_(p), t);
+		std::filesystem::last_write_time(this->os_path_of(p), t);
 	}
 
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept override {
-		std::filesystem::last_write_time(this->normal_(p), t, ec);
+		std::filesystem::last_write_time(this->os_path_of(p), t, ec);
 	}
 
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts = std::filesystem::perm_options::replace) override {
-		std::filesystem::permissions(this->normal_(p), prms, opts);
+		std::filesystem::permissions(this->os_path_of(p), prms, opts);
 	}
 
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) override {
-		std::filesystem::permissions(this->normal_(p), prms, opts, ec);
+		std::filesystem::permissions(this->os_path_of(p), prms, opts, ec);
 	}
 
 	std::filesystem::path read_symlink(std::filesystem::path const& p) const override {
-		return std::filesystem::read_symlink(this->normal_(p));
+		return std::filesystem::read_symlink(this->os_path_of(p));
 	}
 
 	std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override {
-		return std::filesystem::read_symlink(this->normal_(p), ec);
+		return std::filesystem::read_symlink(this->os_path_of(p), ec);
 	}
 
 	bool remove(std::filesystem::path const& p) override {
-		return std::filesystem::remove(this->normal_(p));
+		return std::filesystem::remove(this->os_path_of(p));
 	}
 
 	bool remove(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		return std::filesystem::remove(this->normal_(p), ec);
+		return std::filesystem::remove(this->os_path_of(p), ec);
 	}
 
 	std::uintmax_t remove_all(std::filesystem::path const& p) override {
-		return std::filesystem::remove_all(this->normal_(p));
+		return std::filesystem::remove_all(this->os_path_of(p));
 	}
 
 	std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) override {
-		return std::filesystem::remove_all(this->normal_(p), ec);
+		return std::filesystem::remove_all(this->os_path_of(p), ec);
 	}
 
 	void rename(std::filesystem::path const& src, std::filesystem::path const& dst) override {
-		std::filesystem::rename(this->normal_(src), this->normal_(dst));
+		std::filesystem::rename(this->os_path_of(src), this->os_path_of(dst));
 	}
 
 	void rename(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept override {
-		std::filesystem::rename(this->normal_(src), this->normal_(dst), ec);
+		std::filesystem::rename(this->os_path_of(src), this->os_path_of(dst), ec);
 	}
 
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n) override {
-		std::filesystem::resize_file(this->normal_(p), n);
+		std::filesystem::resize_file(this->os_path_of(p), n);
 	}
 
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept override {
-		std::filesystem::resize_file(this->normal_(p), n, ec);
+		std::filesystem::resize_file(this->os_path_of(p), n, ec);
 	}
 
 	std::filesystem::space_info space(std::filesystem::path const& p) const override {
-		return std::filesystem::space(this->normal_(p));
+		return std::filesystem::space(this->os_path_of(p));
 	}
 
 	std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::space(this->normal_(p), ec);
+		return std::filesystem::space(this->os_path_of(p), ec);
 	}
 
 	std::filesystem::file_status status(std::filesystem::path const& p) const override {
-		return std::filesystem::status(this->normal_(p));
+		return std::filesystem::status(this->os_path_of(p));
 	}
 
 	std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::status(this->normal_(p), ec);
+		return std::filesystem::status(this->os_path_of(p), ec);
 	}
 
 	std::filesystem::file_status symlink_status(std::filesystem::path const& p) const override {
-		return std::filesystem::symlink_status(this->normal_(p));
+		return std::filesystem::symlink_status(this->os_path_of(p));
 	}
 
 	std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return std::filesystem::symlink_status(this->normal_(p), ec);
+		return std::filesystem::symlink_status(this->os_path_of(p), ec);
 	}
 
 	std::filesystem::path temp_directory_path() const override {
@@ -313,11 +324,23 @@ class StdFs: public OsFs {
 	}
 
 	bool is_empty(std::filesystem::path const& p) const override {
-		return std::filesystem::is_empty(this->normal_(p));
+		return std::filesystem::is_empty(this->os_path_of(p));
 	}
 
 	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
 		return handle_error([&] { return this->is_empty(p); }, ec);
+	}
+
+	std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override;
+
+	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
+		return std::const_pointer_cast<File>(static_cast<StdFs const*>(this)->file_at(p));
+	}
+
+	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) override;
+
+	std::filesystem::path os_path_of(std::filesystem::path const& p) const override {
+		return this->cwd_ / p;
 	}
 
    protected:
@@ -326,9 +349,7 @@ class StdFs: public OsFs {
 
 	class RecursiveCursor_;
 
-	virtual std::filesystem::path normal_(std::filesystem::path const& p) const {
-		return this->cwd_ / p;
-	}
+	void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const override;
 
 	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
@@ -390,9 +411,9 @@ class ChRootedStdFs: public StdFs {
 		}
 	}
 
-   protected:
-	std::filesystem::path normal_(std::filesystem::path const& p) const override;
+	std::filesystem::path os_path_of(std::filesystem::path const& p) const override;
 
+   protected:
 	std::filesystem::path confine_(std::filesystem::path const& normal) const {
 		if(normal.is_relative()) {
 			return normal;

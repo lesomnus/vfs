@@ -1,4 +1,5 @@
 #include "vfs/fs.hpp"
+#include "vfs/impl/fs.hpp"
 
 #include <filesystem>
 #include <memory>
