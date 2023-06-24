@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <system_error>
 
 #include "vfs/impl/entry.hpp"
 #include "vfs/impl/fs_proxy.hpp"
@@ -18,43 +19,76 @@ namespace impl {
 
 namespace {
 
-void copy_into_(File const& src, fs::path const& src_p, Directory& dst_prev, fs::path const& dst_p, fs::copy_options opts) {
-	if(auto const* src_r = dynamic_cast<RegularFile const*>(&src); src_r) {
+fs::filesystem_error err_create_symlink_to_diff_fs_() {
+	return fs::filesystem_error("cannot create a symlink to different filesystem", std::make_error_code(std::errc::invalid_argument));
+}
+
+fs::filesystem_error err_create_hard_link_to_diff_fs_() {
+	return fs::filesystem_error("cannot create a hard link to different filesystem", std::make_error_code(std::errc::invalid_argument));
+}
+
+bool copy_file_into_(std::shared_ptr<RegularFile const> src_r, fs::path const& src_p, Directory& dst_prev, fs::path const& dst_p, fs::copy_options opts) {
+	auto const [dst_r, ok] = dst_prev.emplace_regular_file(dst_p.filename());
+	auto const commit      = [&]() -> bool {
+        src_r->copy_content_to(*dst_r);
+        return true;
+	};
+
+	if(ok) {
+		return commit();
+	}
+
+	if(!dst_r) {
+		throw fs::filesystem_error("destination not a regular file", src_p, dst_p, std::make_error_code(std::errc::invalid_argument));
+	}
+	if(*src_r == *dst_r) {
+		throw fs::filesystem_error("source and destination are same", src_p, dst_p, std::make_error_code(std::errc::file_exists));
+	}
+	if((opts & fs::copy_options::skip_existing) == fs::copy_options::skip_existing) {
+		return false;
+	}
+	if((opts & fs::copy_options::overwrite_existing) == fs::copy_options::overwrite_existing) {
+		return commit();
+	}
+	if((opts & fs::copy_options::update_existing) == fs::copy_options::update_existing) {
+		if(src_r->last_write_time() < dst_r->last_write_time()) {
+			return false;
+		}
+
+		return commit();
+	}
+
+	throw fs::filesystem_error("", src_p, dst_p, std::make_error_code(std::errc::file_exists));
+}
+
+void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Directory& dst_prev, fs::path const& dst_p, fs::copy_options opts) {
+	if(auto src_r = std::dynamic_pointer_cast<RegularFile const>(std::move(src)); src_r) {
 		if((opts & fs::copy_options::directories_only) == fs::copy_options::directories_only) {
 			return;
 		}
-		// if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
-		// 	this->create_symlink(src, dst);
-		// 	return;
-		// }
-		// if((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links) {
-		// 	throw std::runtime_error("not implemented");
-		// }
-
-		std::shared_ptr<RegularFile> next_r;
-		if(auto next_f = dst_prev.next(dst_p.filename()); !next_f) {
-			auto [r, ok] = dst_prev.emplace_regular_file(dst_p.filename());
-			assert(ok);
-			next_r = std::move(r);
-		} else if(auto r = std::dynamic_pointer_cast<RegularFile>(std::move(next_f)); r) {
-			// TODO: implement copy_file
-			next_r = std::move(r);
-		} else if(auto d = std::dynamic_pointer_cast<Directory>(std::move(next_f)); d) {
-			auto [r, ok] = d->emplace_regular_file(src_p.filename());
-			if(!r) {
-				throw fs::filesystem_error("", dst_p / src_p.filename(), std::make_error_code(std::errc::file_exists));
+		if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
+			auto const [_, ok] = dst_prev.emplace_symlink(dst_p.filename(), src_p);
+			if(!ok) {
+				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
 			}
-
-			next_r = std::move(r);
-		} else {
-			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
+			return;
+		}
+		if((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links) {
+			dst_prev.insert(dst_p.filename(), std::const_pointer_cast<RegularFile>(std::move(src_r)));
+			return;
 		}
 
-		src_r->copy_content_to(*next_r);
+		auto next_f = dst_prev.next(dst_p.filename());
+		if(auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f)); next_d) {
+			copy_file_into_(src_r, src_p, *next_d, dst_p / src_p.filename(), opts);
+		} else {
+			copy_file_into_(src_r, src_p, dst_prev, dst_p, opts);
+		}
+
 		return;
 	}
 
-	if(auto const* src_s = dynamic_cast<Symlink const*>(&src); src_s) {
+	if(auto src_s = std::dynamic_pointer_cast<Symlink const>(std::move(src)); src_s) {
 		if((opts & fs::copy_options::skip_symlinks) == fs::copy_options::skip_symlinks) {
 			return;
 		}
@@ -66,9 +100,11 @@ void copy_into_(File const& src, fs::path const& src_p, Directory& dst_prev, fs:
 		if(!s || !ok) {
 			throw fs::filesystem_error("cannot create symlink", dst_p, std::make_error_code(std::errc::file_exists));
 		}
+
+		return;
 	}
 
-	auto const* src_d = dynamic_cast<Directory const*>(&src);
+	auto src_d = std::dynamic_pointer_cast<Directory const>(std::move(src));
 	if(!src_d) {
 		throw fs::filesystem_error("source is not a not a regular file, a directory, or a symlink", src_p, std::make_error_code(std::errc::invalid_argument));
 	}
@@ -85,9 +121,22 @@ void copy_into_(File const& src, fs::path const& src_p, Directory& dst_prev, fs:
 	}
 
 	auto const cursor = src_d->cursor();
-	while(not cursor->at_end()) {
-		copy_into_(*cursor->file(), src_p / cursor->name(), *dst_d, dst_p / cursor->name(), opts);
+	for(; not cursor->at_end(); cursor->increment()) {
+		copy_into_(cursor->file(), src_p / cursor->name(), *dst_d, dst_p / cursor->name(), opts);
 	}
+}
+
+void copy_into_(FsBase const& self, fs::path const& src, FsBase& other, fs::path const& dst, fs::copy_options opts) {
+	auto const src_p = self.canonical(src);
+	auto const src_f = self.file_at(src_p);
+	auto const dst_p = other.weakly_canonical(dst);
+
+	auto dst_prev = std::dynamic_pointer_cast<Directory>(other.file_at(dst_p.parent_path()));
+	if(!dst_prev) {
+		throw fs::filesystem_error("", dst_p.parent_path(), std::make_error_code(std::errc::not_a_directory));
+	}
+
+	copy_into_(src_f, src_p, *dst_prev, dst_p, opts);
 }
 
 }  // namespace
@@ -100,19 +149,29 @@ void StdFs::copy_(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_
 		return;
 	}
 
-	auto const src_p = this->canonical(src);
-	auto const src_f = this->file_at(src_p);
-	auto const dst_p = other.weakly_canonical(dst);
-
-	auto dst_prev = std::dynamic_pointer_cast<Directory>(fs_base(other).file_at(dst_p.parent_path()));
-	if(!dst_prev) {
-		throw fs::filesystem_error("", dst_p.parent_path(), std::make_error_code(std::errc::not_a_directory));
+	if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
+		throw err_create_symlink_to_diff_fs_();
+	}
+	if((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links) {
+		throw err_create_hard_link_to_diff_fs_();
 	}
 
-	copy_into_(*src_f, src_p, *dst_prev, dst_p, opts);
+	copy_into_(*this, src, fs_base(other), dst, opts);
+}
+
+void Vfs::copy(fs::path const& src, fs::path const& dst, fs::copy_options opts) {
+	copy_into_(*this, src, *this, dst, opts);
 }
 
 void Vfs::copy_(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_options opts) const {
+	if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
+		throw err_create_symlink_to_diff_fs_();
+	}
+	if(fs_cast<OsFs>(&other) && ((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links)) {
+		throw err_create_hard_link_to_diff_fs_();
+	}
+
+	copy_into_(*this, src, fs_base(other), dst, opts);
 }
 
 }  // namespace impl
