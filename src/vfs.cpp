@@ -604,137 +604,183 @@ bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
 	return handle_error([&] { return this->is_empty(p); }, ec);
 }
 
+class Vfs::Cursor_: public Fs::Cursor {
+   public:
+	Cursor_(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
+	    : cursor_(dir.typed_file()->cursor())
+	    , opts_(opts) {
+		if(cursor_->at_end()) {
+			return;
+		}
+
+		this->entry_ = directory_entry(fs, dir.path() / this->cursor_->name());
+	}
+
+	directory_entry const& value() const override {
+		return this->entry_;
+	}
+
+	bool at_end() const override {
+		return this->cursor_->at_end();
+	}
+
+	void increment() override {
+		this->cursor_->increment();
+		if(this->cursor_->at_end()) {
+			return;
+		}
+
+		this->entry_.replace_filename(this->cursor_->name());
+		return;
+	}
+
+   private:
+	std::shared_ptr<Directory::Cursor> cursor_;
+	std::filesystem::directory_options opts_;
+
+	directory_entry entry_;
+};
+
+class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
+   public:
+	RecursiveCursor_(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts)
+	    : cwd_(fs.cwd_)
+	    , cursors_({dir.typed_file()->cursor()})
+	    , opts_(opts) {
+		if(this->cursors_.top()->at_end()) {
+			this->cursors_.pop();
+			return;
+		}
+
+		this->entry_ = directory_entry(fs, dir.path() / this->cursors_.top()->name());
+	}
+
+	directory_entry const& value() const override {
+		return this->entry_;
+	}
+
+	bool at_end() const override {
+		return this->cursors_.empty();
+	}
+
+	void increment() override {
+		bool stepped_out = false;
+		while(!this->at_end()) {
+			auto& cursor = *this->cursors_.top();
+			if(cursor.at_end()) {
+				this->cursors_.pop();
+				stepped_out = true;
+				continue;
+			}
+
+			if(!stepped_out) {
+				auto f = cursor.file();
+				if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
+					if(f->type() == fs::file_type::symlink) {
+						f = this->cwd_->navigate(this->entry_.path())->follow_chain()->file();
+					}
+				}
+				if(auto d = std::dynamic_pointer_cast<Directory const>(f); d && !d->empty()) {
+					auto c = d->cursor();
+
+					this->entry_.assign(this->entry_.path() / c->name());
+					this->cursors_.push(std::move(c));
+					return;
+				}
+			}
+
+			cursor.increment();
+			if(cursor.at_end()) {
+				continue;
+			}
+
+			this->entry_.replace_filename(cursor.name());
+			break;
+		}
+	}
+
+	std::filesystem::directory_options options() override {
+		return this->opts_;
+	}
+
+	int depth() const override {
+		if(this->cursors_.empty()) {
+			return 0;
+		}
+		return this->cursors_.size() - 1;
+	}
+
+	bool recursion_pending() const override {
+		if(this->at_end()) {
+			return false;
+		}
+
+		auto const& cursor = *this->cursors_.top();
+		if(cursor.at_end()) {
+			// Increment will step out.
+			return false;
+		}
+
+		auto f = cursor.file();
+		if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
+			if(f->type() == fs::file_type::symlink) {
+				f = this->cwd_->navigate(this->entry_.path())->follow_chain()->file();
+			}
+		}
+
+		return std::dynamic_pointer_cast<Directory const>(f) != nullptr;
+	}
+
+	void pop() override {
+		fs::path p = this->entry_.path();
+		while(!this->at_end()) {
+			this->cursors_.pop();
+			if(this->at_end()) {
+				return;
+			}
+
+			p = p.parent_path();
+
+			auto& cursor = *this->cursors_.top();
+			if(cursor.at_end()) {
+				continue;
+			}
+
+			cursor.increment();
+			if(cursor.at_end()) {
+				continue;
+			}
+
+			this->entry_.assign(p.replace_filename(cursor.name()));
+			break;
+		}
+	}
+
+	void disable_recursion_pending() override {
+		if(!this->recursion_pending()) {
+			return;
+		}
+
+		this->cursors_.top()->increment();
+		this->cursors_.push(std::make_shared<Directory::NilCursor>());  // Causing step out; makes recursion_pending resulting `false`.
+	}
+
+   private:
+	std::shared_ptr<DirectoryEntry>                cwd_;
+	std::stack<std::shared_ptr<Directory::Cursor>> cursors_;
+	std::filesystem::directory_options             opts_;
+
+	directory_entry entry_;
+};
+
 std::shared_ptr<Fs::Cursor> Vfs::cursor_(fs::path const& p, fs::directory_options opts) const {
 	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
-	return std::make_shared<Vfs::Cursor>(*this, *d, opts);
+	return std::make_shared<Vfs::Cursor_>(*this, *d, opts);
 }
 
 std::shared_ptr<Fs::RecursiveCursor> Vfs::recursive_cursor_(fs::path const& p, fs::directory_options opts) const {
 	auto const d = this->navigate(p / "")->must_be<DirectoryEntry>();
-	return std::make_shared<Vfs::RecursiveCursor>(*this, *d, opts);
-}
-
-Vfs::Cursor::Cursor(Vfs const& fs, DirectoryEntry const& dir, fs::directory_options opts)
-    : cursor_(dir.typed_file()->cursor())
-    , opts_(opts) {
-	if(cursor_->at_end()) {
-		return;
-	}
-
-	this->entry_ = directory_entry(fs, dir.path() / this->cursor_->name());
-}
-
-void Vfs::Cursor::increment() {
-	this->cursor_->increment();
-	if(this->cursor_->at_end()) {
-		return;
-	}
-
-	this->entry_.replace_filename(this->cursor_->name());
-	return;
-}
-
-Vfs::RecursiveCursor::RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, fs::directory_options opts)
-    : cwd_(fs.cwd_)
-    , cursors_({dir.typed_file()->cursor()})
-    , opts_(opts) {
-	if(this->cursors_.top()->at_end()) {
-		this->cursors_.pop();
-		return;
-	}
-
-	this->entry_ = directory_entry(fs, dir.path() / this->cursors_.top()->name());
-}
-
-void Vfs::RecursiveCursor::increment() {
-	bool stepped_out = false;
-	while(!this->at_end()) {
-		auto& cursor = *this->cursors_.top();
-		if(cursor.at_end()) {
-			this->cursors_.pop();
-			stepped_out = true;
-			continue;
-		}
-
-		if(!stepped_out) {
-			auto f = cursor.file();
-			if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
-				if(f->type() == fs::file_type::symlink) {
-					f = this->cwd_->navigate(this->entry_.path())->follow_chain()->file();
-				}
-			}
-			if(auto d = std::dynamic_pointer_cast<Directory const>(f); d && !d->empty()) {
-				auto c = d->cursor();
-
-				this->entry_.assign(this->entry_.path() / c->name());
-				this->cursors_.push(std::move(c));
-				return;
-			}
-		}
-
-		cursor.increment();
-		if(cursor.at_end()) {
-			continue;
-		}
-
-		this->entry_.replace_filename(cursor.name());
-		break;
-	}
-}
-
-bool Vfs::RecursiveCursor::recursion_pending() const {
-	if(this->at_end()) {
-		return false;
-	}
-
-	auto const& cursor = *this->cursors_.top();
-	if(cursor.at_end()) {
-		// Increment will step out.
-		return false;
-	}
-
-	auto f = cursor.file();
-	if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
-		if(f->type() == fs::file_type::symlink) {
-			f = this->cwd_->navigate(this->entry_.path())->follow_chain()->file();
-		}
-	}
-
-	return std::dynamic_pointer_cast<Directory const>(f) != nullptr;
-}
-
-void Vfs::RecursiveCursor::pop() {
-	fs::path p = this->entry_.path();
-	while(!this->at_end()) {
-		this->cursors_.pop();
-		if(this->at_end()) {
-			return;
-		}
-
-		p = p.parent_path();
-
-		auto& cursor = *this->cursors_.top();
-		if(cursor.at_end()) {
-			continue;
-		}
-
-		cursor.increment();
-		if(cursor.at_end()) {
-			continue;
-		}
-
-		this->entry_.assign(p.replace_filename(cursor.name()));
-		break;
-	}
-}
-
-void Vfs::RecursiveCursor::disable_recursion_pending() {
-	if(!this->recursion_pending()) {
-		return;
-	}
-
-	this->cursors_.top()->increment();
-	this->cursors_.push(std::make_shared<Directory::NilCursor>());  // Causing step out; makes recursion_pending resulting `false`.
+	return std::make_shared<Vfs::RecursiveCursor_>(*this, *d, opts);
 }
 
 }  // namespace impl

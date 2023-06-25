@@ -195,66 +195,8 @@ class Vfs: public FsBase {
 	}
 
    protected:
-	// TODO: move to source file
-	class Cursor: public Fs::Cursor {
-	   public:
-		Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
-
-		directory_entry const& value() const override {
-			return this->entry_;
-		}
-
-		bool at_end() const override {
-			return this->cursor_->at_end();
-		}
-
-		void increment() override;
-
-	   private:
-		std::shared_ptr<Directory::Cursor> cursor_;
-		std::filesystem::directory_options opts_;
-
-		directory_entry entry_;
-	};
-
-	class RecursiveCursor: public Fs::RecursiveCursor {
-	   public:
-		RecursiveCursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
-
-		directory_entry const& value() const override {
-			return this->entry_;
-		}
-
-		bool at_end() const override {
-			return this->cursors_.empty();
-		}
-
-		void increment() override;
-
-		std::filesystem::directory_options options() override {
-			return this->opts_;
-		}
-
-		int depth() const override {
-			if(this->cursors_.empty()) {
-				return 0;
-			}
-			return this->cursors_.size() - 1;
-		}
-
-		bool recursion_pending() const override;
-
-		void pop() override;
-
-		void disable_recursion_pending() override;
-
-	   private:
-		std::shared_ptr<DirectoryEntry>                cwd_;
-		std::stack<std::shared_ptr<Directory::Cursor>> cursors_;
-		std::filesystem::directory_options             opts_;
-
-		directory_entry entry_;
-	};
+	class Cursor_;
+	class RecursiveCursor_;
 
 	void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const override;
 
