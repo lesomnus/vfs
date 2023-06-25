@@ -1,5 +1,4 @@
 #include "vfs/impl/os_file.hpp"
-#include "vfs/impl/storage.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -38,6 +37,20 @@ std::shared_ptr<File> make_file_(fs::file_type type, std::shared_ptr<OsFile::Con
 	}
 }
 
+class RemovableFile_: public Directory::RemovableFile {
+   public:
+	RemovableFile_(std::shared_ptr<File> file)
+	    : file(std::move(file)) { }
+
+	std::shared_ptr<File> value() override {
+		return this->file;
+	}
+
+	void commit() override { }
+
+	std::shared_ptr<File> file;
+};
+
 class Cursor_: public Directory::Cursor {
    public:
 	Cursor_(std::shared_ptr<OsFile::Context> context, fs::path const& p)
@@ -73,7 +86,7 @@ class Cursor_: public Directory::Cursor {
 			this->file_ = nullptr;
 		} else {
 			this->name_ = this->it_->path().filename();
-			this->file_ = make_file_(this->it_->status().type(), this->context_, this->it_->path());
+			this->file_ = make_file_(this->it_->symlink_status().type(), this->context_, this->it_->path());
 		}
 	}
 
@@ -133,31 +146,139 @@ std::shared_ptr<File> OsDirectory::next(std::string const& name) const {
 }
 
 bool OsDirectory::insert(std::string const& name, std::shared_ptr<File> file) {
-	auto f = std::dynamic_pointer_cast<OsFile>(std::move(file));
-	if(!f) {
-		throw std::logic_error("inserts other than OsFile are not allowed");
+	if(auto const f = std::dynamic_pointer_cast<OsFile>(std::move(file)); f) {
+		auto const next_p = this->path_ / name;
+		if(this->exists(next_p)) {
+			return false;
+		}
+
+		fs::copy(f->path(), next_p);
+		return true;
 	}
 
+	auto const type = file->type();
+	switch(type) {
+	case fs::file_type::regular: {
+		auto [dst, ok] = this->emplace_regular_file(name);
+		if(ok) {
+			auto r = std::dynamic_pointer_cast<RegularFile>(std::move(file));
+			r->copy_content_to(*dst);
+		}
+
+		return ok;
+	}
+	case fs::file_type::symlink: {
+		auto s = std::dynamic_pointer_cast<Symlink>(std::move(file));
+
+		auto [_, ok] = this->emplace_symlink(name, s->target());
+		return ok;
+	}
+	case fs::file_type::directory: {
+		// TODO:
+		throw std::runtime_error("not implemented");
+	}
+
+	default:
+		throw std::runtime_error("unexpected type of file");
+	}
+
+	// unreachable.
+}
+
+bool OsDirectory::insert_or_assign(std::string const& name, std::shared_ptr<File> file) {
 	auto const next_p = this->path_ / name;
+	if(!this->exists(next_p)) {
+		fs::remove_all(next_p);
+	}
+
+	return this->insert(name, std::move(file));
+}
+
+bool OsDirectory::insert(std::string const& name, Directory::RemovableFile& file) {
+	auto const next_p = this->path_ / name;
+
+	auto f = std::dynamic_pointer_cast<OsFile>(file.value());
+	if(!f) {
+		auto const ok = this->insert(name, file);
+		if(ok) {
+			file.commit();
+		}
+		return ok;
+	}
+
 	if(this->exists(next_p)) {
 		return false;
 	}
 
 	f->move_to(next_p);
+	file.commit();
 	return true;
 }
 
-bool OsDirectory::insert_or_assign(std::string const& name, std::shared_ptr<File> file) {
-	auto f = std::dynamic_pointer_cast<OsFile>(std::move(file));
+bool OsDirectory::insert_or_assign(std::string const& name, Directory::RemovableFile& file) {
+	auto const next_p = this->path_ / name;
+
+	auto f = std::dynamic_pointer_cast<OsFile>(file.value());
 	if(!f) {
-		throw std::logic_error("inserts other than OsFile are not allowed");
+		auto const ok = this->insert(name, file);
+		file.commit();
+		return ok;
 	}
 
-	auto const next_p      = this->path_ / name;
-	auto const is_inserted = not fs::exists(next_p);
-
 	f->move_to(next_p);
-	return is_inserted;
+	file.commit();
+	return true;
+}
+
+std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(std::string const& name) {
+	auto const next_p = this->path_ / name;
+
+	auto*      f  = std::fopen(next_p.c_str(), "wx");
+	auto const ok = f != nullptr;
+	if(ok) {
+		std::fclose(f);
+	} else if(not fs::is_regular_file(next_p)) {
+		return std::make_pair(nullptr, false);
+	}
+
+	return std::make_pair(std::make_shared<OsRegularFile>(this->context_, next_p), ok);
+}
+
+std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::string const& name) {
+	auto const next_p = this->path_ / name;
+	auto const ok     = fs::create_directory(next_p);
+	if(not ok && not fs::is_directory(next_p)) {
+		return std::make_pair(nullptr, false);
+	}
+
+	return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
+}
+
+std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {
+	auto const next_p = this->path_ / name;
+
+	auto ok = false;
+	try {
+		fs::create_symlink(target, next_p);
+		ok = true;
+	} catch(std::filesystem::filesystem_error const& error) {
+		if(error.code() != std::errc::file_exists) {
+			throw error;
+		} else if(not fs::is_symlink(next_p)) {
+			return std::make_pair(nullptr, false);
+		}
+	}
+
+	return std::make_pair(std::make_shared<OsSymlink>(this->context_, next_p), ok);
+}
+
+std::shared_ptr<Directory::RemovableFile> OsDirectory::removable(std::string const& name) {
+	auto f = this->next(name);
+	if(!f) {
+		return nullptr;
+	}
+
+	return std::make_shared<RemovableFile_>(std::move(f));
 }
 
 std::uintmax_t OsDirectory::clear() {
@@ -214,18 +335,6 @@ TempSymlink::~TempSymlink() {
 	}
 
 	fs::remove(this->path_);
-}
-
-std::shared_ptr<RegularFile> OsStorage::make_regular_file() const {
-	return std::make_shared<TempRegularFile>();
-}
-
-std::shared_ptr<Directory> OsStorage::make_directory() const {
-	return std::make_shared<TempDirectory>();
-}
-
-std::shared_ptr<Symlink> OsStorage::make_symlink(std::filesystem::path target) const {
-	return std::make_shared<TempSymlink>(std::move(target));
 }
 
 }  // namespace impl

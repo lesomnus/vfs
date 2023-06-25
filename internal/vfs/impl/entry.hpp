@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
-#include "vfs/impl/storage.hpp"
 
 namespace vfs {
 namespace impl {
@@ -132,6 +131,29 @@ class RegularFileEntry: public TypedEntry<RegularFile> {
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 
+class SymlinkEntry: public TypedEntry<Symlink> {
+   public:
+	static std::shared_ptr<SymlinkEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file) {
+		return std::shared_ptr<SymlinkEntry>(new SymlinkEntry(std::move(name), std::move(prev), std::move(file)));
+	}
+
+	std::shared_ptr<Entry const> follow() const override;
+
+	std::shared_ptr<Entry> follow() {
+		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow());
+	}
+
+	std::shared_ptr<Entry const> follow_chain() const override;
+
+	std::shared_ptr<Entry> follow_chain() {
+		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow_chain());
+	}
+
+   protected:
+	SymlinkEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file)
+	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
+};
+
 class DirectoryEntry: public TypedEntry<Directory> {
    public:
 	static std::shared_ptr<DirectoryEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Directory> file) {
@@ -183,35 +205,14 @@ class DirectoryEntry: public TypedEntry<Directory> {
 
 	void insert(std::string const& name, std::shared_ptr<File> file);
 
-	std::shared_ptr<Storage> resolve_storage() const;
+	std::shared_ptr<RegularFile> emplace_regular_file(std::string const& name);
 
-	std::shared_ptr<Storage> storage;
+	std::shared_ptr<Directory> emplace_directory(std::string const& name);
+
+	std::shared_ptr<Symlink> emplace_symlink(std::string const& name, std::string target);
 
    protected:
 	DirectoryEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Directory> file)
-	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
-};
-
-class SymlinkEntry: public TypedEntry<Symlink> {
-   public:
-	static std::shared_ptr<SymlinkEntry> make(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file) {
-		return std::shared_ptr<SymlinkEntry>(new SymlinkEntry(std::move(name), std::move(prev), std::move(file)));
-	}
-
-	std::shared_ptr<Entry const> follow() const override;
-
-	std::shared_ptr<Entry> follow() {
-		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow());
-	}
-
-	std::shared_ptr<Entry const> follow_chain() const override;
-
-	std::shared_ptr<Entry> follow_chain() {
-		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow_chain());
-	}
-
-   protected:
-	SymlinkEntry(std::string name, std::shared_ptr<DirectoryEntry> prev, std::shared_ptr<Symlink> file)
 	    : TypedEntry(std::move(name), std::move(prev), std::move(file)) { }
 };
 

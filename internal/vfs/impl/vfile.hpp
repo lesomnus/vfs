@@ -10,7 +10,6 @@
 
 #include "vfs/impl/file.hpp"
 #include "vfs/impl/os_file.hpp"
-#include "vfs/impl/storage.hpp"
 
 namespace vfs {
 namespace impl {
@@ -122,6 +121,22 @@ class VRegularFile
 	}
 };
 
+class VSymlink
+    : public VFile
+    , public Symlink {
+   public:
+	VSymlink(std::filesystem::path target)
+	    : VFile(0, 0, std::filesystem::perms::all)
+	    , target_(std::move(target)) { }
+
+	std::filesystem::path target() const override {
+		return this->target_;
+	}
+
+   private:
+	std::filesystem::path target_;
+};
+
 class VDirectory
     : public VFile
     , public Directory {
@@ -142,13 +157,21 @@ class VDirectory
 
 	std::shared_ptr<File> next(std::string const& name) const override;
 
-	bool insert(std::string const& name, std::shared_ptr<File> file) override {
-		return this->files_.insert(std::make_pair(name, std::move(file))).second;
-	}
+	bool insert(std::string const& name, std::shared_ptr<File> file) override;
 
-	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override {
-		return this->files_.insert_or_assign(name, std::move(file)).second;
-	}
+	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override;
+
+	bool insert(std::string const& name, RemovableFile& file) override;
+
+	bool insert_or_assign(std::string const& name, RemovableFile& file) override;
+
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
+
+	std::shared_ptr<RemovableFile> removable(std::string const& name) override;
 
 	bool unlink(std::string const& name) override {
 		return !this->files_.extract(name).empty();
@@ -162,59 +185,10 @@ class VDirectory
 
 	std::uintmax_t clear() override;
 
-	std::shared_ptr<Cursor> cursor() const override {
-		return std::make_shared<Cursor_>(this->files_);
-	}
+	std::shared_ptr<Cursor> cursor() const override;
 
    private:
 	std::unordered_map<std::string, std::shared_ptr<File>> files_;
-	std::shared_ptr<Storage>                               storage_;
-
-	class Cursor_: public Cursor {
-	   public:
-		Cursor_(std::unordered_map<std::string, std::shared_ptr<File>> const& files)
-		    : it(files.cbegin())
-		    , end(files.cend()) { }
-
-		std::string const& name() const override {
-			return this->it->first;
-		}
-
-		std::shared_ptr<File> const& file() const override {
-			return this->it->second;
-		}
-
-		void increment() override {
-			if(this->at_end()) {
-				return;
-			}
-
-			++this->it;
-		}
-
-		bool at_end() const override {
-			return this->it == this->end;
-		}
-
-		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator it;
-		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator end;
-	};
-};
-
-class VSymlink
-    : public VFile
-    , public Symlink {
-   public:
-	VSymlink(std::filesystem::path target)
-	    : VFile(0, 0, std::filesystem::perms::all)
-	    , target_(std::move(target)) { }
-
-	std::filesystem::path target() const override {
-		return this->target_;
-	}
-
-   private:
-	std::filesystem::path target_;
 };
 
 }  // namespace impl

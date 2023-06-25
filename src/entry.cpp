@@ -142,15 +142,31 @@ void DirectoryEntry::insert(std::string const& name, std::shared_ptr<File> file)
 	}
 }
 
-std::shared_ptr<Storage> DirectoryEntry::resolve_storage() const {
-	if(this->storage) {
-		return this->storage;
-	} else if(this->is_root()) {
-		// Fallback storage.
-		return std::make_shared<VStorage>();
-	} else {
-		return this->prev()->resolve_storage();
+std::shared_ptr<RegularFile> DirectoryEntry::emplace_regular_file(std::string const& name) {
+	auto [f, ok] = this->typed_file()->emplace_regular_file(name);
+	if(!f || !ok) {
+		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
 	}
+
+	return f;
+}
+
+std::shared_ptr<Directory> DirectoryEntry::emplace_directory(std::string const& name) {
+	auto [f, ok] = this->typed_file()->emplace_directory(name);
+	if(!f || !ok) {
+		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
+	}
+
+	return f;
+}
+
+std::shared_ptr<Symlink> DirectoryEntry::emplace_symlink(std::string const& name, std::string target) {
+	auto [f, ok] = this->typed_file()->emplace_symlink(name, std::move(target));
+	if(!f || !ok) {
+		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
+	}
+
+	return f;
 }
 
 std::shared_ptr<Entry const> SymlinkEntry::follow() const {

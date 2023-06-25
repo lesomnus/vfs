@@ -9,6 +9,8 @@
 #include <utility>
 
 #include "vfs/impl/entry.hpp"
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/fs.hpp"
 #include "vfs/impl/fs_proxy.hpp"
 
 namespace fs = std::filesystem;
@@ -69,21 +71,6 @@ void test_mount_point_(fs::path const& p, fs::file_type mount_point_type, fs::fi
 	}
 }
 
-std::shared_ptr<Directory> get_cwd_(Fs& other) {
-	if(auto* fs_proxy = dynamic_cast<FsProxy*>(&other); fs_proxy) {
-		return get_cwd_(fs_proxy->underlying_fs());
-	}
-	if(auto* os_fs = dynamic_cast<OsFs*>(&other); os_fs) {
-		auto cwd = os_fs->current_os_path();
-		return std::make_shared<OsDirectory>(std::move(cwd));
-	}
-	if(auto* vfs = dynamic_cast<Vfs*>(&other); vfs) {
-		return vfs->current_working_directory_entry()->typed_file();
-	}
-
-	throw std::logic_error("unknown filesystem");
-}
-
 }  // namespace
 
 //
@@ -135,13 +122,13 @@ void OsFs::unmount(fs::path const& target) {
 }
 
 std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other) {
-	auto original_p = fs::canonical(this->normal_(target));
+	auto original_p = fs::canonical(this->os_path_of(target));
 	if(fs::is_symlink(original_p)) {
 		auto t = original_p / fs::read_symlink(original_p);
 		return this->make_mount(t, other);
 	}
 
-	auto attachment = get_cwd_(other);
+	auto attachment = fs_base(other).cwd();
 	auto parent     = std::make_shared<OsDirectory>(original_p.parent_path());
 	parent->mount(original_p.filename(), std::move(attachment));
 
@@ -191,7 +178,7 @@ void VDirectory::unmount(std::string const& name) {
 
 void Vfs::mount(fs::path const& target, Fs& other) {
 	auto original   = this->navigate(target)->follow_chain();
-	auto attachment = get_cwd_(other);
+	auto attachment = fs_base(other).cwd();
 
 	original->prev()->typed_file()->mount(original->name(), std::move(attachment));
 }

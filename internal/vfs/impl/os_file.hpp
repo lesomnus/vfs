@@ -124,13 +124,19 @@ class OsRegularFile
 	}
 };
 
-class TempRegularFile: public OsRegularFile {
+class OsSymlink
+    : public OsFile
+    , public Symlink {
    public:
-	TempRegularFile();
+	OsSymlink(std::shared_ptr<Context> context, std::filesystem::path p)
+	    : OsFile(std::move(context), std::move(p)) { }
 
-	TempRegularFile(TempRegularFile const& other) = delete;
+	OsSymlink(std::filesystem::path p)
+	    : OsFile(std::move(p)) { }
 
-	~TempRegularFile();
+	std::filesystem::path target() const override {
+		return std::filesystem::read_symlink(this->path_);
+	}
 };
 
 class OsDirectory
@@ -159,6 +165,18 @@ class OsDirectory
 
 	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override;
 
+	bool insert(std::string const& name, RemovableFile& file) override;
+
+	bool insert_or_assign(std::string const& name, RemovableFile& file) override;
+
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
+
+	std::shared_ptr<RemovableFile> removable(std::string const& name) override;
+
 	bool unlink(std::string const& name) override {
 		return this->erase(name) > 0;
 	}
@@ -176,6 +194,15 @@ class OsDirectory
 	std::shared_ptr<Cursor> cursor() const override;
 };
 
+class TempRegularFile: public OsRegularFile {
+   public:
+	TempRegularFile();
+
+	TempRegularFile(TempRegularFile const& other) = delete;
+
+	~TempRegularFile();
+};
+
 class TempDirectory: public OsDirectory {
    public:
 	TempDirectory();
@@ -183,21 +210,6 @@ class TempDirectory: public OsDirectory {
 	TempDirectory(TempDirectory const& other) = default;
 
 	~TempDirectory();
-};
-
-class OsSymlink
-    : public OsFile
-    , public Symlink {
-   public:
-	OsSymlink(std::shared_ptr<Context> context, std::filesystem::path p)
-	    : OsFile(std::move(context), std::move(p)) { }
-
-	OsSymlink(std::filesystem::path p)
-	    : OsFile(std::move(p)) { }
-
-	std::filesystem::path target() const override {
-		return std::filesystem::read_symlink(this->path_);
-	}
 };
 
 class TempSymlink: public OsSymlink {

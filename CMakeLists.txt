@@ -25,13 +25,14 @@ add_library(
 		internal/vfs/impl/entry.hpp
 		internal/vfs/impl/file.hpp
 		internal/vfs/impl/fs_proxy.hpp
+		internal/vfs/impl/fs.hpp
 		internal/vfs/impl/os_file.hpp
 		internal/vfs/impl/os_fs.hpp
-		internal/vfs/impl/storage.hpp
 		internal/vfs/impl/utils.hpp
 		internal/vfs/impl/vfile.hpp
 		internal/vfs/impl/vfs.hpp
 
+		src/copy.cpp
 		src/entry.cpp
 		src/file.cpp
 		src/fs.cpp

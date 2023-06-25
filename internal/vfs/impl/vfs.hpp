@@ -8,6 +8,8 @@
 #include <system_error>
 
 #include "vfs/impl/entry.hpp"
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/fs.hpp"
 
 #include "vfs/directory_entry.hpp"
 #include "vfs/fs.hpp"
@@ -15,7 +17,7 @@
 namespace vfs {
 namespace impl {
 
-class Vfs: public Fs {
+class Vfs: public FsBase {
    public:
 	Vfs(
 	    std::shared_ptr<DirectoryEntry> root,
@@ -131,6 +133,22 @@ class Vfs: public Fs {
 	bool is_empty(std::filesystem::path const& p) const override;
 	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
 
+	std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {
+		return this->navigate(p)->file();
+	}
+
+	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
+		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at(p));
+	}
+
+	std::shared_ptr<Directory const> cwd() const override {
+		return this->cwd_->typed_file();
+	}
+
+	std::shared_ptr<Directory> cwd() override {
+		return std::const_pointer_cast<Directory>(static_cast<Vfs const*>(this)->cwd());
+	}
+
 	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last,
@@ -177,6 +195,7 @@ class Vfs: public Fs {
 	}
 
    protected:
+	// TODO: move to source file
 	class Cursor: public Fs::Cursor {
 	   public:
 		Cursor(Vfs const& fs, DirectoryEntry const& dir, std::filesystem::directory_options opts);
@@ -237,11 +256,13 @@ class Vfs: public Fs {
 		directory_entry entry_;
 	};
 
+	void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const override;
+
 	std::shared_ptr<DirectoryEntry const> from_of_(std::filesystem::path const& p) const {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 
-	std::shared_ptr<DirectoryEntry>& from_of_(std::filesystem::path const& p) {
+	std::shared_ptr<DirectoryEntry> const& from_of_(std::filesystem::path const& p) {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 

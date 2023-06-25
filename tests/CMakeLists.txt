@@ -16,6 +16,27 @@ include(Catch)
 
 
 
+add_library(
+	testing
+		include/testing/utils.hpp
+
+		src/testing.cpp
+)
+target_include_directories(
+	testing PUBLIC
+		include
+)
+target_link_libraries(
+	testing PUBLIC
+		vfs
+)
+set_target_properties(
+	testing PROPERTIES
+		vfs_INTERNAL 1
+)
+
+
+
 add_custom_target(
 	test-all
 		COMMAND ${CMAKE_CTEST_COMMAND}
@@ -26,7 +47,6 @@ macro(vfs_SIMPLE_TEST NAME)
 		${NAME}-test
 			include/testing/suites/file.hpp
 			include/testing/suites/fs.hpp
-			include/testing/utils.hpp
 
 			src/${NAME}.cpp
 	)
@@ -37,7 +57,7 @@ macro(vfs_SIMPLE_TEST NAME)
 	target_link_libraries(
 		${NAME}-test PRIVATE
 			Catch2::Catch2WithMain
-			vfs
+			testing
 	)
 	set_target_properties(
 		${NAME}-test PROPERTIES
@@ -51,6 +71,7 @@ macro(vfs_SIMPLE_TEST NAME)
 	)
 endmacro()
 
+vfs_SIMPLE_TEST(copy)
 vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
 vfs_SIMPLE_TEST(mount)
