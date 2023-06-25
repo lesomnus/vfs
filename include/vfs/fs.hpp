@@ -248,6 +248,16 @@ class Fs {
 
 	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const;
 
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst) const {
+		this->copy(src, other, dst, std::filesystem::copy_options::none);
+	}
+
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec);
+
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::error_code& ec) {
+		this->copy(src, other, dst, std::filesystem::copy_options::none, ec);
+	}
+
 	/**
 	 * @brief Copies a file from a source path to a destination path.
 	 * 

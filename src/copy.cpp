@@ -10,6 +10,7 @@
 
 #include "vfs/impl/entry.hpp"
 #include "vfs/impl/fs_proxy.hpp"
+#include "vfs/impl/utils.hpp"
 
 namespace fs = std::filesystem;
 
@@ -117,11 +118,27 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 
 	auto [dst_d, ok] = dst_prev.emplace_directory(dst_p.filename());
 	if(!dst_d) {
-		throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
+		throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::is_a_directory));
 	}
 
 	auto const cursor = src_d->cursor();
 	for(; not cursor->at_end(); cursor->increment()) {
+		auto const type = cursor->file()->type();
+		switch(type) {
+		case fs::file_type::symlink: {
+			if((opts & fs::copy_options::copy_symlinks) != fs::copy_options::copy_symlinks) {
+				continue;
+			}
+			break;
+		}
+		case fs::file_type::directory: {
+			if((opts & fs::copy_options::recursive) != fs::copy_options::recursive) {
+				continue;
+			}
+			break;
+		}
+		};
+
 		copy_into_(cursor->file(), src_p / cursor->name(), *dst_d, dst_p / cursor->name(), opts);
 	}
 }
@@ -183,6 +200,10 @@ void Fs::copy(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_opti
 	}
 
 	this->copy_(src, other, dst, opts);
+}
+
+void Fs::copy(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
+	impl::handle_error([&] { this->copy(src, other, dst, opts); return 0; }, ec);
 }
 
 }  // namespace vfs

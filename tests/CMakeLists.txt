@@ -71,6 +71,7 @@ macro(vfs_SIMPLE_TEST NAME)
 	)
 endmacro()
 
+vfs_SIMPLE_TEST(copy)
 vfs_SIMPLE_TEST(directory_entry)
 vfs_SIMPLE_TEST(entry)
 vfs_SIMPLE_TEST(mount)

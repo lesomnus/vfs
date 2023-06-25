@@ -165,37 +165,6 @@ class TestFsBasic {
 			}
 		}
 
-		SECTION("::copy") {
-			// /
-			// + foo/
-			//   + bar/
-			//     + baz/
-			//   + dog
-			//   + cat -> ./dog
-			fs->create_directories("foo/bar/baz");
-			*fs->open_write("foo/dog") << "woof";
-			fs->create_symlink("./dog", "foo/cat");
-
-			SECTION("recursive") {
-				fs->copy("foo", "foo_", copy_options::recursive | copy_options::copy_symlinks);
-
-				CHECK(fs->is_directory("foo_/bar/baz"));
-				CHECK(fs->is_regular_file("foo_/dog"));
-				CHECK(fs->is_symlink("foo_/cat"));
-			}
-
-			SECTION("directory only") {
-				// TODO: symlink should be skipped or not according to its target.
-				fs->copy("foo", "foo_", copy_options::recursive | copy_options::directories_only | copy_options::skip_symlinks);
-
-				CHECK(fs->is_directory("foo_/bar/baz"));
-				CHECK(not fs->exists("foo_/dog"));
-				CHECK(not fs->exists("foo_/cat"));
-			}
-
-			// TODO: more tests
-		}
-
 		SECTION("::copy_file") {
 			*fs->open_write("foo") << "Lorem ipsum";
 			REQUIRE(fs->is_regular_file("foo"));

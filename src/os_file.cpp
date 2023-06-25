@@ -86,7 +86,7 @@ class Cursor_: public Directory::Cursor {
 			this->file_ = nullptr;
 		} else {
 			this->name_ = this->it_->path().filename();
-			this->file_ = make_file_(this->it_->status().type(), this->context_, this->it_->path());
+			this->file_ = make_file_(this->it_->symlink_status().type(), this->context_, this->it_->path());
 		}
 	}
 
