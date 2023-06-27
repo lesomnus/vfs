@@ -342,6 +342,10 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 		return this->attachment_->emplace_symlink(name, std::move(target));
 	}
 
+	bool link(std::string const& name, std::shared_ptr<File> file) override {
+		return this->attachment_->link(name, std::move(file));
+	}
+
 	bool unlink(std::string const& name) override {
 		return this->attachment_->unlink(name);
 	}

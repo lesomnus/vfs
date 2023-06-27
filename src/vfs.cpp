@@ -259,7 +259,7 @@ void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
 
 	auto const src_p = this->weakly_canonical(link);
 	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
-	prev->insert(src_p.filename(), dst_f->file());
+	prev->typed_file()->link(src_p.filename(), dst_f->file());
 }
 
 void Vfs::create_hard_link(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
@@ -494,16 +494,33 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 				// Destination is a directory that is not empty.
 				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::directory_not_empty));
 			}
+
+			// Source is a directory and destination is empty directory.
 		} else {
 			if(d) {
 				// Source is not a directory but destination is a directory.
 				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::is_a_directory));
 			}
+
+			// Both source and destination are not directory.
 		}
+
+		prev->typed_file()->erase(dst_p.filename());
 	}
 
-	auto removable = src_f->prev()->typed_file()->removable(src_f->name());
-	prev->typed_file()->insert_or_assign(dst_p.filename(), *removable);  // TODO: no insert
+	// Destination does not exist.
+
+	try {
+		prev->typed_file()->link(dst_p.filename(), src_f->file());
+	} catch(fs::filesystem_error const& error) {
+		if(error.code() != std::errc::cross_device_link) {
+			throw error;
+		}
+
+		this->copy(src, dst_p, fs::copy_options::recursive);
+	}
+
+	src_f->prev()->typed_file()->unlink(src_f->name());
 }
 
 void Vfs::rename(fs::path const& src, fs::path const& dst, std::error_code& ec) noexcept {

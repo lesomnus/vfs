@@ -75,8 +75,7 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 			return;
 		}
 		if((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links) {
-			// TODO: must be link
-			dst_prev.insert(dst_p.filename(), std::const_pointer_cast<RegularFile>(std::move(src_r)));
+			dst_prev.link(dst_p.filename(), std::const_pointer_cast<RegularFile>(std::move(src_r)));
 			return;
 		}
 
@@ -149,6 +148,7 @@ void copy_into_(FsBase const& self, fs::path const& src, FsBase& other, fs::path
 	auto const src_f = self.file_at(src_p);
 	auto const dst_p = other.weakly_canonical(dst);
 
+	// TODO: if both src_f and dst_f are OsFile, use std::copy.
 	auto dst_prev = std::dynamic_pointer_cast<Directory>(other.file_at(dst_p.parent_path()));
 	if(!dst_prev) {
 		throw fs::filesystem_error("", dst_p.parent_path(), std::make_error_code(std::errc::not_a_directory));
