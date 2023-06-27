@@ -503,7 +503,7 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	}
 
 	auto removable = src_f->prev()->typed_file()->removable(src_f->name());
-	prev->typed_file()->insert_or_assign(dst_p.filename(), *removable);
+	prev->typed_file()->insert_or_assign(dst_p.filename(), *removable);  // TODO: no insert
 }
 
 void Vfs::rename(fs::path const& src, fs::path const& dst, std::error_code& ec) noexcept {

@@ -75,6 +75,7 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 			return;
 		}
 		if((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links) {
+			// TODO: must be link
 			dst_prev.insert(dst_p.filename(), std::const_pointer_cast<RegularFile>(std::move(src_r)));
 			return;
 		}

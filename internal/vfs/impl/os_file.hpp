@@ -161,21 +161,13 @@ class OsDirectory
 
 	std::shared_ptr<File> next(std::string const& name) const override;
 
-	bool insert(std::string const& name, std::shared_ptr<File> file) override;
-
-	bool insert_or_assign(std::string const& name, std::shared_ptr<File> file) override;
-
-	bool insert(std::string const& name, RemovableFile& file) override;
-
-	bool insert_or_assign(std::string const& name, RemovableFile& file) override;
-
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
 
 	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override;
 
 	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override;
 
-	std::shared_ptr<RemovableFile> removable(std::string const& name) override;
+	bool link(std::string const& name, std::shared_ptr<File> file) override;
 
 	bool unlink(std::string const& name) override {
 		return this->erase(name) > 0;
