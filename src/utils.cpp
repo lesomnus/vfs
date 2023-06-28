@@ -1,6 +1,7 @@
 #include "vfs/impl/utils.hpp"
 
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <numeric>
 #include <random>
@@ -29,6 +30,26 @@ std::string random_string(std::size_t len, std::string_view char_set) {
 
 std::filesystem::path acc_paths(std::filesystem::path::const_iterator first, std::filesystem::path::const_iterator last) {
 	return std::accumulate(first, last, std::filesystem::path{}, std::divides{});
+}
+
+std::string to_string(std::filesystem::file_type t) {
+	using type = std::filesystem::file_type;
+
+	switch(t) {
+	case type::regular: {
+		return "regular";
+	}
+	case type::directory: {
+		return "directory";
+	}
+	case type::symlink: {
+		return "symlink";
+	}
+
+	default: {
+		return "unknown";
+	}
+	}
 }
 
 }  // namespace impl

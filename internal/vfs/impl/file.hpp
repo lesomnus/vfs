@@ -42,17 +42,25 @@ class File {
 	}
 
 	virtual bool operator==(File const& other) const = 0;
+
+	virtual std::filesystem::file_time_type last_write_time() const {
+		return std::filesystem::file_time_type::min();
+	}
+
+	virtual void last_write_time(std::filesystem::file_time_type new_time) = 0;
 };
 
 class RegularFile: virtual public File {
    public:
+	static constexpr auto Type = std::filesystem::file_type::regular;
+
 	static constexpr auto DefaultPerms = std::filesystem::perms::owner_write
 	    | std::filesystem::perms::owner_read
 	    | std::filesystem::perms::group_read
 	    | std::filesystem::perms::others_read;
 
 	std::filesystem::file_type type() const final {
-		return std::filesystem::file_type::regular;
+		return Type;
 	}
 
 	void copy_content_to(RegularFile& other) const;
@@ -62,12 +70,6 @@ class RegularFile: virtual public File {
 	virtual std::uintmax_t size() const {
 		return static_cast<std::uintmax_t>(-1);
 	}
-
-	virtual std::filesystem::file_time_type last_write_time() const {
-		return std::filesystem::file_time_type::min();
-	}
-
-	virtual void last_write_time(std::filesystem::file_time_type new_time) = 0;
 
 	virtual void resize(std::uintmax_t new_size) = 0;
 
@@ -86,8 +88,10 @@ class RegularFile: virtual public File {
 
 class Symlink: virtual public File {
    public:
+	static constexpr auto Type = std::filesystem::file_type::symlink;
+
 	std::filesystem::file_type type() const final {
-		return std::filesystem::file_type::symlink;
+		return Type;
 	}
 
 	virtual std::filesystem::path target() const = 0;
@@ -95,6 +99,8 @@ class Symlink: virtual public File {
 
 class Directory: virtual public File {
    public:
+	static constexpr auto Type = std::filesystem::file_type::directory;
+
 	static constexpr auto DefaultPerms = std::filesystem::perms::all
 	    & ~std::filesystem::perms::group_write
 	    & ~std::filesystem::perms::others_write;
@@ -174,7 +180,7 @@ class Directory: virtual public File {
 	};
 
 	std::filesystem::file_type type() const final {
-		return std::filesystem::file_type::directory;
+		return Type;
 	}
 
 	virtual bool empty() const = 0;
@@ -243,6 +249,14 @@ class MountPoint: virtual public File {
 
 	bool operator==(File const& other) const override {
 		return this->attachment()->operator==(other);
+	}
+
+	std::filesystem::file_time_type last_write_time() const override {
+		return this->attachment()->last_write_time();
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override {
+		this->attachment()->last_write_time(new_time);
 	}
 
 	virtual std::shared_ptr<File> attachment() const = 0;

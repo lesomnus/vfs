@@ -1,5 +1,6 @@
 #include "vfs/impl/os_file.hpp"
 
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -7,6 +8,7 @@
 #include <string>
 
 #include "vfs/impl/utils.hpp"
+#include "vfs/impl/vfile.hpp"
 
 namespace fs = std::filesystem;
 
@@ -200,11 +202,12 @@ std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::stri
 }
 
 bool OsDirectory::link(std::string const& name, std::shared_ptr<File> file) {
-	// TODO: VRegularFile is OsFile; prevent it.
-	auto f = std::dynamic_pointer_cast<OsFile>(std::move(file));
-	if(!f) {
+	if(auto f = std::dynamic_pointer_cast<VFile>(std::move(file)); f) {
 		throw fs::filesystem_error("cannot create link to different type of filesystem", std::make_error_code(std::errc::cross_device_link));
 	}
+
+	auto f = std::dynamic_pointer_cast<OsFile>(std::move(file));
+	assert(nullptr != f);
 
 	try {
 		fs::create_hard_link(f->path(), this->path_ / name);

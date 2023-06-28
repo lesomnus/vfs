@@ -53,10 +53,20 @@ class VFile: virtual public File {
 		return this == &other;
 	}
 
+	std::filesystem::file_time_type last_write_time() const override {
+		return this->last_write_time_;
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override {
+		this->last_write_time_ = new_time;
+	}
+
    protected:
 	std::intmax_t          owner_;
 	std::intmax_t          group_;
 	std::filesystem::perms perms_;
+
+	std::filesystem::file_time_type last_write_time_;
 };
 
 class NilFile
@@ -118,6 +128,14 @@ class VRegularFile
 
 	bool operator==(File const& other) const override {
 		return VFile::operator==(other);
+	}
+
+	std::filesystem::file_time_type last_write_time() const override {
+		return TempRegularFile::last_write_time();
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override {
+		TempRegularFile::last_write_time(new_time);
 	}
 };
 

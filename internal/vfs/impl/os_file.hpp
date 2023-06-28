@@ -61,6 +61,14 @@ class OsFile: virtual public File {
 		return std::filesystem::equivalent(this->path_, f->path_);
 	}
 
+	std::filesystem::file_time_type last_write_time() const override {
+		return std::filesystem::last_write_time(this->path_);
+	}
+
+	void last_write_time(std::filesystem::file_time_type new_time) override {
+		std::filesystem::last_write_time(this->path_, new_time);
+	}
+
 	std::filesystem::path const& path() const {
 		return this->path_;
 	}
@@ -101,14 +109,6 @@ class OsRegularFile
 
 	std::uintmax_t size() const override {
 		return std::filesystem::file_size(this->path_);
-	}
-
-	std::filesystem::file_time_type last_write_time() const override {
-		return std::filesystem::last_write_time(this->path_);
-	}
-
-	void last_write_time(std::filesystem::file_time_type new_time) override {
-		std::filesystem::last_write_time(this->path_, new_time);
 	}
 
 	void resize(std::uintmax_t new_size) override {

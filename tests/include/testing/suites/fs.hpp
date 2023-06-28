@@ -371,7 +371,14 @@ class TestFsBasic {
 				CHECK("Lorem ipsum" == content);
 			}
 
-			// TODO: hard link to directory?
+			SECTION("to a directory") {
+				fs->create_directory("foo");
+				REQUIRE(fs->is_directory("foo"));
+
+				std::error_code ec;
+				fs->create_hard_link("foo", "bar", ec);
+				CHECK(std::errc::operation_not_permitted == ec);
+			}
 		}
 
 		SECTION("::create_symlink") {

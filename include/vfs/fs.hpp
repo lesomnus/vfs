@@ -467,15 +467,7 @@ class Fs {
 	 * @param[in] p Path to change the current working directory to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& = 0;
-
-	/**
-	 * @brief Sets the current working directory.
-	 * 
-	 * @param[in] p Path to change the current working directory to.
-	 * @return Same file system where the working directory is \p p.
-	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && = 0;
+	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Creates a new Fs that share the same file system but have different working directory.
@@ -484,16 +476,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const& noexcept = 0;
-
-	/**
-	 * @brief Sets the current working directory.
-	 * 
-	 * @param[in]  p  Path to change the current working directory to.
-	 * @param[out] ec Error code to store error status to.
-	 * @return Same file system where the working directory is \p p.
-	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) && noexcept = 0;
+	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Checks whether the path refers to an existing file system object

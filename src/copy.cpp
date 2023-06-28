@@ -144,11 +144,12 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 }
 
 void copy_into_(FsBase const& self, fs::path const& src, FsBase& other, fs::path const& dst, fs::copy_options opts) {
+	// No `std::filesystem::copy` even if both `src` and `dst` are `OsFile` since subpath may be a mounted VFile.
+
 	auto const src_p = self.canonical(src);
 	auto const src_f = self.file_at(src_p);
 	auto const dst_p = other.weakly_canonical(dst);
 
-	// TODO: if both src_f and dst_f are OsFile, use std::copy.
 	auto dst_prev = std::dynamic_pointer_cast<Directory>(other.file_at(dst_p.parent_path()));
 	if(!dst_prev) {
 		throw fs::filesystem_error("", dst_p.parent_path(), std::make_error_code(std::errc::not_a_directory));

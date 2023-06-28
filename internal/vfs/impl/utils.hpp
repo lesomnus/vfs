@@ -27,5 +27,7 @@ auto handle_error(F const& f, std::error_code& ec, R v = R{}) -> R {
 	}
 }
 
+std::string to_string(std::filesystem::file_type t);
+
 }  // namespace impl
 }  // namespace vfs

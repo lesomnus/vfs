@@ -128,25 +128,12 @@ class FsProxy: public FsBase {
 		return this->fs_->current_path(ec);
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
+	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override {
 		return this->make_proxy_(this->fs_->current_path(p));
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
-		return this->make_proxy_(std::move(*this->fs_).current_path(p));
-	}
-
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const& noexcept override {
+	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		auto fs = this->fs_->current_path(p, ec);
-		if(ec) {
-			return nullptr;
-		}
-
-		return this->make_proxy_(std::move(fs));
-	}
-
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) && noexcept override {
-		auto fs = std::move(*this->fs_).current_path(p, ec);
 		if(ec) {
 			return nullptr;
 		}

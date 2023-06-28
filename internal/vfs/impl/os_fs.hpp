@@ -176,7 +176,7 @@ class StdFs: public OsFs {
 		return this->cwd_;
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
+	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override {
 		auto c = this->canonical(p);
 		if(!this->is_directory(c)) {
 			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
@@ -185,22 +185,8 @@ class StdFs: public OsFs {
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
-		// TODO: move
-		auto c = this->canonical(p);
-		if(!this->is_directory(c)) {
-			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
-		}
-
-		return std::make_shared<StdFs>(this->canonical(p));
-	}
-
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const& noexcept override {
+	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return handle_error([&] { return this->current_path(p); }, ec);
-	}
-
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) && noexcept override {
-		return handle_error([&] { return std::move(*this).current_path(p); }, ec);
 	}
 
 	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override {
@@ -384,17 +370,7 @@ class ChRootedStdFs: public StdFs {
 		return this->confine_(StdFs::weakly_canonical(p));
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const& override {
-		auto c = this->canonical(p);
-		if(!this->is_directory(c)) {
-			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
-		}
-
-		return std::make_shared<ChRootedStdFs>(this->base_, std::move(c), this->temp_dir_);
-	}
-
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) && override {
-		// TODO: move
+	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override {
 		auto c = this->canonical(p);
 		if(!this->is_directory(c)) {
 			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));

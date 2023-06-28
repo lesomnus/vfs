@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/utils.hpp"
 
 namespace vfs {
 namespace impl {
@@ -51,7 +52,10 @@ class Entry: public std::enable_shared_from_this<Entry> {
 	std::shared_ptr<E const> must_be() const {
 		auto entry = std::dynamic_pointer_cast<E const>(this->shared_from_this());
 		if(!entry) [[unlikely]] {
-			throw std::logic_error("TODO: descriptive");
+			auto const p  = this->path();
+			auto const te = to_string(this->file()->type());
+			auto const ta = to_string(E::FileType::Type);
+			throw std::logic_error("expect " + p.string() + " to be type of " + te + " but was " + ta);
 		}
 		return entry;
 	}

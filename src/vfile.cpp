@@ -67,41 +67,6 @@ class Cursor_: public Directory::Cursor {
 	std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator end;
 };
 
-std::shared_ptr<File> conform_to_vfs_(std::shared_ptr<File> file) {
-	auto f = std::dynamic_pointer_cast<OsFile>(file);
-	if(!f) {
-		return file;
-	}
-
-	if(auto r = std::dynamic_pointer_cast<VRegularFile>(std::move(f)); r) {
-		return r;
-	}
-
-	auto const type = f->type();
-	switch(type) {
-	case fs::file_type::regular: {
-		auto r  = std::dynamic_pointer_cast<OsRegularFile>(std::move(f));
-		auto vr = std::make_shared<VRegularFile>(0, 0);
-
-		r->copy_content_to(*vr);
-		return vr;
-	}
-
-	case fs::file_type::symlink: {
-		auto s = std::dynamic_pointer_cast<OsSymlink>(std::move(f));
-		return std::make_shared<VSymlink>(s->target());
-	}
-
-	case fs::file_type::directory: {
-		// TODO: use copy.
-		throw std::runtime_error("not implemented");
-	}
-
-	default:
-		throw std::runtime_error("file type not supported for Vfs");
-	}
-}
-
 }  // namespace
 
 void VFile::perms(fs::perms prms, fs::perm_options opts) {

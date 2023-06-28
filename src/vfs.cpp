@@ -264,6 +264,9 @@ bool Vfs::create_directories(fs::path const& p, std::error_code& ec) {
 
 void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
 	auto const dst_f = this->navigate(target);
+	if(dst_f->file()->type() == fs::file_type::directory) {
+		throw fs::filesystem_error("", target, std::make_error_code(std::errc::operation_not_permitted));
+	}
 
 	auto const src_p = this->weakly_canonical(link);
 	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
@@ -296,22 +299,13 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 	return this->cwd_->path();
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const& {
+std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const {
 	auto d = this->navigate(p / "")->must_be<DirectoryEntry const>();
 	return std::make_shared<Vfs>(*this, const_cast<DirectoryEntry&>(*d));
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) && {
-	auto d = this->navigate(p / "")->must_be<DirectoryEntry>();
-	return std::make_shared<Vfs>(std::move(*this), *d);
-}
-
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const& noexcept {
+std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const noexcept {
 	return handle_error([&] { return this->current_path(p); }, ec);
-}
-
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) && noexcept {
-	return handle_error([&] { return std::move(*this).current_path(p); }, ec);
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
@@ -370,17 +364,7 @@ std::uintmax_t Vfs::hard_link_count(fs::path const& p, std::error_code& ec) cons
 
 fs::file_time_type Vfs::last_write_time(fs::path const& p) const {
 	auto const f = this->navigate(p)->follow_chain();
-	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
-		// TODO: no throw?
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
-	}
-
-	auto const r = std::dynamic_pointer_cast<RegularFileEntry const>(f);
-	if(!r) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
-	}
-
-	return r->typed_file()->last_write_time();
+	return f->file()->last_write_time();
 }
 
 fs::file_time_type Vfs::last_write_time(fs::path const& p, std::error_code& ec) const noexcept {
@@ -389,17 +373,7 @@ fs::file_time_type Vfs::last_write_time(fs::path const& p, std::error_code& ec) 
 
 void Vfs::last_write_time(fs::path const& p, fs::file_time_type t) {
 	auto const f = this->navigate(p)->follow_chain();
-	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f); d) {
-		// TODO: no throw?
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::is_a_directory));
-	}
-
-	auto const r = std::dynamic_pointer_cast<RegularFileEntry>(f);
-	if(!r) {
-		throw fs::filesystem_error("", f->path(), std::make_error_code(std::errc::invalid_argument));
-	}
-
-	r->typed_file()->last_write_time(t);
+	f->file()->last_write_time(t);
 }
 
 void Vfs::last_write_time(fs::path const& p, fs::file_time_type t, std::error_code& ec) noexcept {
