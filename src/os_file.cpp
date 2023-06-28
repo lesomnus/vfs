@@ -145,91 +145,6 @@ std::shared_ptr<File> OsDirectory::next(std::string const& name) const {
 	return make_file_(status.type(), this->context_, next_p);
 }
 
-bool OsDirectory::insert(std::string const& name, std::shared_ptr<File> file) {
-	if(auto const f = std::dynamic_pointer_cast<OsFile>(std::move(file)); f) {
-		auto const next_p = this->path_ / name;
-		if(this->exists(next_p)) {
-			return false;
-		}
-
-		fs::copy(f->path(), next_p);
-		return true;
-	}
-
-	auto const type = file->type();
-	switch(type) {
-	case fs::file_type::regular: {
-		auto [dst, ok] = this->emplace_regular_file(name);
-		if(ok) {
-			auto r = std::dynamic_pointer_cast<RegularFile>(std::move(file));
-			r->copy_content_to(*dst);
-		}
-
-		return ok;
-	}
-	case fs::file_type::symlink: {
-		auto s = std::dynamic_pointer_cast<Symlink>(std::move(file));
-
-		auto [_, ok] = this->emplace_symlink(name, s->target());
-		return ok;
-	}
-	case fs::file_type::directory: {
-		// TODO:
-		throw std::runtime_error("not implemented");
-	}
-
-	default:
-		throw std::runtime_error("unexpected type of file");
-	}
-
-	// unreachable.
-}
-
-bool OsDirectory::insert_or_assign(std::string const& name, std::shared_ptr<File> file) {
-	auto const next_p = this->path_ / name;
-	if(!this->exists(next_p)) {
-		fs::remove_all(next_p);
-	}
-
-	return this->insert(name, std::move(file));
-}
-
-bool OsDirectory::insert(std::string const& name, Directory::RemovableFile& file) {
-	auto const next_p = this->path_ / name;
-
-	auto f = std::dynamic_pointer_cast<OsFile>(file.value());
-	if(!f) {
-		auto const ok = this->insert(name, file);
-		if(ok) {
-			file.commit();
-		}
-		return ok;
-	}
-
-	if(this->exists(next_p)) {
-		return false;
-	}
-
-	f->move_to(next_p);
-	file.commit();
-	return true;
-}
-
-bool OsDirectory::insert_or_assign(std::string const& name, Directory::RemovableFile& file) {
-	auto const next_p = this->path_ / name;
-
-	auto f = std::dynamic_pointer_cast<OsFile>(file.value());
-	if(!f) {
-		auto const ok = this->insert(name, file);
-		file.commit();
-		return ok;
-	}
-
-	f->move_to(next_p);
-	file.commit();
-	return true;
-}
-
 std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(std::string const& name) {
 	auto const next_p = this->path_ / name;
 
@@ -246,12 +161,24 @@ std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(
 
 std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::string const& name) {
 	auto const next_p = this->path_ / name;
-	auto const ok     = fs::create_directory(next_p);
-	if(not ok && not fs::is_directory(next_p)) {
+
+	try {
+		// No exception is thrown if next_p is an existing directory and false is returned.
+		auto const ok = fs::create_directory(next_p);
+		if(!ok && fs::is_symlink(next_p)) {
+			// If next_p is a symbolic link that linked to directory, no exception is thrown.
+			return std::make_pair(nullptr, false);
+		}
+
+		return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
+	} catch(fs::filesystem_error const& error) {
+		if(error.code() != std::errc::file_exists) {
+			throw error;
+		}
+
+		// next_p exists but not a directory.
 		return std::make_pair(nullptr, false);
 	}
-
-	return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
 }
 
 std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {
@@ -272,13 +199,23 @@ std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::stri
 	return std::make_pair(std::make_shared<OsSymlink>(this->context_, next_p), ok);
 }
 
-std::shared_ptr<Directory::RemovableFile> OsDirectory::removable(std::string const& name) {
-	auto f = this->next(name);
+bool OsDirectory::link(std::string const& name, std::shared_ptr<File> file) {
+	// TODO: VRegularFile is OsFile; prevent it.
+	auto f = std::dynamic_pointer_cast<OsFile>(std::move(file));
 	if(!f) {
-		return nullptr;
+		throw fs::filesystem_error("cannot create link to different type of filesystem", std::make_error_code(std::errc::cross_device_link));
 	}
 
-	return std::make_shared<RemovableFile_>(std::move(f));
+	try {
+		fs::create_hard_link(f->path(), this->path_ / name);
+		return true;
+	} catch(fs::filesystem_error const& error) {
+		if(error.code() != std::errc::file_exists) {
+			throw error;
+		}
+
+		return false;
+	}
 }
 
 std::uintmax_t OsDirectory::clear() {

@@ -135,13 +135,6 @@ std::shared_ptr<Entry const> DirectoryEntry::navigate(std::filesystem::path cons
 	return entry;
 }
 
-void DirectoryEntry::insert(std::string const& name, std::shared_ptr<File> file) {
-	auto const ok = this->typed_file()->insert(name, std::move(file));
-	if(!ok) {
-		throw fs::filesystem_error("", this->path(), name, std::make_error_code(std::errc::file_exists));
-	}
-}
-
 std::shared_ptr<RegularFile> DirectoryEntry::emplace_regular_file(std::string const& name) {
 	auto [f, ok] = this->typed_file()->emplace_regular_file(name);
 	if(!f || !ok) {

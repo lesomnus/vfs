@@ -184,36 +184,6 @@ std::uintmax_t VDirectory::clear() {
 	return n;
 }
 
-bool VDirectory::insert(std::string const& name, std::shared_ptr<File> file) {
-	if(this->contains(name)) {
-		return false;
-	}
-
-	file = conform_to_vfs_(std::move(file));
-	return this->files_.insert(std::make_pair(name, std::move(file))).second;
-}
-
-bool VDirectory::insert_or_assign(std::string const& name, std::shared_ptr<File> file) {
-	file = conform_to_vfs_(std::move(file));
-	return this->files_.insert_or_assign(name, std::move(file)).second;
-}
-
-bool VDirectory::insert(std::string const& name, Directory::RemovableFile& file) {
-	// TODO: optimize.
-	auto const inserted = this->insert(name, file.value());
-	if(inserted) {
-		file.commit();
-	}
-
-	return inserted;
-}
-
-bool VDirectory::insert_or_assign(std::string const& name, Directory::RemovableFile& file) {
-	// TODO: optimize.
-	file.commit();
-	return this->insert_or_assign(name, file.value());
-}
-
 std::pair<std::shared_ptr<RegularFile>, bool> VDirectory::emplace_regular_file(std::string const& name) {
 	auto [it, ok] = this->files_.emplace(std::make_pair(name, std::make_shared<VRegularFile>(0, 0)));
 	return std::make_pair(std::dynamic_pointer_cast<RegularFile>(it->second), ok);
@@ -229,13 +199,14 @@ std::pair<std::shared_ptr<Symlink>, bool> VDirectory::emplace_symlink(std::strin
 	return std::make_pair(std::dynamic_pointer_cast<Symlink>(it->second), ok);
 }
 
-std::shared_ptr<Directory::RemovableFile> VDirectory::removable(std::string const& name) {
-	auto f = this->next(name);
+bool VDirectory::link(std::string const& name, std::shared_ptr<File> file) {
+	auto f = std::dynamic_pointer_cast<VFile>(std::move(file));
 	if(!f) {
-		return nullptr;
+		throw fs::filesystem_error("cannot create link to different type of filesystem", std::make_error_code(std::errc::cross_device_link));
 	}
 
-	return std::make_shared<Removable_>(this, name, std::move(f));
+	auto const [_, ok] = this->files_.insert(std::make_pair(name, std::move(f)));
+	return ok;
 }
 
 std::shared_ptr<Directory::Cursor> VDirectory::cursor() const {

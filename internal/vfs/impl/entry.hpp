@@ -203,8 +203,6 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p, ec));
 	}
 
-	void insert(std::string const& name, std::shared_ptr<File> file);
-
 	std::shared_ptr<RegularFile> emplace_regular_file(std::string const& name);
 
 	std::shared_ptr<Directory> emplace_directory(std::string const& name);
