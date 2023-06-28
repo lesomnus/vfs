@@ -161,12 +161,24 @@ std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(
 
 std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::string const& name) {
 	auto const next_p = this->path_ / name;
-	auto const ok     = fs::create_directory(next_p);
-	if(not ok && not fs::is_directory(next_p)) {
+
+	try {
+		// No exception is thrown if next_p is an existing directory and false is returned.
+		auto const ok = fs::create_directory(next_p);
+		if(!ok && fs::is_symlink(next_p)) {
+			// If next_p is a symbolic link that linked to directory, no exception is thrown.
+			return std::make_pair(nullptr, false);
+		}
+
+		return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
+	} catch(fs::filesystem_error const& error) {
+		if(error.code() != std::errc::file_exists) {
+			throw error;
+		}
+
+		// next_p exists but not a directory.
 		return std::make_pair(nullptr, false);
 	}
-
-	return std::make_pair(std::make_shared<OsDirectory>(this->context_, next_p), ok);
 }
 
 std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {

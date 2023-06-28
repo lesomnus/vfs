@@ -7,16 +7,6 @@
 #include <vfs/impl/entry.hpp>
 #include <vfs/impl/file.hpp>
 
-namespace {
-
-template<typename Entry>
-std::shared_ptr<Entry> next_insert_(vfs::impl::DirectoryEntry& entry, std::string const& name, std::shared_ptr<vfs::impl::File> file) {
-	entry.insert(name, std::move(file));
-	return entry.next(name)->must_be<Entry>();
-}
-
-}  // namespace
-
 TEST_CASE("Entry") {
 	// /
 	// + foo/

@@ -210,17 +210,25 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& attr) {
 	auto const dst_p = this->weakly_canonical(p);
 	auto const prev  = this->navigate(p.parent_path() / "")->must_be<DirectoryEntry>();
 
-	auto [new_d, ok] = prev->typed_file()->emplace_directory(dst_p.filename());
-	if(!new_d) {
-		throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
+	auto [d, ok] = prev->typed_file()->emplace_directory(dst_p.filename());
+	if(d) {
+		if(ok) {
+			auto const oth_d = this->navigate(attr / "")->must_be<DirectoryEntry>();
+			d->perms(oth_d->typed_file()->perms(), fs::perm_options::replace);
+		}
+
+		return ok;
 	}
 
-	if(ok) {
-		auto const oth_d = this->navigate(attr / "")->must_be<DirectoryEntry>();
-		new_d->perms(oth_d->typed_file()->perms(), fs::perm_options::replace);
+	auto curr = prev->next(dst_p.filename());
+	if(auto s = std::dynamic_pointer_cast<SymlinkEntry>(std::move(curr)); s) {
+		// Existing file is symbolic link that linked to a directory; no exception.
+		if(std::dynamic_pointer_cast<DirectoryEntry>(s->follow_chain())) {
+			return false;
+		}
 	}
 
-	return ok;
+	throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
 }
 
 bool Vfs::create_directory(fs::path const& p, fs::path const& attr, std::error_code& ec) noexcept {

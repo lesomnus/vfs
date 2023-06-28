@@ -58,7 +58,7 @@ class OsFile: virtual public File {
 			return false;
 		}
 
-		return this->path_ == f->path_;
+		return std::filesystem::equivalent(this->path_, f->path_);
 	}
 
 	std::filesystem::path const& path() const {

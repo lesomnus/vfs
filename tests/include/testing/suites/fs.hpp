@@ -269,6 +269,21 @@ class TestFsBasic {
 				CHECK(not fs->create_directory("foo"));
 			}
 
+			SECTION("to a symbolic link that is linked to a directory") {
+				fs->create_directory("foo");
+				REQUIRE(fs->is_directory("foo"));
+
+				bool ok = true;
+
+				fs->create_symlink("foo", "bar");
+				CHECK_NOTHROW([&] { ok = fs->create_directory("bar"); }());
+				CHECK(not ok);
+
+				fs->create_symlink("bar", "baz");
+				CHECK_NOTHROW([&] { ok = fs->create_directory("baz"); }());
+				CHECK(not ok);
+			}
+
 			SECTION("in a directory that does not exist") {
 				REQUIRE(not fs->exists("foo"));
 

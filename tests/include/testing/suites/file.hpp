@@ -29,24 +29,26 @@ class TestFile {
 		std::shared_ptr<vfs::impl::Directory> const sandbox = fixture.make();
 
 		SECTION("File") {
-			SECTION("::operator==()") {
-				auto [foo, ok1] = sandbox->emplace_directory("foo");
+			SECTION("::operator==") {
+				auto const [foo, ok1] = sandbox->emplace_regular_file("foo");
 				REQUIRE(ok1);
 				CHECK(*foo == *foo);
 
-				auto [bar, ok2] = sandbox->emplace_directory("bar");
+				auto const [bar, ok2] = sandbox->emplace_regular_file("bar");
 				REQUIRE(ok2);
 				CHECK(*foo != *bar);
 
-				foo->insert("baz", bar);
-				auto baz = foo->next("baz");
-				CHECK(nullptr != baz);
+				REQUIRE(sandbox->link("baz", bar));
+
+				auto const baz = sandbox->next("baz");
+				REQUIRE(nullptr != baz);
+				CHECK(*bar == *baz);
 			}
 		}
 
 		SECTION("RegularFile") {
 			SECTION("::size") {
-				auto [f, ok] = sandbox->emplace_regular_file("foo");
+				auto const [f, ok] = sandbox->emplace_regular_file("foo");
 				REQUIRE(ok);
 				CHECK(0 == f->size());
 
@@ -56,7 +58,7 @@ class TestFile {
 			}
 
 			SECTION("::last_write_time") {
-				auto [f, ok] = sandbox->emplace_regular_file("foo");
+				auto const [f, ok] = sandbox->emplace_regular_file("foo");
 				REQUIRE(ok);
 
 				auto const t0 = f->last_write_time();
@@ -72,58 +74,135 @@ class TestFile {
 		}
 
 		SECTION("Directory") {
-			SECTION("insert a file into the directory") {
+			SECTION("::empty") {
+				CHECK(sandbox->empty());
+
 				auto [foo, ok] = sandbox->emplace_directory("foo");
 				REQUIRE(ok);
+				CHECK(foo->empty());
+				CHECK(not sandbox->empty());
+			}
 
+			SECTION("::contains") {
+				REQUIRE(sandbox->emplace_regular_file("foo").second);
+				REQUIRE(sandbox->emplace_directory("bar").second);
+
+				CHECK(sandbox->contains("foo"));
+				CHECK(sandbox->contains("bar"));
+				CHECK(not sandbox->contains("baz"));
+			}
+
+			SECTION("::next") {
 				{
-					auto [bar, ok] = sandbox->emplace_regular_file("bar");
+					auto const [foo, ok] = sandbox->emplace_regular_file("foo");
 					REQUIRE(ok);
 
-					*bar->open_write() << "Lorem ipsum";
-					CHECK(foo->insert("bar", bar));
+					*foo->open_write() << "Lorem ipsum";
 				}
 
-				auto bar_f = foo->next("bar");
-				REQUIRE(nullptr != bar_f);
-
-				auto bar = std::dynamic_pointer_cast<vfs::impl::RegularFile>(bar_f);
-				REQUIRE(nullptr != bar);
+				auto const foo_f = sandbox->next("foo");
+				auto const foo_r = std::dynamic_pointer_cast<vfs::impl::RegularFile>(foo_f);
+				REQUIRE(nullptr != foo_r);
 
 				std::string line;
-				std::getline(*bar->open_read(), line);
+				std::getline(*foo_r->open_read(), line);
 				CHECK("Lorem ipsum" == line);
 			}
 
-			SECTION("insert a directory into the directory") {
-				auto [foo, ok] = sandbox->emplace_directory("foo");
-				REQUIRE(ok);
+			SECTION("::emplace_regular_file") {
+				auto const [foo, ok1] = sandbox->emplace_regular_file("foo");
+				REQUIRE(ok1);
 
 				{
-					auto [bar, ok1] = foo->emplace_directory("bar");
-					REQUIRE(ok1);
-
-					auto [baz, ok2] = bar->emplace_regular_file("baz");
-					REQUIRE(ok2);
-
-					*baz->open_write() << "Lorem ipsum";
+					auto const [foo_, ok] = sandbox->emplace_regular_file("foo");
+					CHECK(not ok);
+					REQUIRE(nullptr != foo_);
+					CHECK(*foo == *foo_);
 				}
 
-				auto bar_f = foo->next("bar");
-				REQUIRE(nullptr != bar_f);
+				{
+					auto const [foo_, ok] = sandbox->emplace_symlink("foo", "/");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
 
-				auto bar = std::dynamic_pointer_cast<vfs::impl::Directory>(bar_f);
-				REQUIRE(nullptr != bar);
+				{
+					auto const [foo_, ok] = sandbox->emplace_directory("foo");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
+			}
 
-				auto baz_f = bar->next("baz");
-				REQUIRE(nullptr != baz_f);
+			SECTION("::emplace_symlink") {
+				auto const [foo, ok1] = sandbox->emplace_symlink("foo", "/");
+				REQUIRE(ok1);
 
-				auto baz = std::dynamic_pointer_cast<vfs::impl::RegularFile>(baz_f);
-				REQUIRE(nullptr != baz);
+				{
+					auto const [foo_, ok] = sandbox->emplace_regular_file("foo");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
 
-				std::string line;
-				std::getline(*baz->open_read(), line);
-				CHECK("Lorem ipsum" == line);
+				{
+					auto const [foo_, ok] = sandbox->emplace_symlink("foo", "/");
+					CHECK(not ok);
+					REQUIRE(nullptr != foo_);
+					CHECK(*foo == *foo_);
+				}
+
+				{
+					auto const [foo_, ok] = sandbox->emplace_directory("foo");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
+			}
+			SECTION("::emplace_directory") {
+				auto const [foo, ok1] = sandbox->emplace_directory("foo");
+				REQUIRE(ok1);
+
+				{
+					auto const [foo_, ok] = sandbox->emplace_regular_file("foo");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
+
+				{
+					auto const [foo_, ok] = sandbox->emplace_symlink("foo", "/");
+					CHECK(not ok);
+					CHECK(nullptr == foo_);
+				}
+
+				{
+					auto const [foo_, ok] = sandbox->emplace_directory("foo");
+					CHECK(not ok);
+					REQUIRE(nullptr != foo_);
+					CHECK(*foo == *foo_);
+				}
+			}
+
+			SECTION("::erase") {
+				auto const [foo, ok] = sandbox->emplace_directory("foo");
+				REQUIRE(ok);
+				REQUIRE(foo->emplace_regular_file("bar").second);
+				REQUIRE(foo->emplace_directory("baz").second);
+
+				auto const cnt = sandbox->erase("foo");
+				CHECK(3 == cnt);
+				CHECK(nullptr == sandbox->next("foo"));
+			}
+
+			SECTION("::clear") {
+				auto const [foo, ok] = sandbox->emplace_directory("foo");
+				REQUIRE(ok);
+				REQUIRE(foo->emplace_regular_file("bar").second);
+				REQUIRE(foo->emplace_directory("baz").second);
+				REQUIRE(sandbox->emplace_directory("qux").second);
+
+				auto const cnt = sandbox->clear();
+				CHECK(4 == cnt);
+				CHECK(sandbox->empty());
+				CHECK(nullptr == sandbox->next("foo"));
+				CHECK(nullptr == sandbox->next("qux"));
 			}
 
 			SECTION("iterate a directory") {
