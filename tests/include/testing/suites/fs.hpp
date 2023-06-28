@@ -269,6 +269,15 @@ class TestFsBasic {
 				CHECK(not fs->create_directory("foo"));
 			}
 
+			SECTION("to an existing file") {
+				fs->open_write("foo");
+				REQUIRE(fs->is_regular_file("foo"));
+
+				std::error_code ec;
+				fs->create_directory("foo", ec);
+				CHECK(std::errc::file_exists == ec);
+			}
+
 			SECTION("to a symbolic link that is linked to a directory") {
 				fs->create_directory("foo");
 				REQUIRE(fs->is_directory("foo"));
