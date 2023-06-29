@@ -7,7 +7,7 @@
 
 #include <vfs.hpp>
 
-#include "testing/utils.hpp"
+#include "testing.hpp"
 
 void work(vfs::Fs& fs) {
 	fs.create_directories("foo/bar");
@@ -20,10 +20,7 @@ TEST_CASE("example") {
 	auto sandbox = vfs::make_vfs();
 	work(*sandbox);
 
-	std::string line;
-	std::getline(*sandbox->open_read("foo/bar/food"), line);
-
-	CHECK(line == "Royale with cheese");
+	CHECK("Royale with cheese" == testing::read_all(*sandbox->open_read("foo/bar/food")));
 }
 
 TEST_CASE("mount") {
@@ -34,23 +31,15 @@ TEST_CASE("mount") {
 
 	auto const os_fs = testing::cd_temp_dir(*vfs::make_os_fs());
 
-	sandbox->mount("foo/bar", *os_fs);
+	sandbox->mount("foo/bar", *os_fs, os_fs->current_path());
 	*sandbox->open_write("foo/bar/food") << "Royale with cheese";
 	CHECK(sandbox->exists("foo/bar/food"));
 	CHECK(fs::exists(os_fs->current_path() / "food"));
 
-	{
-		std::string line;
-		std::getline(*sandbox->open_read("foo/bar/food"), line);
-		CHECK(line == "Royale with cheese");
-	}
+	CHECK("Royale with cheese" == testing::read_all(*sandbox->open_read("foo/bar/food")));
 
-	{
-		std::ifstream food(os_fs->current_path() / "food");
-		std::string   line;
-		std::getline(food, line);
-		CHECK(line == "Royale with cheese");
-	}
+	std::ifstream food(os_fs->current_path() / "food");
+	CHECK("Royale with cheese" == testing::read_all(food));
 
 	sandbox->unmount("foo/bar");
 	CHECK(not sandbox->exists("foo/bar/food"));

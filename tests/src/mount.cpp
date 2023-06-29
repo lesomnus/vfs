@@ -36,12 +36,10 @@ class TestMount {
 			REQUIRE(rhs->is_regular_file("bar"));
 
 			lhs->mount("foo", *rhs, "bar");
-			std::getline(*lhs->open_read("foo"), line);
-			CHECK(testing::QuoteB == line);
+			CHECK(testing::QuoteB == testing::read_all(*lhs->open_read("foo")));
 
 			lhs->unmount("foo");
-			std::getline(*lhs->open_read("foo"), line);
-			CHECK(testing::QuoteA == line);
+			CHECK(testing::QuoteA == testing::read_all(*lhs->open_read("foo")));
 		}
 
 		// SECTION("access attached directory") {
@@ -49,17 +47,17 @@ class TestMount {
 		// 	rhs->create_directory("bar");
 
 		// 	lhs->mount("foo", *rhs->current_path("bar"));
-		// 	*lhs->open_write("foo/a") << "Lorem ipsum";
+		// 	*lhs->open_write("foo/a") << testing::QuoteA;
 
 		// 	std::string line;
 		// 	std::getline(*rhs->open_read("bar/a"), line);
-		// 	CHECK("Lorem ipsum" == line);
+		// 	CHECK(testing::QuoteA == line);
 
 		// 	lhs->unmount("foo");
 		// 	CHECK(not lhs->exists("foo/a"));
 
 		// 	std::getline(*rhs->open_read("bar/a"), line);
-		// 	CHECK("Lorem ipsum" == line);
+		// 	CHECK(testing::QuoteA == line);
 
 		// 	lhs->remove_all(lhs->current_path());
 		// 	rhs->remove_all(rhs->current_path());
@@ -69,7 +67,7 @@ class TestMount {
 		// 	lhs->create_directory("foo");
 		// 	rhs->create_directory("bar");
 
-		// 	*lhs->open_write("foo/a") << "Lorem ipsum";
+		// 	*lhs->open_write("foo/a") << testing::QuoteA;
 		// 	lhs->mount("foo", *rhs->current_path("bar"));
 		// 	CHECK(not lhs->exists("foo/a"));
 
@@ -78,7 +76,7 @@ class TestMount {
 
 		// 	std::string line;
 		// 	std::getline(*lhs->open_read("foo/a"), line);
-		// 	CHECK("Lorem ipsum" == line);
+		// 	CHECK(testing::QuoteA == line);
 		// }
 
 		SECTION("rename to attached directory") {

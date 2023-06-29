@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 	auto const sandbox = vfs::make_vfs();
 	sandbox->create_directories("foo/bar");
 
-	sandbox->mount("foo/bar", *vfs::make_os_fs()->current_path("/tmp"));
+	sandbox->mount("foo/bar", *vfs::make_os_fs(), "/tmp");
 	*sandbox->open_write("foo/bar/food") << "Royale with cheese";
 	asser(sandbox->exists("foo/bar/food"));
 	asser(fs::exists("/tmp/food"));

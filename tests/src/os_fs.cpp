@@ -5,7 +5,7 @@
 #include <vfs/fs.hpp>
 
 #include "testing/suites/fs.hpp"
-#include "testing/utils.hpp"
+#include "testing.hpp"
 
 class TestOsFs: public testing::suites::TestFsFixture {
    public:
