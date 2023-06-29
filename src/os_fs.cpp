@@ -96,22 +96,47 @@ std::shared_ptr<Fs const> StdFs::change_root(fs::path const& p, fs::path const& 
 	return std::make_shared<ChRootedStdFs>(StdFs::canonical(p), "/", temp_dir);
 }
 
-std::shared_ptr<File const> StdFs::file_at(std::filesystem::path const& p) const {
+std::shared_ptr<File const> StdFs::file_at(fs::path const& p) const {
+	// Don't follow a symbolic link.
+	auto const c = (fs::canonical(this->os_path_of(p.parent_path())) / p.filename()).lexically_normal();
+
 	auto const status = this->symlink_status(p);
 	auto const type   = status.type();
 	switch(type) {
 	case fs::file_type::regular: {
-		return std::make_shared<OsRegularFile>(p);
+		return std::make_shared<OsRegularFile>(c);
 	}
 	case fs::file_type::directory: {
-		return std::make_shared<OsDirectory>(p);
+		return std::make_shared<OsDirectory>(c);
 	}
 	case fs::file_type::symlink: {
-		return std::make_shared<OsSymlink>(p);
+		return std::make_shared<OsSymlink>(c);
 	}
 
 	default: {
-		return std::make_shared<UnkownOsFile>(p);
+		return std::make_shared<UnkownOsFile>(c);
+	}
+	}
+}
+
+std::shared_ptr<File const> StdFs::file_at_followed(fs::path const& p) const {
+	auto const c = fs::canonical(this->os_path_of(p));
+
+	auto const status = this->status(p);
+	auto const type   = status.type();
+	switch(type) {
+	case fs::file_type::regular: {
+		return std::make_shared<OsRegularFile>(c);
+	}
+	case fs::file_type::directory: {
+		return std::make_shared<OsDirectory>(c);
+	}
+	case fs::file_type::symlink: {
+		throw std::logic_error("symlink must be followed");
+	}
+
+	default: {
+		return std::make_shared<UnkownOsFile>(c);
 	}
 	}
 }

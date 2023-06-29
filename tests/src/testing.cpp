@@ -3,7 +3,7 @@
 #include <vfs/fs.hpp>
 #include <vfs/impl/utils.hpp>
 
-#include "testing/utils.hpp"
+#include "testing.hpp"
 
 namespace testing {
 

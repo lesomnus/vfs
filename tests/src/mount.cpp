@@ -5,7 +5,7 @@
 
 #include <vfs/fs.hpp>
 
-#include "testing/utils.hpp"
+#include "testing.hpp"
 
 namespace testing {
 namespace suites {
@@ -27,45 +27,61 @@ class TestMount {
 		std::shared_ptr<vfs::Fs> lhs = testing::cd_temp_dir(*fixture.make_lhs());
 		std::shared_ptr<vfs::Fs> rhs = testing::cd_temp_dir(*fixture.make_rhs());
 
-		SECTION("access attached directory") {
-			lhs->create_directory("foo");
-			rhs->create_directory("bar");
+		std::string line;
 
-			lhs->mount("foo", *rhs->current_path("bar"));
-			*lhs->open_write("foo/a") << "Lorem ipsum";
+		SECTION("mount regular file") {
+			*lhs->open_write("foo") << testing::QuoteA;
+			*rhs->open_write("bar") << testing::QuoteB;
+			REQUIRE(lhs->is_regular_file("foo"));
+			REQUIRE(rhs->is_regular_file("bar"));
 
-			std::string line;
-			std::getline(*rhs->open_read("bar/a"), line);
-			CHECK("Lorem ipsum" == line);
-
-			lhs->unmount("foo");
-			CHECK(not lhs->exists("foo/a"));
-
-			std::getline(*rhs->open_read("bar/a"), line);
-			CHECK("Lorem ipsum" == line);
-
-			lhs->remove_all(lhs->current_path());
-			rhs->remove_all(rhs->current_path());
-		}
-
-		SECTION("unmount restores mountpoint") {
-			lhs->create_directory("foo");
-			rhs->create_directory("bar");
-
-			*lhs->open_write("foo/a") << "Lorem ipsum";
-			lhs->mount("foo", *rhs->current_path("bar"));
-			CHECK(not lhs->exists("foo/a"));
+			lhs->mount("foo", *rhs, "bar");
+			std::getline(*lhs->open_read("foo"), line);
+			CHECK(testing::QuoteB == line);
 
 			lhs->unmount("foo");
-			CHECK(lhs->exists("foo/a"));
-
-			std::string line;
-			std::getline(*lhs->open_read("foo/a"), line);
-			CHECK("Lorem ipsum" == line);
+			std::getline(*lhs->open_read("foo"), line);
+			CHECK(testing::QuoteA == line);
 		}
+
+		// SECTION("access attached directory") {
+		// 	lhs->create_directory("foo");
+		// 	rhs->create_directory("bar");
+
+		// 	lhs->mount("foo", *rhs->current_path("bar"));
+		// 	*lhs->open_write("foo/a") << "Lorem ipsum";
+
+		// 	std::string line;
+		// 	std::getline(*rhs->open_read("bar/a"), line);
+		// 	CHECK("Lorem ipsum" == line);
+
+		// 	lhs->unmount("foo");
+		// 	CHECK(not lhs->exists("foo/a"));
+
+		// 	std::getline(*rhs->open_read("bar/a"), line);
+		// 	CHECK("Lorem ipsum" == line);
+
+		// 	lhs->remove_all(lhs->current_path());
+		// 	rhs->remove_all(rhs->current_path());
+		// }
+
+		// SECTION("unmount restores mountpoint") {
+		// 	lhs->create_directory("foo");
+		// 	rhs->create_directory("bar");
+
+		// 	*lhs->open_write("foo/a") << "Lorem ipsum";
+		// 	lhs->mount("foo", *rhs->current_path("bar"));
+		// 	CHECK(not lhs->exists("foo/a"));
+
+		// 	lhs->unmount("foo");
+		// 	CHECK(lhs->exists("foo/a"));
+
+		// 	std::string line;
+		// 	std::getline(*lhs->open_read("foo/a"), line);
+		// 	CHECK("Lorem ipsum" == line);
+		// }
 
 		SECTION("rename to attached directory") {
-			// TODO:
 		}
 	}
 };

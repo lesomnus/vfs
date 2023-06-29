@@ -24,7 +24,7 @@ class OsFsProxy: public FsProxy {
 	OsFsProxy(std::shared_ptr<FsBase> fs)
 	    : FsProxy(std::move(fs)) { }
 
-	void mount(std::filesystem::path const& target, Fs& other) override;
+	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
 
    protected:
 	std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const override {
@@ -34,7 +34,7 @@ class OsFsProxy: public FsProxy {
 
 class OsFs: public FsBase {
    public:
-	virtual std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) = 0;
+	[[nodiscard]] virtual std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) = 0;
 
 	std::shared_ptr<Directory const> cwd() const override {
 		return std::make_shared<OsDirectory>(this->current_os_path());
@@ -63,7 +63,7 @@ class OsFs: public FsBase {
 	virtual std::filesystem::path os_path_of(std::filesystem::path const& p) const = 0;
 
    private:
-	void mount(std::filesystem::path const& target, Fs& other) final {
+	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) final {
 		throw std::logic_error("use make_mount");
 	}
 
@@ -323,7 +323,13 @@ class StdFs: public OsFs {
 		return std::const_pointer_cast<File>(static_cast<StdFs const*>(this)->file_at(p));
 	}
 
-	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other) override;
+	std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const override;
+
+	std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
+		return std::const_pointer_cast<File>(static_cast<StdFs const*>(this)->file_at_followed(p));
+	}
+
+	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
 
 	std::filesystem::path os_path_of(std::filesystem::path const& p) const override {
 		return this->cwd_ / p;

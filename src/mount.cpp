@@ -12,10 +12,16 @@
 #include "vfs/impl/file.hpp"
 #include "vfs/impl/fs.hpp"
 #include "vfs/impl/fs_proxy.hpp"
+#include "vfs/impl/utils.hpp"
 
 namespace fs = std::filesystem;
 
 namespace vfs {
+
+void Fs::mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source, std::error_code& ec) {
+	impl::handle_error([&] { this->mount(target, other, source); return 0; }, ec);
+}
+
 namespace impl {
 
 namespace {
@@ -121,29 +127,26 @@ void OsFs::unmount(fs::path const& target) {
 	throw fs::filesystem_error("not a mount point", target, std::make_error_code(std::errc::invalid_argument));
 }
 
-std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other) {
-	auto original_p = fs::canonical(this->os_path_of(target));
-	if(fs::is_symlink(original_p)) {
-		auto t = original_p / fs::read_symlink(original_p);
-		return this->make_mount(t, other);
-	}
+std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other, fs::path const& source) {
+	auto const  original_p = fs::canonical(this->os_path_of(target));
+	OsDirectory parent(original_p.parent_path());
 
-	auto attachment = fs_base(other).cwd();
-	auto parent     = std::make_shared<OsDirectory>(original_p.parent_path());
-	parent->mount(original_p.filename(), std::move(attachment));
+	auto attachment = fs_base(other).file_at_followed(source);
+	parent.mount(original_p.filename(), std::move(attachment));
 
-	auto root = std::make_shared<OsDirectory>(parent->context(), this->base_path());
-	auto vfs  = std::make_shared<Vfs>(DirectoryEntry::make(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_os_path());
+	auto root = std::make_shared<OsDirectory>(std::move(parent.context()), this->base_path());
+	auto vfs  = std::make_shared<Vfs>(DirectoryEntry::make(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_path());
 
 	vfs = std::static_pointer_cast<Vfs>(vfs->current_path(this->current_os_path()));
 	return vfs;
 }
 
-void OsFsProxy::mount(fs::path const& target, Fs& other) {
+void OsFsProxy::mount(fs::path const& target, Fs& other, fs::path const& source) {
 	if(auto os_fs = std::dynamic_pointer_cast<OsFs>(this->fs_); os_fs) {
-		this->fs_ = os_fs->make_mount(target, other);
+		this->fs_ = os_fs->make_mount(target, other, source);
 	} else {
-		this->fs_->mount(target, other);
+		assert(nullptr != std::dynamic_pointer_cast<Vfs>(this->fs_));
+		this->fs_->mount(target, other, source);
 	}
 }
 
@@ -176,9 +179,9 @@ void VDirectory::unmount(std::string const& name) {
 	assert(next != nullptr);
 }
 
-void Vfs::mount(fs::path const& target, Fs& other) {
+void Vfs::mount(fs::path const& target, Fs& other, fs::path const& source) {
 	auto original   = this->navigate(target)->follow_chain();
-	auto attachment = fs_base(other).cwd();
+	auto attachment = fs_base(other).file_at(source);
 
 	original->prev()->typed_file()->mount(original->name(), std::move(attachment));
 }
@@ -195,4 +198,5 @@ void Vfs::unmount(fs::path const& target) {
 }
 
 }  // namespace impl
+
 }  // namespace vfs

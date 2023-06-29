@@ -67,7 +67,9 @@ class Fs {
 		return this->change_root(p, "/tmp");
 	}
 
-	virtual void mount(std::filesystem::path const& target, Fs& other) = 0;
+	virtual void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) = 0;
+
+	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& link, std::error_code& ec);
 
 	virtual void unmount(std::filesystem::path const& target) = 0;
 
@@ -252,9 +254,9 @@ class Fs {
 		this->copy(src, other, dst, std::filesystem::copy_options::none);
 	}
 
-	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec);
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) const;
 
-	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::error_code& ec) {
+	void copy(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::error_code& ec) const {
 		this->copy(src, other, dst, std::filesystem::copy_options::none, ec);
 	}
 
