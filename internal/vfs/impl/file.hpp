@@ -105,15 +105,6 @@ class Directory: virtual public File {
 	    & ~std::filesystem::perms::group_write
 	    & ~std::filesystem::perms::others_write;
 
-	class RemovableFile {
-	   public:
-		virtual ~RemovableFile() = default;
-
-		virtual std::shared_ptr<File> value() = 0;
-
-		virtual void commit() = 0;
-	};
-
 	class Cursor {
 	   public:
 		virtual ~Cursor() = default;

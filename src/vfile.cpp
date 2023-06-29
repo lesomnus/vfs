@@ -16,27 +16,6 @@ namespace impl {
 
 namespace {
 
-class Removable_: public Directory::RemovableFile {
-   public:
-	Removable_(VDirectory* dir, std::string name, std::shared_ptr<File> file)
-	    : dir(dir)
-	    , name(std::move(name))
-	    , file(std::move(file)) { }
-
-	std::shared_ptr<File> value() override {
-		return this->file;
-	}
-
-	void commit() override {
-		this->dir->unlink(this->name);
-	}
-
-	VDirectory* dir;
-	std::string name;
-
-	std::shared_ptr<File> file;
-};
-
 class Cursor_: public Directory::Cursor {
    public:
 	Cursor_(std::unordered_map<std::string, std::shared_ptr<File>> const& files)

@@ -39,20 +39,6 @@ std::shared_ptr<File> make_file_(fs::file_type type, std::shared_ptr<OsFile::Con
 	}
 }
 
-class RemovableFile_: public Directory::RemovableFile {
-   public:
-	RemovableFile_(std::shared_ptr<File> file)
-	    : file(std::move(file)) { }
-
-	std::shared_ptr<File> value() override {
-		return this->file;
-	}
-
-	void commit() override { }
-
-	std::shared_ptr<File> file;
-};
-
 class Cursor_: public Directory::Cursor {
    public:
 	Cursor_(std::shared_ptr<OsFile::Context> context, fs::path const& p)
