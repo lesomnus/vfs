@@ -204,7 +204,7 @@ void Fs::copy(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_opti
 	this->copy_(src, other, dst, opts);
 }
 
-void Fs::copy(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
+void Fs::copy(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_options opts, std::error_code& ec) const {
 	impl::handle_error([&] { this->copy(src, other, dst, opts); return 0; }, ec);
 }
 

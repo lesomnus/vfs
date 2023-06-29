@@ -42,7 +42,7 @@ class Vfs: public FsBase {
 		return std::const_pointer_cast<Fs>(static_cast<Fs const*>(this)->change_root(p, temp_dir));
 	}
 
-	void mount(std::filesystem::path const& target, Fs& other) override;
+	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
 	void unmount(std::filesystem::path const& target) override;
 
 	std::shared_ptr<DirectoryEntry> const& current_working_directory_entry() {
@@ -136,6 +136,14 @@ class Vfs: public FsBase {
 
 	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at(p));
+	}
+
+	std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const override {
+		return this->navigate(p)->follow_chain()->file();
+	}
+
+	std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
+		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at_followed(p));
 	}
 
 	std::shared_ptr<Directory const> cwd() const override {

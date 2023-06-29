@@ -177,9 +177,7 @@ class OsDirectory
 
 	void unmount(std::string const& name) override;
 
-	std::uintmax_t erase(std::string const& name) override {
-		return std::filesystem::remove_all(this->path_ / name);
-	}
+	std::uintmax_t erase(std::string const& name) override;
 
 	std::uintmax_t clear() override;
 

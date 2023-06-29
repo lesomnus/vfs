@@ -18,7 +18,7 @@ include(Catch)
 
 add_library(
 	testing
-		include/testing/utils.hpp
+		include/testing.hpp
 
 		src/testing.cpp
 )

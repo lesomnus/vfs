@@ -10,7 +10,7 @@
 #include <vfs/directory_iterator.hpp>
 #include <vfs/fs.hpp>
 
-#include "testing/utils.hpp"
+#include "testing.hpp"
 
 namespace testing {
 namespace suites {
@@ -57,11 +57,8 @@ class TestFsBasic {
 			}
 
 			SECTION("read write") {
-				*fs->open_write("foo") << "Lorem ipsum";
-
-				std::string content;
-				std::getline(*fs->open_read("foo"), content);
-				CHECK("Lorem ipsum" == content);
+				*fs->open_write("foo") << testing::QuoteA;
+				CHECK(testing::QuoteA == testing::read_all(*fs->open_read("foo")));
 			}
 		}
 
@@ -166,7 +163,7 @@ class TestFsBasic {
 		}
 
 		SECTION("::copy_file") {
-			*fs->open_write("foo") << "Lorem ipsum";
+			*fs->open_write("foo") << testing::QuoteA;
 			REQUIRE(fs->is_regular_file("foo"));
 
 			SECTION("source does not exist") {
@@ -191,10 +188,7 @@ class TestFsBasic {
 				REQUIRE(not fs->exists("bar"));
 
 				CHECK(fs->copy_file("foo", "bar"));
-
-				std::string content;
-				std::getline(*fs->open_read("bar"), content);
-				CHECK("Lorem ipsum" == content);
+				CHECK(testing::QuoteA == testing::read_all(*fs->open_read("bar")));
 			}
 
 			SECTION("to same file") {
@@ -214,23 +208,18 @@ class TestFsBasic {
 			}
 
 			SECTION("to existing regular file") {
-				*fs->open_write("bar") << "dolor sit amet";
+				*fs->open_write("bar") << testing::QuoteB;
 				REQUIRE(fs->is_regular_file("bar"));
 
 				SECTION("skip existing") {
 					fs->copy_file("foo", "bar", copy_options::skip_existing);
 
-					std::string content;
-					std::getline(*fs->open_read("bar"), content);
-					CHECK("dolor sit amet" == content);
+					CHECK(testing::QuoteB == testing::read_all(*fs->open_read("bar")));
 				}
 
 				SECTION("overwrite existing") {
 					fs->copy_file("foo", "bar", copy_options::overwrite_existing);
-
-					std::string content;
-					std::getline(*fs->open_read("bar"), content);
-					CHECK("Lorem ipsum" == content);
+					CHECK(testing::QuoteA == testing::read_all(*fs->open_read("bar")));
 				}
 
 				SECTION("update existing") {
@@ -238,19 +227,12 @@ class TestFsBasic {
 					REQUIRE(fs->last_write_time("foo") < fs->last_write_time("bar"));
 
 					CHECK(not fs->copy_file("foo", "bar", copy_options::update_existing));
-
-					std::string content;
-					std::getline(*fs->open_read("foo"), content);
-					CHECK("Lorem ipsum" == content);
-					std::getline(*fs->open_read("bar"), content);
-					CHECK("dolor sit amet" == content);
+					CHECK(testing::QuoteA == testing::read_all(*fs->open_read("foo")));
+					CHECK(testing::QuoteB == testing::read_all(*fs->open_read("bar")));
 
 					CHECK(fs->copy_file("bar", "foo", copy_options::update_existing));
-
-					std::getline(*fs->open_read("foo"), content);
-					CHECK("dolor sit amet" == content);
-					std::getline(*fs->open_read("bar"), content);
-					CHECK("dolor sit amet" == content);
+					CHECK(testing::QuoteB == testing::read_all(*fs->open_read("foo")));
+					CHECK(testing::QuoteB == testing::read_all(*fs->open_read("bar")));
 				}
 			}
 		}
@@ -346,29 +328,20 @@ class TestFsBasic {
 
 		SECTION("::create_hard_link") {
 			SECTION("to a regular file") {
-				*fs->open_write("foo") << "Lorem ipsum";
+				*fs->open_write("foo") << testing::QuoteA;
 				REQUIRE(fs->is_regular_file("foo"));
 
 				fs->create_hard_link("foo", "bar");
 				CHECK(fs->is_regular_file("bar"));
-
-				std::string content;
-				std::getline(*fs->open_read("bar"), content);
-				CHECK("Lorem ipsum" == content);
+				CHECK(testing::QuoteA == testing::read_all(*fs->open_read("bar")));
 
 				fs->create_hard_link("bar", "baz");
 				CHECK(fs->is_regular_file("baz"));
-
-				content.clear();
-				std::getline(*fs->open_read("baz"), content);
-				CHECK("Lorem ipsum" == content);
+				CHECK(testing::QuoteA == testing::read_all(*fs->open_read("baz")));
 
 				fs->remove("foo");
 				REQUIRE(not fs->exists("foo"));
-
-				content.clear();
-				std::getline(*fs->open_read("bar"), content);
-				CHECK("Lorem ipsum" == content);
+				CHECK(testing::QuoteA == testing::read_all(*fs->open_read("bar")));
 			}
 
 			SECTION("to a directory") {
@@ -492,10 +465,8 @@ class TestFsBasic {
 		}
 
 		SECTION("::file_size") {
-			constexpr char quote[] = "Lorem ipsum";
-			*fs->open_write("foo") << quote;
-
-			CHECK(sizeof(quote) - 1 == fs->file_size("foo"));
+			*fs->open_write("foo") << testing::QuoteA;
+			CHECK(testing::QuoteA.size() == fs->file_size("foo"));
 
 			std::error_code ec;
 			CHECK(static_cast<std::uintmax_t>(-1) == fs->file_size("bar", ec));
@@ -602,7 +573,7 @@ class TestFsBasic {
 
 		SECTION("::rename") {
 			SECTION("from file") {
-				*fs->open_write("foo") << "Lorem ipsum";
+				*fs->open_write("foo") << testing::QuoteA;
 				REQUIRE(fs->is_regular_file("foo"));
 
 				SECTION("to same file") {
@@ -621,16 +592,13 @@ class TestFsBasic {
 				}
 
 				SECTION("to file") {
-					*fs->open_write("bar") << "dolor sit amet";
+					*fs->open_write("bar") << testing::QuoteB;
 					REQUIRE(fs->is_regular_file("bar"));
 
 					fs->rename("foo", "bar");
 					CHECK(not fs->exists("foo"));
 					CHECK(fs->is_regular_file("bar"));
-
-					std::string content;
-					std::getline(*fs->open_read("bar"), content);
-					CHECK("Lorem ipsum" == content);
+					CHECK(testing::QuoteA == testing::read_all(*fs->open_read("bar")));
 				}
 
 				SECTION("to directory") {
@@ -673,7 +641,7 @@ class TestFsBasic {
 				}
 
 				SECTION("to file") {
-					*fs->open_write("bar") << "Lorem ipsum";
+					*fs->open_write("bar") << testing::QuoteB;
 					REQUIRE(fs->is_regular_file("bar"));
 
 					std::error_code ec;

@@ -10,6 +10,8 @@
 
 #include <vfs/impl/file.hpp>
 
+#include "testing.hpp"
+
 namespace fs = std::filesystem;
 
 namespace testing {
@@ -52,9 +54,8 @@ class TestFile {
 				REQUIRE(ok);
 				CHECK(0 == f->size());
 
-				constexpr char quote[] = "Lorem ipsum";
-				*f->open_write() << quote;
-				CHECK(sizeof(quote) - 1 == f->size());
+				*f->open_write() << testing::QuoteA;
+				CHECK(testing::QuoteA.size() == f->size());
 			}
 
 			SECTION("::last_write_time") {
@@ -63,7 +64,7 @@ class TestFile {
 
 				auto const t0 = f->last_write_time();
 				std::this_thread::sleep_for(std::chrono::milliseconds(30));
-				*f->open_write() << "Lorem ipsum";
+				*f->open_write() << testing::QuoteA;
 				auto const t1 = f->last_write_time();
 				CHECK(std::chrono::milliseconds(25) <= (t1 - t0));
 				CHECK(std::chrono::milliseconds(35) >= (t1 - t0));
@@ -97,16 +98,13 @@ class TestFile {
 					auto const [foo, ok] = sandbox->emplace_regular_file("foo");
 					REQUIRE(ok);
 
-					*foo->open_write() << "Lorem ipsum";
+					*foo->open_write() << testing::QuoteA;
 				}
 
 				auto const foo_f = sandbox->next("foo");
 				auto const foo_r = std::dynamic_pointer_cast<vfs::impl::RegularFile>(foo_f);
 				REQUIRE(nullptr != foo_r);
-
-				std::string line;
-				std::getline(*foo_r->open_read(), line);
-				CHECK("Lorem ipsum" == line);
+				CHECK(testing::QuoteA == testing::read_all(*foo_r->open_read()));
 			}
 
 			SECTION("::emplace_regular_file") {

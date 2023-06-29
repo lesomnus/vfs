@@ -17,6 +17,10 @@ class FsBase: public Fs {
 
 	virtual std::shared_ptr<File> file_at(std::filesystem::path const& p) = 0;
 
+	virtual std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const = 0;
+
+	virtual std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) = 0;
+
 	virtual std::shared_ptr<Directory const> cwd() const = 0;
 
 	virtual std::shared_ptr<Directory> cwd() = 0;
