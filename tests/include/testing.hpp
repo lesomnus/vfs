@@ -11,6 +11,7 @@ namespace testing {
 
 constexpr std::string_view QuoteA = "Lorem ipsum dolor sit amet";
 constexpr std::string_view QuoteB = "Ut enim ad minim veniam";
+constexpr std::string_view QuoteC = "Excepteur sint occaecat cupidatat non proident";
 
 std::shared_ptr<vfs::Fs> cd_temp_dir(vfs::Fs& fs);
 

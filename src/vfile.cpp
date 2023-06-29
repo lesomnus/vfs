@@ -125,6 +125,13 @@ std::uintmax_t VDirectory::erase(std::string const& name) {
 	}
 
 	auto f = node.mapped();
+	if(auto m = std::dynamic_pointer_cast<MountPoint>(std::move(f)); m) {
+		node.mapped() = std::move(m);
+		this->files_.insert(std::move(node));
+
+		throw fs::filesystem_error("", "", std::make_error_code(std::errc::device_or_resource_busy));
+	}
+
 	auto d = std::dynamic_pointer_cast<Directory>(f);
 	if(!d) {
 		return 1;
@@ -135,6 +142,13 @@ std::uintmax_t VDirectory::erase(std::string const& name) {
 
 std::uintmax_t VDirectory::clear() {
 	auto files = std::move(this->files_);
+	for(auto const& [_, f]: files) {
+		if(auto m = std::dynamic_pointer_cast<MountPoint>(f); m) {
+			this->files_ = std::move(files);
+
+			throw fs::filesystem_error("", "", std::make_error_code(std::errc::device_or_resource_busy));
+		}
+	}
 
 	std::uintmax_t n = 0;
 	for(auto const& [_, f]: files) {

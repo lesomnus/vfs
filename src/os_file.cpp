@@ -149,6 +149,9 @@ std::shared_ptr<File> OsDirectory::next(std::string const& name) const {
 
 std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(std::string const& name) {
 	auto const next_p = this->path_ / name;
+	if(auto const m = this->context_->mount_points.find(next_p); m != this->context_->mount_points.end()) {
+		return std::make_pair(std::dynamic_pointer_cast<RegularFile>(m->second), false);
+	}
 
 	auto*      f  = std::fopen(next_p.c_str(), "wx");
 	auto const ok = f != nullptr;
@@ -163,6 +166,9 @@ std::pair<std::shared_ptr<RegularFile>, bool> OsDirectory::emplace_regular_file(
 
 std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::string const& name) {
 	auto const next_p = this->path_ / name;
+	if(auto const m = this->context_->mount_points.find(next_p); m != this->context_->mount_points.end()) {
+		return std::make_pair(std::dynamic_pointer_cast<Directory>(m->second), false);
+	}
 
 	try {
 		// No exception is thrown if next_p is an existing directory and false is returned.
@@ -185,6 +191,10 @@ std::pair<std::shared_ptr<Directory>, bool> OsDirectory::emplace_directory(std::
 
 std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {
 	auto const next_p = this->path_ / name;
+	if(auto const m = this->context_->mount_points.find(next_p); m != this->context_->mount_points.end()) {
+		// Symbolic link cannot be mounted.
+		return std::make_pair(nullptr, false);
+	}
 
 	auto ok = false;
 	try {
@@ -219,6 +229,18 @@ bool OsDirectory::link(std::string const& name, std::shared_ptr<File> file) {
 
 		return false;
 	}
+}
+
+std::uintmax_t OsDirectory::erase(std::string const& name) {
+	auto const target = this->path_ / name;
+	for(auto const [p, _]: this->context_->mount_points) {
+		auto const entry = *target.lexically_relative(p).begin();
+		if(entry == "." || entry == "..") {
+			throw fs::filesystem_error("", p, std::make_error_code(std::errc::device_or_resource_busy));
+		}
+	}
+
+	return fs::remove_all(target);
 }
 
 std::uintmax_t OsDirectory::clear() {

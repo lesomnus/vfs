@@ -443,6 +443,9 @@ std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
 
 void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	auto const src_f = this->navigate(src);
+	if(auto const m = std::dynamic_pointer_cast<MountPoint>(src_f); m) {
+		throw fs::filesystem_error("", src, std::make_error_code(std::errc::device_or_resource_busy));
+	}
 
 	auto const dst_p = this->weakly_canonical(dst);
 	auto const prev  = this->navigate(dst_p.parent_path() / "")->must_be<DirectoryEntry>();
@@ -495,11 +498,31 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	try {
 		prev->typed_file()->link(dst_p.filename(), src_f->file());
 	} catch(fs::filesystem_error const& error) {
-		if(error.code() != std::errc::cross_device_link) {
+		if(error.code() == std::errc::cross_device_link) {
+			this->copy(src, dst_p, fs::copy_options::recursive);
+		}
+
+		std::shared_ptr<OsFile> prev_os_f;
+		{
+			auto prev_f = prev->file();
+			if(auto m = std::dynamic_pointer_cast<MountPoint>(std::move(prev_f)); m) {
+				prev_f = m->attachment();
+			}
+
+			prev_os_f = std::dynamic_pointer_cast<OsFile>(std::move(prev_f));
+		}
+
+		auto const src_os_f = std::dynamic_pointer_cast<OsFile>(src_f->file());
+		if(!(src_os_f && prev_os_f)) {
 			throw error;
 		}
 
-		this->copy(src, dst_p, fs::copy_options::recursive);
+		// Both source and destination are OsFile so simply move.
+		src_os_f->move_to(prev_os_f->path() / dst_p.filename());
+
+		// Note that prev of source cannot be a VDirectory
+		// since if it is, source is a mount point and the source cannot be renamed.
+		return;
 	}
 
 	src_f->prev()->typed_file()->unlink(src_f->name());

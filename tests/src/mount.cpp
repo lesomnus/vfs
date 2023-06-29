@@ -7,6 +7,8 @@
 
 #include "testing.hpp"
 
+namespace fs = std::filesystem;
+
 namespace testing {
 namespace suites {
 
@@ -42,44 +44,115 @@ class TestMount {
 			CHECK(testing::QuoteA == testing::read_all(*lhs->open_read("foo")));
 		}
 
-		// SECTION("access attached directory") {
-		// 	lhs->create_directory("foo");
-		// 	rhs->create_directory("bar");
+		SECTION("mount directory") {
+			lhs->create_directory("foo");
+			rhs->create_directory("bar");
+			REQUIRE(lhs->is_directory("foo"));
+			REQUIRE(rhs->is_directory("bar"));
 
-		// 	lhs->mount("foo", *rhs->current_path("bar"));
-		// 	*lhs->open_write("foo/a") << testing::QuoteA;
+			*lhs->open_write("foo/a") << testing::QuoteA;
+			lhs->mount("foo", *rhs, "bar");
+			CHECK(not lhs->exists("foo/a"));
+			CHECK(not rhs->exists("bar/a"));
 
-		// 	std::string line;
-		// 	std::getline(*rhs->open_read("bar/a"), line);
-		// 	CHECK(testing::QuoteA == line);
+			*lhs->open_write("foo/b") << testing::QuoteB;
+			CHECK(testing::QuoteB == testing::read_all(*lhs->open_read("foo/b")));
+			CHECK(testing::QuoteB == testing::read_all(*rhs->open_read("bar/b")));
 
-		// 	lhs->unmount("foo");
-		// 	CHECK(not lhs->exists("foo/a"));
+			lhs->unmount("foo");
+			CHECK(not lhs->exists("foo/b"));
+			CHECK(testing::QuoteA == testing::read_all(*lhs->open_read("foo/a")));
+			CHECK(testing::QuoteB == testing::read_all(*rhs->open_read("bar/b")));
+		}
 
-		// 	std::getline(*rhs->open_read("bar/a"), line);
-		// 	CHECK(testing::QuoteA == line);
+		SECTION("cannot remove mountpoint") {
+			SECTION("regular file") {
+				*lhs->open_write("foo") << testing::QuoteA;
+				*rhs->open_write("bar") << testing::QuoteB;
+				lhs->mount("foo", *rhs, "bar");
 
-		// 	lhs->remove_all(lhs->current_path());
-		// 	rhs->remove_all(rhs->current_path());
-		// }
+				std::error_code ec;
+				lhs->remove("foo", ec);
+				CHECK(std::errc::device_or_resource_busy == ec);
+			}
 
-		// SECTION("unmount restores mountpoint") {
-		// 	lhs->create_directory("foo");
-		// 	rhs->create_directory("bar");
+			SECTION("directory") {
+				lhs->create_directory("foo");
+				rhs->create_directory("bar");
+				lhs->mount("foo", *rhs, "bar");
 
-		// 	*lhs->open_write("foo/a") << testing::QuoteA;
-		// 	lhs->mount("foo", *rhs->current_path("bar"));
-		// 	CHECK(not lhs->exists("foo/a"));
+				std::error_code ec;
+				lhs->remove("foo", ec);
+				CHECK(std::errc::device_or_resource_busy == ec);
+			}
 
-		// 	lhs->unmount("foo");
-		// 	CHECK(lhs->exists("foo/a"));
+			SECTION("directory which contains mount point") {
+				lhs->create_directories("foo/bar");
+				rhs->create_directory("bar");
+				lhs->mount("foo/bar", *rhs, "bar");
 
-		// 	std::string line;
-		// 	std::getline(*lhs->open_read("foo/a"), line);
-		// 	CHECK(testing::QuoteA == line);
-		// }
+				std::error_code ec;
+				lhs->remove_all("foo", ec);
+				CHECK(std::errc::device_or_resource_busy == ec);
+			}
+		}
 
-		SECTION("rename to attached directory") {
+		SECTION("operation on the attached directory") {
+			// Original.
+			// /
+			// + a/
+			//   + foo/
+			//     + x
+			//   + bar/
+			//     + baz/
+			//     + y
+			lhs->create_directories("a/foo");
+			lhs->create_directories("a/bar/baz");
+			*lhs->open_write("a/foo/x") << testing::QuoteA;
+			*lhs->open_write("a/bar/y") << testing::QuoteB;
+
+			// Attached.
+			// /
+			// + b/
+			//   + foo/
+			//     + x
+			//   + bar/
+			rhs->create_directories("b/foo");
+			rhs->create_directories("b/bar");
+			*rhs->open_write("x") << testing::QuoteC;
+
+			lhs->create_directory("b");
+			lhs->mount("b", *rhs, "b");
+
+			SECTION("copy to") {
+				using opts = fs::copy_options;
+
+				lhs->copy("a", "b", opts::recursive | opts::overwrite_existing);
+
+				CHECK(rhs->is_directory("b/foo"));
+				CHECK(testing::QuoteA == testing::read_all(*rhs->open_read("b/foo/x")));
+				CHECK(rhs->is_directory("b/bar/baz"));
+				CHECK(testing::QuoteB == testing::read_all(*rhs->open_read("b/bar/y")));
+			}
+
+			SECTION("rename to") {
+				rhs->remove_all("b/foo");
+				rhs->remove_all("b/bar");
+				REQUIRE(rhs->is_empty("b"));
+
+				// `rename` first removes the target and then links the original node to the target.
+				// So the target, "b", is a mount point, it fails.
+				std::error_code ec;
+				lhs->rename("a", "b", ec);
+				CHECK(std::errc::device_or_resource_busy == ec);
+			}
+
+			SECTION("rename into") {
+				lhs->rename("a/bar", "b/bar");
+				CHECK(not lhs->exists("a/bar"));
+				CHECK(rhs->is_directory("b/bar/baz"));
+				CHECK(testing::QuoteB == testing::read_all(*rhs->open_read("b/bar/y")));
+			}
 		}
 	}
 };
