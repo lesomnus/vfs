@@ -1,5 +1,7 @@
 # vfs
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/36b3e1a3887e4003a4b729dc7a685d64)](https://app.codacy.com/gh/lesomnus/vfs?utm_source=github.com&utm_medium=referral&utm_content=lesomnus/vfs&utm_campaign=Badge_Grade)
+
 Virtual File System that provides interface of `std::filesystem`.
 
 ## Example
