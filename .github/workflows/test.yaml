@@ -2,7 +2,14 @@ name: test
 
 on:
   pull_request:
+    paths: &source-files
+      - include/**
+      - internal/**
+      - src/**
+      - tests/**
+      - CMakeLists.txt
   push:
+    paths: *source-files
 
 jobs:
   test:
