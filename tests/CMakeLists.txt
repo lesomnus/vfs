@@ -37,6 +37,35 @@ set_target_properties(
 
 
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	file(
+		DOWNLOAD
+			https://raw.githubusercontent.com/bilke/cmake-modules/877bab9dd1b17468c5d939cacaa2ad7ba99d1977/CodeCoverage.cmake
+	    	${PROJECT_BINARY_DIR}/tests/CodeCoverage.cmake
+	)
+	include(${PROJECT_BINARY_DIR}/tests/CodeCoverage.cmake)
+
+	string(REPLACE " " ";" COVERAGE_COMPILER_FLAG_LIST ${COVERAGE_COMPILER_FLAGS})
+
+	target_compile_options(
+		vfs PUBLIC
+			${COVERAGE_COMPILER_FLAG_LIST}
+	)
+	target_link_libraries(
+		vfs PUBLIC
+			gcov
+	)
+
+	setup_target_for_coverage_lcov(
+		NAME       coverage
+		EXECUTABLE ctest --test-dir "${PROJECT_BINARY_DIR}/tests"
+		EXCLUDE
+			"build/*"
+			"tests/*"
+			"${CMAKE_INSTALL_PREFIX}/*"
+	)
+endif()
+
 add_custom_target(
 	test-all
 		COMMAND ${CMAKE_CTEST_COMMAND}
@@ -44,31 +73,30 @@ add_custom_target(
 
 macro(vfs_SIMPLE_TEST NAME)
 	add_executable(
-		${NAME}-test
+		test-${NAME}
 			include/testing/suites/file.hpp
 			include/testing/suites/fs.hpp
 
 			src/${NAME}.cpp
 	)
 	target_include_directories(
-		${NAME}-test PRIVATE
+		test-${NAME} PRIVATE
 			include
 	)
 	target_link_libraries(
-		${NAME}-test PRIVATE
+		test-${NAME} PRIVATE
 			Catch2::Catch2WithMain
 			testing
 	)
 	set_target_properties(
-		${NAME}-test PROPERTIES
+		test-${NAME} PROPERTIES
+			OUTPUT_NAME  ${NAME}
 			vfs_INTERNAL 1
 	)
-	catch_discover_tests(${NAME}-test)
+	catch_discover_tests(test-${NAME})
 	
-	add_dependencies(
-		test-all
-			${NAME}-test
-	)
+	add_dependencies(test-all test-${NAME})
+	add_dependencies(coverage test-${NAME})
 endmacro()
 
 vfs_SIMPLE_TEST(copy)
