@@ -1,5 +1,6 @@
 # vfs
 
+[![test](https://github.com/lesomnus/vfs/actions/workflows/test.yaml/badge.svg)](https://github.com/lesomnus/vfs/actions/workflows/test.yaml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/14de41c183224821af5004302a830441)](https://app.codacy.com/gh/lesomnus/vfs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/14de41c183224821af5004302a830441)](https://app.codacy.com/gh/lesomnus/vfs/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 
@@ -37,16 +38,16 @@ int main(int argc, char* argv[]) {
 ## Features
 
 ### File Systems
-- `vfs::make_os_fs` Proxy of `std::filesystem`.
-- `vfs::make_vfs` Basic file system that is not thread-safe and does not consider permissions.
-- 🏗️ `vfs::make_strict_vfs` Basic file system with permissions.
+  - `vfs::make_os_fs` Proxy of `std::filesystem`.
+  - `vfs::make_vfs` Basic file system that is not thread-safe and does not consider permissions.
+  - 🏗️ `vfs::make_strict_vfs` Basic file system with permissions.
 
 ### Utilities
-- `vfs::Fs::change_root` Changes the root directory.
-- `vfs::Fs::mount` Mounts different file system.
-- `vfs::Fs::copy` Copies a file between file systems.
-- 🏗️ `vfs::with_user` Switches user.
-- 🏗️ `vfs::with_mem_storage` Stores files in the memory.
+  - `vfs::Fs::change_root` Changes the root directory.
+  - `vfs::Fs::mount` Mounts different file system.
+  - `vfs::Fs::copy` Copies a file between file systems.
+  - 🏗️ `vfs::with_user` Switches user.
+  - 🏗️ `vfs::with_mem_storage` Stores files in the memory.
 
 
 ## About Current Working Directory
