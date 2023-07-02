@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -1088,7 +1089,7 @@ class Fs {
 	   public:
 		virtual std::filesystem::directory_options options() = 0;
 
-		[[nodiscard]] virtual int depth() const = 0;
+		[[nodiscard]] virtual std::size_t depth() const = 0;
 
 		[[nodiscard]] virtual bool recursion_pending() const = 0;
 

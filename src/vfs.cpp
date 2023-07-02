@@ -1,6 +1,7 @@
 #include "vfs/impl/vfs.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -569,6 +570,10 @@ fs::file_status Vfs::status(fs::path const& p) const {
 		case std::errc::not_a_directory: {
 			return fs::file_status(fs::file_type::not_found);
 		}
+
+		default: {
+			break;
+		}
 		}
 
 		throw err;
@@ -729,7 +734,7 @@ class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
 		return this->opts_;
 	}
 
-	[[nodiscard]] int depth() const override {
+	[[nodiscard]] std::size_t depth() const override {
 		if(this->cursors_.empty()) {
 			return 0;
 		}

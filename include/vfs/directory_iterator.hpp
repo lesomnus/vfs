@@ -123,7 +123,7 @@ class recursive_directory_iterator {
 	 * 
 	 * @return Current depth level.
 	 */
-	[[nodiscard]] int depth() const {
+	[[nodiscard]] std::size_t depth() const {
 		return this->cursor_->depth();
 	}
 

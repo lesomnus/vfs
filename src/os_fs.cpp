@@ -2,6 +2,7 @@
 #include "vfs/fs.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 
@@ -73,7 +74,7 @@ class StdFs::RecursiveCursor_: public StdFs::Cursor_<Fs::RecursiveCursor, fs::re
 		return this->it_.options();
 	}
 
-	[[nodiscard]] int depth() const override {
+	[[nodiscard]] std::size_t depth() const override {
 		return this->it_.depth();
 	}
 
