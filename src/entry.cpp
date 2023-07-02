@@ -17,9 +17,8 @@ namespace impl {
 std::shared_ptr<DirectoryEntry const> Entry::prev() const {
 	if(this->prev_) {
 		return this->prev_;
-	} else {
-		throw fs::filesystem_error("file not mounted", "", std::make_error_code(std::errc::bad_file_descriptor));
 	}
+	throw fs::filesystem_error("file not mounted", "", std::make_error_code(std::errc::bad_file_descriptor));
 }
 
 std::shared_ptr<DirectoryEntry const> Entry::root() const {
@@ -36,9 +35,8 @@ std::shared_ptr<DirectoryEntry const> Entry::root() const {
 std::filesystem::path Entry::path() const {
 	if(this->prev_) {
 		return this->prev_->path() / this->name_;
-	} else {
-		return "/";
 	}
+	return "/";
 }
 
 std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
@@ -49,9 +47,8 @@ std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
 std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
 	if(this->prev_) {
 		return this->prev_;
-	} else {
-		return std::static_pointer_cast<DirectoryEntry const>(this->shared_from_this());
 	}
+	return std::static_pointer_cast<DirectoryEntry const>(this->shared_from_this());
 }
 
 std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const {

@@ -19,15 +19,15 @@ class directory_entry {
 	directory_entry(Fs const& fs) noexcept
 	    : fs_(fs.current_path(fs.current_path())) { }
 
-	explicit directory_entry(Fs const& fs, std::filesystem::path const& p)
+	explicit directory_entry(Fs const& fs, std::filesystem::path p)
 	    : fs_(fs.current_path(fs.current_path()))
-	    , path_(p) {
+	    , path_(std::move(p)) {
 		this->refresh();
 	}
 
-	directory_entry(Fs const& fs, std::filesystem::path const& p, std::error_code& ec)
+	directory_entry(Fs const& fs, std::filesystem::path p, std::error_code& ec)
 	    : fs_(fs.current_path(fs.current_path()))
-	    , path_(p) {
+	    , path_(std::move(p)) {
 		this->refresh(ec);
 	}
 
@@ -98,7 +98,7 @@ class directory_entry {
 	 * 
 	 * @return Associated path.
 	 */
-	std::filesystem::path const& path() const noexcept {
+	[[nodiscard]] std::filesystem::path const& path() const noexcept {
 		return this->path_;
 	}
 
@@ -116,7 +116,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool exists() const {
+	[[nodiscard]] bool exists() const {
 		return this->fs_->exists(this->path_);
 	}
 
@@ -135,7 +135,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_block_file() const {
+	[[nodiscard]] bool is_block_file() const {
 		return this->get_type_() == std::filesystem::file_type::block;
 	}
 
@@ -154,7 +154,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_character_file() const {
+	[[nodiscard]] bool is_character_file() const {
 		return this->get_type_() == std::filesystem::file_type::character;
 	}
 
@@ -173,7 +173,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_directory() const {
+	[[nodiscard]] bool is_directory() const {
 		return this->get_type_() == std::filesystem::file_type::directory;
 	}
 
@@ -192,7 +192,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_fifo() const {
+	[[nodiscard]] bool is_fifo() const {
 		return this->get_type_() == std::filesystem::file_type::fifo;
 	}
 
@@ -211,7 +211,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_other() const {
+	[[nodiscard]] bool is_other() const {
 		return this->exists() && !this->is_regular_file() && !this->is_directory() && !this->is_symlink();
 	}
 
@@ -230,7 +230,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_regular_file() const {
+	[[nodiscard]] bool is_regular_file() const {
 		return this->get_type_() == std::filesystem::file_type::regular;
 	}
 
@@ -249,7 +249,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_socket() const {
+	[[nodiscard]] bool is_socket() const {
 		return this->get_type_() == std::filesystem::file_type::socket;
 	}
 
@@ -268,7 +268,7 @@ class directory_entry {
 	 * 
 	 * @return `true` if file or directory exists, `false` otherwise.
 	 */
-	bool is_symlink() const {
+	[[nodiscard]] bool is_symlink() const {
 		return this->get_type_() == std::filesystem::file_type::symlink;
 	}
 
@@ -287,7 +287,7 @@ class directory_entry {
 	 * 
 	 * @return Size of the file in bytes.
 	 */
-	std::uintmax_t file_size() const {
+	[[nodiscard]] std::uintmax_t file_size() const {
 		return this->fs_->file_size(this->path_);
 	}
 
@@ -306,7 +306,7 @@ class directory_entry {
 	 * 
 	 * @return Number of hard links to the file.
 	 */
-	std::uintmax_t hard_link_count() const {
+	[[nodiscard]] std::uintmax_t hard_link_count() const {
 		return this->fs_->hard_link_count(this->path_);
 	}
 
@@ -325,7 +325,7 @@ class directory_entry {
 	 * 
 	 * @return Last write time of the file.
 	 */
-	std::filesystem::file_time_type last_write_time() const {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const {
 		return this->fs_->last_write_time(this->path_);
 	}
 
@@ -344,7 +344,7 @@ class directory_entry {
 	 * 
 	 * @return Status of the file.
 	 */
-	std::filesystem::file_status status() const {
+	[[nodiscard]] std::filesystem::file_status status() const {
 		return this->fs_->status(this->path_);
 	}
 
@@ -364,7 +364,7 @@ class directory_entry {
 	 * 
 	 * @return Status of the file or directory.
 	 */
-	std::filesystem::file_status symlink_status() const {
+	[[nodiscard]] std::filesystem::file_status symlink_status() const {
 		return this->fs_->symlink_status(this->path_);
 	}
 
@@ -400,7 +400,7 @@ class directory_entry {
 	}
 
    private:
-	std::filesystem::file_type get_type_() const {
+	[[nodiscard]] std::filesystem::file_type get_type_() const {
 		if(this->type_ != std::filesystem::file_type::none && this->type_ != std::filesystem::file_type::symlink) {
 			return this->type_;
 		}
@@ -417,7 +417,7 @@ class directory_entry {
 
 	std::shared_ptr<Fs>        fs_;
 	std::filesystem::path      path_;
-	std::filesystem::file_type type_;
+	std::filesystem::file_type type_ = std::filesystem::file_type::none;
 };
 
 }  // namespace vfs

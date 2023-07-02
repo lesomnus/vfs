@@ -7,6 +7,7 @@ project(
 )
 
 option(${PROJECT_NAME}_TESTS "Enable ${PROJECT_NAME} tests targets." ${PROJECT_IS_TOP_LEVEL})
+option(${PROJECT_NAME}_TIDY  "Run clang-tidy for ${PROJECT_NAME}."   ${PROJECT_IS_TOP_LEVEL})
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -58,6 +59,13 @@ add_library(
 )
 
 
+
+if(${PROJECT_NAME}_TIDY)
+	set_target_properties(
+		vfs PROPERTIES
+			CXX_CLANG_TIDY "clang-tidy-16"
+	)
+endif()
 
 if(${PROJECT_NAME}_TESTS)
 	add_subdirectory(tests)

@@ -1,5 +1,12 @@
 FROM ghcr.io/lesomnus/dev-gcc:12
 
+RUN sudo -u hypnos vcpkg install \
+		catch2 \
+	&& rm -rf \
+		"${VCPKG_ROOT}/buildtrees" \
+		"${VCPKG_ROOT}/packages" \
+		"${VCPKG_DOWNLOADS}"/*
+
 
 
 USER hypnos

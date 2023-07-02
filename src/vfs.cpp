@@ -168,7 +168,7 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 	auto [dst_r, ok] = prev->typed_file()->emplace_regular_file(dst_p.filename());
 	if(ok) {
 		// Destination does not exists.
-		*dst_r = *src_r->typed_file();
+		dst_r->copy_from(*src_r->typed_file());
 		return true;
 	}
 	if(!dst_r) {
@@ -179,7 +179,7 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 		return false;
 	}
 	if((opts & fs::copy_options::overwrite_existing) == fs::copy_options::overwrite_existing) {
-		*dst_r = *src_r->typed_file();
+		dst_r->copy_from(*src_r->typed_file());
 		return true;
 	}
 	if((opts & fs::copy_options::update_existing) == fs::copy_options::update_existing) {
@@ -187,7 +187,7 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 			return false;
 		}
 
-		*dst_r = *src_r->typed_file();
+		dst_r->copy_from(*src_r->typed_file());
 		return true;
 	}
 
@@ -309,7 +309,8 @@ std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) co
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
-	std::shared_ptr<Entry const> f1, f2;
+	std::shared_ptr<Entry const> f1;
+	std::shared_ptr<Entry const> f2;
 
 	try {
 		f1 = this->navigate(p1)->follow_chain();
@@ -588,6 +589,10 @@ fs::file_status Vfs::symlink_status(fs::path const& p) const {
 		case std::errc::not_a_directory: {
 			return fs::file_status(fs::file_type::not_found);
 		}
+
+		default: {
+			break;
+		}
 		}
 
 		throw err;
@@ -615,11 +620,11 @@ bool Vfs::is_empty(fs::path const& p) const {
 	auto const f = this->navigate(p);
 	if(auto d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
 		return d->typed_file()->empty();
-	} else if(auto r = std::dynamic_pointer_cast<RegularFile const>(f); r) {
-		return r->size() == 0;
-	} else {
-		throw fs::filesystem_error("cannot determine if file is empty", f->path(), std::make_error_code(std::errc::no_such_file_or_directory));
 	}
+	if(auto r = std::dynamic_pointer_cast<RegularFile const>(f); r) {
+		return r->size() == 0;
+	}
+	throw fs::filesystem_error("cannot determine if file is empty", f->path(), std::make_error_code(std::errc::no_such_file_or_directory));
 }
 
 bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
@@ -638,11 +643,11 @@ class Vfs::Cursor_: public Fs::Cursor {
 		this->entry_ = directory_entry(fs, dir.path() / this->cursor_->name());
 	}
 
-	directory_entry const& value() const override {
+	[[nodiscard]] directory_entry const& value() const override {
 		return this->entry_;
 	}
 
-	bool at_end() const override {
+	[[nodiscard]] bool at_end() const override {
 		return this->cursor_->at_end();
 	}
 
@@ -653,7 +658,6 @@ class Vfs::Cursor_: public Fs::Cursor {
 		}
 
 		this->entry_.replace_filename(this->cursor_->name());
-		return;
 	}
 
    private:
@@ -677,11 +681,11 @@ class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
 		this->entry_ = directory_entry(fs, dir.path() / this->cursors_.top()->name());
 	}
 
-	directory_entry const& value() const override {
+	[[nodiscard]] directory_entry const& value() const override {
 		return this->entry_;
 	}
 
-	bool at_end() const override {
+	[[nodiscard]] bool at_end() const override {
 		return this->cursors_.empty();
 	}
 
@@ -725,14 +729,14 @@ class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
 		return this->opts_;
 	}
 
-	int depth() const override {
+	[[nodiscard]] int depth() const override {
 		if(this->cursors_.empty()) {
 			return 0;
 		}
 		return this->cursors_.size() - 1;
 	}
 
-	bool recursion_pending() const override {
+	[[nodiscard]] bool recursion_pending() const override {
 		if(this->at_end()) {
 			return false;
 		}

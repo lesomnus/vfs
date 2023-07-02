@@ -29,5 +29,12 @@ auto handle_error(F const& f, std::error_code& ec, R v = R{}) -> R {
 
 std::string to_string(std::filesystem::file_type t);
 
+// Use to avoid LWG 3657.
+struct PathHash {
+	std::size_t operator()(std::filesystem::path const& path) const {
+		return std::filesystem::hash_value(path);
+	}
+};
+
 }  // namespace impl
 }  // namespace vfs

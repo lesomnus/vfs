@@ -15,9 +15,9 @@ class File {
    public:
 	virtual ~File() = default;
 
-	virtual std::filesystem::file_type type() const = 0;
+	[[nodiscard]] virtual std::filesystem::file_type type() const = 0;
 
-	virtual std::filesystem::space_info space() const {
+	[[nodiscard]] virtual std::filesystem::space_info space() const {
 		return std::filesystem::space_info{
 		    .capacity  = static_cast<std::uintmax_t>(-1),
 		    .free      = static_cast<std::uintmax_t>(-1),
@@ -25,15 +25,15 @@ class File {
 		};
 	}
 
-	virtual std::intmax_t owner() const = 0;
+	[[nodiscard]] virtual std::intmax_t owner() const = 0;
 
 	virtual void owner(std::intmax_t owner) = 0;
 
-	virtual std::intmax_t group() const = 0;
+	[[nodiscard]] virtual std::intmax_t group() const = 0;
 
 	virtual void group(std::intmax_t group) = 0;
 
-	virtual std::filesystem::perms perms() const = 0;
+	[[nodiscard]] virtual std::filesystem::perms perms() const = 0;
 
 	virtual void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) = 0;
 
@@ -43,7 +43,7 @@ class File {
 
 	virtual bool operator==(File const& other) const = 0;
 
-	virtual std::filesystem::file_time_type last_write_time() const {
+	[[nodiscard]] virtual std::filesystem::file_time_type last_write_time() const {
 		return std::filesystem::file_time_type::min();
 	}
 
@@ -59,23 +59,21 @@ class RegularFile: virtual public File {
 	    | std::filesystem::perms::group_read
 	    | std::filesystem::perms::others_read;
 
-	std::filesystem::file_type type() const final {
+	[[nodiscard]] std::filesystem::file_type type() const final {
 		return Type;
 	}
 
-	void copy_content_to(RegularFile& other) const;
+	void copy_from(RegularFile const& other);
 
-	virtual RegularFile& operator=(RegularFile const& other);
-
-	virtual std::uintmax_t size() const {
+	[[nodiscard]] virtual std::uintmax_t size() const {
 		return static_cast<std::uintmax_t>(-1);
 	}
 
 	virtual void resize(std::uintmax_t new_size) = 0;
 
-	virtual std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const = 0;
 
-	std::shared_ptr<std::istream> open_read() const {
+	[[nodiscard]] std::shared_ptr<std::istream> open_read() const {
 		return this->open_read(std::ios_base::in);
 	}
 
@@ -90,11 +88,11 @@ class Symlink: virtual public File {
    public:
 	static constexpr auto Type = std::filesystem::file_type::symlink;
 
-	std::filesystem::file_type type() const final {
+	[[nodiscard]] std::filesystem::file_type type() const final {
 		return Type;
 	}
 
-	virtual std::filesystem::path target() const = 0;
+	[[nodiscard]] virtual std::filesystem::path target() const = 0;
 };
 
 class Directory: virtual public File {
@@ -109,38 +107,37 @@ class Directory: virtual public File {
 	   public:
 		virtual ~Cursor() = default;
 
-		virtual std::string const& name() const = 0;
+		[[nodiscard]] virtual std::string const& name() const = 0;
 
-		virtual std::shared_ptr<File> const& file() const = 0;
+		[[nodiscard]] virtual std::shared_ptr<File> const& file() const = 0;
 
 		virtual void increment() = 0;
 
-		virtual bool at_end() const = 0;
+		[[nodiscard]] virtual bool at_end() const = 0;
 	};
 
 	class NilCursor: public Cursor {
 	   public:
 		NilCursor() = default;
 
-		std::string const& name() const override {
+		[[nodiscard]] std::string const& name() const override {
 			throw std::runtime_error("invalid cursor");
 		}
 
-		std::shared_ptr<File> const& file() const override {
+		[[nodiscard]] std::shared_ptr<File> const& file() const override {
 			throw std::runtime_error("invalid cursor");
 		}
 
 		void increment() override {
-			return;
 		}
 
-		bool at_end() const override {
+		[[nodiscard]] bool at_end() const override {
 			return true;
 		}
 	};
 
 	struct Iterator {
-		Iterator() { }
+		Iterator() = default;
 
 		Iterator(std::shared_ptr<Cursor> cursor);
 
@@ -170,16 +167,16 @@ class Directory: virtual public File {
 		std::pair<std::string, std::shared_ptr<File>> value_;
 	};
 
-	std::filesystem::file_type type() const final {
+	[[nodiscard]] std::filesystem::file_type type() const final {
 		return Type;
 	}
 
-	virtual bool empty() const = 0;
+	[[nodiscard]] virtual bool empty() const = 0;
 
-	virtual bool contains(std::string const& name) const = 0;
+	[[nodiscard]] virtual bool contains(std::string const& name) const = 0;
 
 	// returns nullptr if not exists.
-	virtual std::shared_ptr<File> next(std::string const& name) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<File> next(std::string const& name) const = 0;
 
 	virtual std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) = 0;
 
@@ -199,22 +196,22 @@ class Directory: virtual public File {
 
 	virtual std::uintmax_t clear() = 0;
 
-	virtual std::shared_ptr<Cursor> cursor() const = 0;
+	[[nodiscard]] virtual std::shared_ptr<Cursor> cursor() const = 0;
 
-	Iterator begin() const {
+	[[nodiscard]] Iterator begin() const {
 		return this->empty()
 		    ? Iterator()
 		    : Iterator(this->cursor());
 	}
 
-	Iterator end() const {
-		return Iterator();
+	[[nodiscard]] static Iterator end() {
+		return {};
 	}
 };
 
 class MountPoint: virtual public File {
    public:
-	std::intmax_t owner() const override {
+	[[nodiscard]] std::intmax_t owner() const override {
 		return this->attachment()->owner();
 	}
 
@@ -222,7 +219,7 @@ class MountPoint: virtual public File {
 		this->attachment()->owner(owner);
 	}
 
-	std::intmax_t group() const override {
+	[[nodiscard]] std::intmax_t group() const override {
 		return this->attachment()->group();
 	}
 
@@ -230,7 +227,7 @@ class MountPoint: virtual public File {
 		this->attachment()->group(group);
 	}
 
-	std::filesystem::perms perms() const override {
+	[[nodiscard]] std::filesystem::perms perms() const override {
 		return this->attachment()->perms();
 	}
 
@@ -242,7 +239,7 @@ class MountPoint: virtual public File {
 		return this->attachment()->operator==(other);
 	}
 
-	std::filesystem::file_time_type last_write_time() const override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
 		return this->attachment()->last_write_time();
 	}
 
@@ -250,9 +247,9 @@ class MountPoint: virtual public File {
 		this->attachment()->last_write_time(new_time);
 	}
 
-	virtual std::shared_ptr<File> attachment() const = 0;
+	[[nodiscard]] virtual std::shared_ptr<File> attachment() const = 0;
 
-	virtual std::shared_ptr<File> original() const = 0;
+	[[nodiscard]] virtual std::shared_ptr<File> original() const = 0;
 };
 
 template<std::derived_from<File> F>
@@ -266,11 +263,11 @@ class TypedMountPoint
 	    : attachment_(std::move(attachment))
 	    , original_(std::move(original)) { }
 
-	std::shared_ptr<File> attachment() const override {
+	[[nodiscard]] std::shared_ptr<File> attachment() const override {
 		return this->attachment_;
 	}
 
-	std::shared_ptr<File> original() const override {
+	[[nodiscard]] std::shared_ptr<File> original() const override {
 		return this->original_;
 	}
 
@@ -286,15 +283,11 @@ class MountedRegularFile: public TypedMountPoint<RegularFile> {
 	    std::shared_ptr<RegularFile> original)
 	    : TypedMountPoint(std::move(attachment), std::move(original)) { }
 
-	RegularFile& operator=(RegularFile const& other) override {
-		return this->attachment_->operator=(other);
-	}
-
-	std::uintmax_t size() const override {
+	[[nodiscard]] std::uintmax_t size() const override {
 		return this->attachment_->size();
 	}
 
-	std::filesystem::file_time_type last_write_time() const override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
 		return this->attachment_->last_write_time();
 	}
 
@@ -306,7 +299,7 @@ class MountedRegularFile: public TypedMountPoint<RegularFile> {
 		return this->attachment_->resize(new_size);
 	}
 
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override {
+	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override {
 		return this->attachment_->open_read(mode);
 	}
 
@@ -322,16 +315,16 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 	    std::shared_ptr<Directory> original)
 	    : TypedMountPoint(std::move(attachment), std::move(original)) { }
 
-	bool empty() const override {
+	[[nodiscard]] bool empty() const override {
 		return this->attachment_->empty();
 	}
 
-	bool contains(std::string const& name) const override {
+	[[nodiscard]] bool contains(std::string const& name) const override {
 		return this->attachment_->contains(name);
 	}
 
 	// returns nullptr if not exists.
-	std::shared_ptr<File> next(std::string const& name) const override {
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override {
 		return this->attachment_->next(name);
 	}
 
@@ -371,7 +364,7 @@ class MountedDirectory: public TypedMountPoint<Directory> {
 		return this->attachment_->clear();
 	}
 
-	std::shared_ptr<Cursor> cursor() const override {
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override {
 		return this->attachment_->cursor();
 	}
 };

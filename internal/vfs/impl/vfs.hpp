@@ -33,10 +33,10 @@ class Vfs: public FsBase {
 	Vfs(Vfs const& other, DirectoryEntry& wd);
 	Vfs(Vfs&& other, DirectoryEntry& wd);
 
-	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override;
-	std::shared_ptr<std::ostream> open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) override;
+	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::in) const override;
+	std::shared_ptr<std::ostream>               open_write(std::filesystem::path const& filename, std::ios_base::openmode mode = std::ios_base::out) override;
 
-	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
+	[[nodiscard]] std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
 
 	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
 		return std::const_pointer_cast<Fs>(static_cast<Fs const*>(this)->change_root(p, temp_dir));
@@ -49,17 +49,17 @@ class Vfs: public FsBase {
 		return this->cwd_;
 	}
 
-	std::filesystem::path canonical(std::filesystem::path const& p) const override;
-	std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path canonical(std::filesystem::path const& p) const override;
+	std::filesystem::path               canonical(std::filesystem::path const& p, std::error_code& ec) const override;
 
-	std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override;
-	std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override;
+	std::filesystem::path               weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override;
 
-	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options) override;
-	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options, std::error_code& ec) override;
+	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override;
+	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override;
 
-	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options) override;
-	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options options, std::error_code& ec) override;
+	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override;
+	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override;
 
 	bool create_directory(std::filesystem::path const& p) override;
 	bool create_directory(std::filesystem::path const& p, std::error_code& ec) noexcept override;
@@ -76,23 +76,23 @@ class Vfs: public FsBase {
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link) override;
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override;
 
-	std::filesystem::path current_path() const override;
-	std::filesystem::path current_path(std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path current_path() const override;
+	std::filesystem::path               current_path(std::error_code& ec) const override;
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override;
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override;
+	std::shared_ptr<Fs>               current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override;
-	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override;
+	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override;
+	bool               equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override;
 
-	std::uintmax_t file_size(std::filesystem::path const& p) const override;
-	std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p) const override;
+	std::uintmax_t               file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	std::uintmax_t hard_link_count(std::filesystem::path const& p) const override;
-	std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p) const override;
+	std::uintmax_t               hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override;
-	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override;
+	std::filesystem::file_time_type               last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) override;
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept override;
@@ -100,8 +100,8 @@ class Vfs: public FsBase {
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts = std::filesystem::perm_options::replace) override;
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) override;
 
-	std::filesystem::path read_symlink(std::filesystem::path const& p) const override;
-	std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p) const override;
+	std::filesystem::path               read_symlink(std::filesystem::path const& p, std::error_code& ec) const override;
 
 	bool remove(std::filesystem::path const& p) override;
 	bool remove(std::filesystem::path const& p, std::error_code& ec) noexcept override;
@@ -115,22 +115,22 @@ class Vfs: public FsBase {
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n) override;
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept override;
 
-	std::filesystem::space_info space(std::filesystem::path const& p) const override;
-	std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::space_info space(std::filesystem::path const& p) const override;
+	std::filesystem::space_info               space(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	std::filesystem::file_status status(std::filesystem::path const& p) const override;
-	std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p) const override;
+	std::filesystem::file_status               status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	std::filesystem::file_status symlink_status(std::filesystem::path const& p) const override;
-	std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p) const override;
+	std::filesystem::file_status               symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
-	std::filesystem::path temp_directory_path() const override;
-	std::filesystem::path temp_directory_path(std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path temp_directory_path() const override;
+	std::filesystem::path               temp_directory_path(std::error_code& ec) const override;
 
-	bool is_empty(std::filesystem::path const& p) const override;
-	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] bool is_empty(std::filesystem::path const& p) const override;
+	bool               is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
 
-	std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {
+	[[nodiscard]] std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {
 		return this->navigate(p)->file();
 	}
 
@@ -138,7 +138,7 @@ class Vfs: public FsBase {
 		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at(p));
 	}
 
-	std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const override {
+	[[nodiscard]] std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const override {
 		return this->navigate(p)->follow_chain()->file();
 	}
 
@@ -146,7 +146,7 @@ class Vfs: public FsBase {
 		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at_followed(p));
 	}
 
-	std::shared_ptr<Directory const> cwd() const override {
+	[[nodiscard]] std::shared_ptr<Directory const> cwd() const override {
 		return this->cwd_->typed_file();
 	}
 
@@ -169,7 +169,7 @@ class Vfs: public FsBase {
 		return std::make_pair(std::const_pointer_cast<Entry>(std::move(entry)), it);
 	}
 
-	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last) const {
 		std::error_code ec;
@@ -183,7 +183,7 @@ class Vfs: public FsBase {
 		return this->from_of_(*first)->navigate(first, last, ec);
 	}
 
-	std::shared_ptr<Entry const> navigate(std::filesystem::path const& p) const {
+	[[nodiscard]] std::shared_ptr<Entry const> navigate(std::filesystem::path const& p) const {
 		return this->from_of_(p)->navigate(p);
 	}
 
@@ -205,7 +205,7 @@ class Vfs: public FsBase {
 
 	void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const override;
 
-	std::shared_ptr<DirectoryEntry const> from_of_(std::filesystem::path const& p) const {
+	[[nodiscard]] std::shared_ptr<DirectoryEntry const> from_of_(std::filesystem::path const& p) const {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 
@@ -213,9 +213,9 @@ class Vfs: public FsBase {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 
-	std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
+	[[nodiscard]] std::shared_ptr<Fs::Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
-	std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
+	[[nodiscard]] std::shared_ptr<Fs::RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const override;
 
    private:
 	std::shared_ptr<DirectoryEntry> root_;

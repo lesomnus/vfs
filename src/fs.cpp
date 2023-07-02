@@ -21,27 +21,27 @@ recursive_directory_iterator& recursive_directory_iterator::increment(std::error
 }
 
 directory_iterator Fs::iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
-	return directory_iterator(*this, p, opts);
+	return {*this, p, opts};
 }
 
 directory_iterator Fs::iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const {
-	return directory_iterator(*this, p, opts, ec);
+	return {*this, p, opts, ec};
 }
 
 directory_iterator Fs::iterate_directory(std::filesystem::path const& p, std::error_code& ec) const {
-	return directory_iterator(*this, p, std::filesystem::directory_options::none, ec);
+	return {*this, p, std::filesystem::directory_options::none, ec};
 }
 
 recursive_directory_iterator Fs::iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts) const {
-	return recursive_directory_iterator(*this, p, opts);
+	return {*this, p, opts};
 }
 
 recursive_directory_iterator Fs::iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const {
-	return recursive_directory_iterator(*this, p, opts, ec);
+	return {*this, p, opts, ec};
 }
 
 recursive_directory_iterator Fs::iterate_directory_recursively(std::filesystem::path const& p, std::error_code& ec) const {
-	return recursive_directory_iterator(*this, p, std::filesystem::directory_options::none, ec);
+	return {*this, p, std::filesystem::directory_options::none, ec};
 }
 
 std::shared_ptr<Fs::Cursor> Fs::cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const {

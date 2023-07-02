@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/utils.hpp"
 
 namespace vfs {
 namespace impl {
@@ -15,7 +16,7 @@ namespace impl {
 class OsFile: virtual public File {
    public:
 	struct Context {
-		std::unordered_map<std::filesystem::path, std::shared_ptr<MountPoint>> mount_points;
+		std::unordered_map<std::filesystem::path, std::shared_ptr<MountPoint>, PathHash> mount_points;
 	};
 
 	OsFile(std::shared_ptr<Context> context, std::filesystem::path p)
@@ -26,7 +27,10 @@ class OsFile: virtual public File {
 	    : context_(std::make_shared<Context>())
 	    , path_(std::move(p)) { }
 
-	std::intmax_t owner() const override {
+	OsFile(OsFile const& other) = default;
+	OsFile(OsFile&& other)      = default;
+
+	[[nodiscard]] std::intmax_t owner() const override {
 		// TODO:
 		return 0;
 	}
@@ -35,7 +39,7 @@ class OsFile: virtual public File {
 		// TODO:
 	}
 
-	std::intmax_t group() const override {
+	[[nodiscard]] std::intmax_t group() const override {
 		// TODO:
 		return 0;
 	}
@@ -44,7 +48,7 @@ class OsFile: virtual public File {
 		// TODO:
 	}
 
-	std::filesystem::perms perms() const override {
+	[[nodiscard]] std::filesystem::perms perms() const override {
 		return std::filesystem::status(this->path_).permissions();
 	}
 
@@ -54,14 +58,14 @@ class OsFile: virtual public File {
 
 	bool operator==(File const& other) const override {
 		auto const* f = dynamic_cast<OsFile const*>(&other);
-		if(!f) {
+		if(f == nullptr) {
 			return false;
 		}
 
 		return std::filesystem::equivalent(this->path_, f->path_);
 	}
 
-	std::filesystem::file_time_type last_write_time() const override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
 		return std::filesystem::last_write_time(this->path_);
 	}
 
@@ -69,7 +73,7 @@ class OsFile: virtual public File {
 		std::filesystem::last_write_time(this->path_, new_time);
 	}
 
-	std::filesystem::path const& path() const {
+	[[nodiscard]] std::filesystem::path const& path() const {
 		return this->path_;
 	}
 
@@ -78,7 +82,7 @@ class OsFile: virtual public File {
 		this->path_ = p;
 	}
 
-	std::shared_ptr<Context> const& context() const {
+	[[nodiscard]] std::shared_ptr<Context> const& context() const {
 		return this->context_;
 	}
 
@@ -92,7 +96,7 @@ class UnkownOsFile: public OsFile {
 	UnkownOsFile(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 
-	std::filesystem::file_type type() const override {
+	[[nodiscard]] std::filesystem::file_type type() const override {
 		return std::filesystem::status(this->path_).type();
 	}
 };
@@ -107,7 +111,7 @@ class OsRegularFile
 	OsRegularFile(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 
-	std::uintmax_t size() const override {
+	[[nodiscard]] std::uintmax_t size() const override {
 		return std::filesystem::file_size(this->path_);
 	}
 
@@ -115,7 +119,7 @@ class OsRegularFile
 		std::filesystem::resize_file(this->path_, new_size);
 	}
 
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override {
+	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override {
 		return std::make_shared<std::ifstream>(this->path_, mode | std::ios_base::in);
 	}
 
@@ -134,7 +138,7 @@ class OsSymlink
 	OsSymlink(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 
-	std::filesystem::path target() const override {
+	[[nodiscard]] std::filesystem::path target() const override {
 		return std::filesystem::read_symlink(this->path_);
 	}
 };
@@ -149,17 +153,17 @@ class OsDirectory
 	OsDirectory(std::filesystem::path p)
 	    : OsFile(std::move(p)) { }
 
-	bool exists(std::filesystem::path const& p) const;
+	[[nodiscard]] bool exists(std::filesystem::path const& p) const;
 
-	bool empty() const override {
+	[[nodiscard]] bool empty() const override {
 		return std::filesystem::is_empty(this->path_);
 	}
 
-	bool contains(std::string const& name) const override {
+	[[nodiscard]] bool contains(std::string const& name) const override {
 		return this->exists(this->path_ / name);
 	}
 
-	std::shared_ptr<File> next(std::string const& name) const override;
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override;
 
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
 
@@ -181,34 +185,34 @@ class OsDirectory
 
 	std::uintmax_t clear() override;
 
-	std::shared_ptr<Cursor> cursor() const override;
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override;
 };
 
 class TempRegularFile: public OsRegularFile {
    public:
 	TempRegularFile();
-
 	TempRegularFile(TempRegularFile const& other) = delete;
+	TempRegularFile(TempRegularFile&& other)      = default;
 
-	~TempRegularFile();
+	~TempRegularFile() override;
 };
 
 class TempDirectory: public OsDirectory {
    public:
 	TempDirectory();
+	TempDirectory(TempDirectory const& other) = delete;
+	TempDirectory(TempDirectory&& other)      = default;
 
-	TempDirectory(TempDirectory const& other) = default;
-
-	~TempDirectory();
+	~TempDirectory() override;
 };
 
 class TempSymlink: public OsSymlink {
    public:
 	TempSymlink(std::filesystem::path const& target);
+	TempSymlink(TempSymlink const& other) = delete;
+	TempSymlink(TempSymlink&& other)      = default;
 
-	TempSymlink(TempSymlink const& other) = default;
-
-	~TempSymlink();
+	~TempSymlink() override;
 };
 
 }  // namespace impl

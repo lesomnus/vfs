@@ -21,17 +21,19 @@ namespace impl {
 namespace {
 
 fs::filesystem_error err_create_symlink_to_diff_fs_() {
-	return fs::filesystem_error("cannot create a symlink to different filesystem", std::make_error_code(std::errc::invalid_argument));
+	return {"cannot create a symlink to different filesystem", std::make_error_code(std::errc::invalid_argument)};
 }
 
 fs::filesystem_error err_create_hard_link_to_diff_fs_() {
-	return fs::filesystem_error("cannot create a hard link to different filesystem", std::make_error_code(std::errc::invalid_argument));
+	return {"cannot create a hard link to different filesystem", std::make_error_code(std::errc::invalid_argument)};
 }
 
 bool copy_file_into_(std::shared_ptr<RegularFile const> src_r, fs::path const& src_p, Directory& dst_prev, fs::path const& dst_p, fs::copy_options opts) {
 	auto const [dst_r, ok] = dst_prev.emplace_regular_file(dst_p.filename());
 	auto const commit      = [&]() -> bool {
-        src_r->copy_content_to(*dst_r);
+        // NOLINTNEXTLINE
+        assert(nullptr != dst_r.get());
+        dst_r->copy_from(*src_r);
         return true;
 	};
 
@@ -112,7 +114,7 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 	if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
 		throw fs::filesystem_error("", src_p, std::make_error_code(std::errc::is_a_directory));
 	}
-	if(!(((opts & fs::copy_options::recursive) == fs::copy_options::recursive) || (opts == fs::copy_options::none))) {
+	if(((opts & fs::copy_options::recursive) != fs::copy_options::recursive) && (opts != fs::copy_options::none)) {
 		return;
 	}
 
@@ -135,6 +137,10 @@ void copy_into_(std::shared_ptr<File const> src, fs::path const& src_p, Director
 			if((opts & fs::copy_options::recursive) != fs::copy_options::recursive) {
 				continue;
 			}
+			break;
+		}
+
+		default: {
 			break;
 		}
 		};
@@ -186,7 +192,7 @@ void Vfs::copy_(fs::path const& src, Fs& other, fs::path const& dst, fs::copy_op
 	if((opts & fs::copy_options::create_symlinks) == fs::copy_options::create_symlinks) {
 		throw err_create_symlink_to_diff_fs_();
 	}
-	if(fs_cast<OsFs>(&other) && ((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links)) {
+	if((fs_cast<OsFs>(&other) != nullptr) && ((opts & fs::copy_options::create_hard_links) == fs::copy_options::create_hard_links)) {
 		throw err_create_hard_link_to_diff_fs_();
 	}
 
