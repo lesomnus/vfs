@@ -165,15 +165,15 @@ class VDirectory
 	VDirectory(VDirectory const& other) = default;
 	VDirectory(VDirectory&& other)      = default;
 
-	bool empty() const override {
+	[[nodiscard]] bool empty() const override {
 		return this->files_.empty();
 	}
 
-	bool contains(std::string const& name) const override {
+	[[nodiscard]] bool contains(std::string const& name) const override {
 		return this->files_.contains(name);
 	}
 
-	std::shared_ptr<File> next(std::string const& name) const override;
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override;
 
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
 
@@ -195,7 +195,7 @@ class VDirectory
 
 	std::uintmax_t clear() override;
 
-	std::shared_ptr<Cursor> cursor() const override;
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override;
 
    private:
 	std::unordered_map<std::string, std::shared_ptr<File>> files_;

@@ -38,7 +38,7 @@ class Vfs: public FsBase {
 
 	[[nodiscard]] std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
 
-	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
+	[[nodiscard]] std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
 		return std::const_pointer_cast<Fs>(static_cast<Fs const*>(this)->change_root(p, temp_dir));
 	}
 
@@ -77,22 +77,22 @@ class Vfs: public FsBase {
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override;
 
 	[[nodiscard]] std::filesystem::path current_path() const override;
-	std::filesystem::path               current_path(std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path current_path(std::error_code& ec) const override;
 
 	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override;
-	std::shared_ptr<Fs>               current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override;
-	bool               equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override;
+	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p) const override;
-	std::uintmax_t               file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p) const override;
-	std::uintmax_t               hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override;
-	std::filesystem::file_time_type               last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) override;
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept override;
@@ -101,7 +101,7 @@ class Vfs: public FsBase {
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) override;
 
 	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p) const override;
-	std::filesystem::path               read_symlink(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override;
 
 	bool remove(std::filesystem::path const& p) override;
 	bool remove(std::filesystem::path const& p, std::error_code& ec) noexcept override;
@@ -116,25 +116,25 @@ class Vfs: public FsBase {
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept override;
 
 	[[nodiscard]] std::filesystem::space_info space(std::filesystem::path const& p) const override;
-	std::filesystem::space_info               space(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p) const override;
-	std::filesystem::file_status               status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p) const override;
-	std::filesystem::file_status               symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
 
 	[[nodiscard]] std::filesystem::path temp_directory_path() const override;
-	std::filesystem::path               temp_directory_path(std::error_code& ec) const override;
+	[[nodiscard]] std::filesystem::path temp_directory_path(std::error_code& ec) const override;
 
 	[[nodiscard]] bool is_empty(std::filesystem::path const& p) const override;
-	bool               is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
+	[[nodiscard]] bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override;
 
 	[[nodiscard]] std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {
 		return this->navigate(p)->file();
 	}
 
-	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
+	[[nodiscard]] std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at(p));
 	}
 
@@ -142,7 +142,7 @@ class Vfs: public FsBase {
 		return this->navigate(p)->follow_chain()->file();
 	}
 
-	std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
+	[[nodiscard]] std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<File>(static_cast<Vfs const*>(this)->file_at_followed(p));
 	}
 
@@ -150,18 +150,18 @@ class Vfs: public FsBase {
 		return this->cwd_->typed_file();
 	}
 
-	std::shared_ptr<Directory> cwd() override {
+	[[nodiscard]] std::shared_ptr<Directory> cwd() override {
 		return std::const_pointer_cast<Directory>(static_cast<Vfs const*>(this)->cwd());
 	}
 
-	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last,
 	    std::error_code&                      ec) const {
 		return this->from_of_(*first)->navigate(first, last, ec);
 	}
 
-	std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last,
 	    std::error_code&                      ec) {
@@ -176,7 +176,7 @@ class Vfs: public FsBase {
 		return this->from_of_(*first)->navigate(first, last, ec);
 	}
 
-	std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last) {
 		std::error_code ec;
@@ -187,15 +187,15 @@ class Vfs: public FsBase {
 		return this->from_of_(p)->navigate(p);
 	}
 
-	std::shared_ptr<Entry> navigate(std::filesystem::path const& p) {
+	[[nodiscard]] std::shared_ptr<Entry> navigate(std::filesystem::path const& p) {
 		return std::const_pointer_cast<Entry>(static_cast<Vfs const*>(this)->navigate(p));
 	}
 
-	std::shared_ptr<Entry const> navigate(std::filesystem::path const& p, std::error_code& ec) const {
+	[[nodiscard]] std::shared_ptr<Entry const> navigate(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->from_of_(p)->navigate(p, ec);
 	}
 
-	std::shared_ptr<Entry> navigate(std::filesystem::path const& p, std::error_code& ec) {
+	[[nodiscard]] std::shared_ptr<Entry> navigate(std::filesystem::path const& p, std::error_code& ec) {
 		return std::const_pointer_cast<Entry>(static_cast<Vfs const*>(this)->navigate(p, ec));
 	}
 
@@ -209,7 +209,7 @@ class Vfs: public FsBase {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 
-	std::shared_ptr<DirectoryEntry> const& from_of_(std::filesystem::path const& p) {
+	[[nodiscard]] std::shared_ptr<DirectoryEntry> const& from_of_(std::filesystem::path const& p) {
 		return p.is_absolute() ? this->root_ : this->cwd_;
 	}
 

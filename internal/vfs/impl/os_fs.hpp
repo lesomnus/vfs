@@ -41,7 +41,7 @@ class OsFs: public FsBase {
 		return std::make_shared<OsDirectory>(this->current_os_path());
 	}
 
-	std::shared_ptr<Directory> cwd() override {
+	[[nodiscard]] std::shared_ptr<Directory> cwd() override {
 		return std::const_pointer_cast<Directory>(static_cast<OsFs const*>(this)->cwd());
 	}
 
@@ -86,7 +86,7 @@ class StdFs: public OsFs {
 
 	[[nodiscard]] std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const override;
 
-	std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
+	[[nodiscard]] std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) override {
 		return std::const_pointer_cast<Fs>(static_cast<StdFs const*>(this)->change_root(p, temp_dir));
 	}
 
@@ -94,7 +94,7 @@ class StdFs: public OsFs {
 		return std::filesystem::canonical(this->os_path_of(p));
 	}
 
-	std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override {
+	[[nodiscard]] std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override {
 		return handle_error([&] { return this->canonical(p); }, ec);
 	}
 
@@ -109,7 +109,7 @@ class StdFs: public OsFs {
 		return std::filesystem::weakly_canonical(this->os_path_of(p));
 	}
 
-	std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
+	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
 		return handle_error([&] { return this->weakly_canonical(p); }, ec);
 	}
 
@@ -173,7 +173,7 @@ class StdFs: public OsFs {
 		return this->cwd_;
 	}
 
-	std::filesystem::path current_path(std::error_code& ec) const override {
+	[[nodiscard]] std::filesystem::path current_path(std::error_code& ec) const override {
 		return this->cwd_;
 	}
 
@@ -186,7 +186,7 @@ class StdFs: public OsFs {
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
-	std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return handle_error([&] { return this->current_path(p); }, ec);
 	}
 
@@ -194,7 +194,7 @@ class StdFs: public OsFs {
 		return std::filesystem::equivalent(this->os_path_of(p1), this->os_path_of(p2));
 	}
 
-	bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
+	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
 		return handle_error([&] { return this->equivalent(p1, p2); }, ec);
 	}
 
@@ -202,7 +202,7 @@ class StdFs: public OsFs {
 		return std::filesystem::file_size(this->os_path_of(p));
 	}
 
-	std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return std::filesystem::file_size(this->os_path_of(p), ec);
 	}
 
@@ -210,7 +210,7 @@ class StdFs: public OsFs {
 		return std::filesystem::hard_link_count(this->os_path_of(p));
 	}
 
-	std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return std::filesystem::hard_link_count(this->os_path_of(p), ec);
 	}
 
@@ -218,7 +218,7 @@ class StdFs: public OsFs {
 		return std::filesystem::last_write_time(this->os_path_of(p));
 	}
 
-	std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return std::filesystem::last_write_time(this->os_path_of(p), ec);
 	}
 
@@ -242,7 +242,7 @@ class StdFs: public OsFs {
 		return std::filesystem::read_symlink(this->os_path_of(p));
 	}
 
-	std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override {
+	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override {
 		return std::filesystem::read_symlink(this->os_path_of(p), ec);
 	}
 
@@ -290,7 +290,7 @@ class StdFs: public OsFs {
 		return std::filesystem::status(this->os_path_of(p));
 	}
 
-	std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return std::filesystem::status(this->os_path_of(p), ec);
 	}
 
@@ -298,7 +298,7 @@ class StdFs: public OsFs {
 		return std::filesystem::symlink_status(this->os_path_of(p));
 	}
 
-	std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
 		return std::filesystem::symlink_status(this->os_path_of(p), ec);
 	}
 
@@ -306,7 +306,7 @@ class StdFs: public OsFs {
 		return std::filesystem::temp_directory_path();
 	}
 
-	std::filesystem::path temp_directory_path(std::error_code& ec) const override {
+	[[nodiscard]] std::filesystem::path temp_directory_path(std::error_code& ec) const override {
 		return handle_error([&] { return this->temp_directory_path(); }, ec);
 	}
 
@@ -314,23 +314,23 @@ class StdFs: public OsFs {
 		return std::filesystem::is_empty(this->os_path_of(p));
 	}
 
-	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
+	[[nodiscard]] bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
 		return handle_error([&] { return this->is_empty(p); }, ec);
 	}
 
 	[[nodiscard]] std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override;
 
-	std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
+	[[nodiscard]] std::shared_ptr<File> file_at(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<File>(static_cast<StdFs const*>(this)->file_at(p));
 	}
 
 	[[nodiscard]] std::shared_ptr<File const> file_at_followed(std::filesystem::path const& p) const override;
 
-	std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
+	[[nodiscard]] std::shared_ptr<File> file_at_followed(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<File>(static_cast<StdFs const*>(this)->file_at_followed(p));
 	}
 
-	std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
+	[[nodiscard]] std::shared_ptr<Vfs> make_mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
 
 	[[nodiscard]] std::filesystem::path os_path_of(std::filesystem::path const& p) const override {
 		return this->cwd_ / p;

@@ -23,30 +23,30 @@ class Entry: public std::enable_shared_from_this<Entry> {
 		return this->name_;
 	}
 
-	bool holds(File const& file) const {
+	[[nodiscard]] bool holds(File const& file) const {
 		return *this->file() == file;
 	}
 
-	bool holds_same_file_with(Entry const& entry) const {
+	[[nodiscard]] bool holds_same_file_with(Entry const& entry) const {
 		return this->holds(*entry.file());
 	}
 
-	virtual std::shared_ptr<File const> file() const = 0;
-	virtual std::shared_ptr<File>       file()       = 0;
+	[[nodiscard]] virtual std::shared_ptr<File const> file() const = 0;
+	[[nodiscard]] virtual std::shared_ptr<File>       file()       = 0;
 
-	virtual std::shared_ptr<DirectoryEntry const> prev() const;
+	[[nodiscard]] virtual std::shared_ptr<DirectoryEntry const> prev() const;
 
-	std::shared_ptr<DirectoryEntry> prev() {
+	[[nodiscard]] std::shared_ptr<DirectoryEntry> prev() {
 		return std::const_pointer_cast<DirectoryEntry>(static_cast<Entry const*>(this)->prev());
 	}
 
-	std::shared_ptr<DirectoryEntry const> root() const;
+	[[nodiscard]] std::shared_ptr<DirectoryEntry const> root() const;
 
-	std::shared_ptr<DirectoryEntry> root() {
+	[[nodiscard]] std::shared_ptr<DirectoryEntry> root() {
 		return std::const_pointer_cast<DirectoryEntry>(static_cast<Entry const*>(this)->root());
 	}
 
-	std::filesystem::path path() const;
+	[[nodiscard]] std::filesystem::path path() const;
 
 	template<std::derived_from<Entry> E>
 	std::shared_ptr<E const> must_be() const {
@@ -65,19 +65,19 @@ class Entry: public std::enable_shared_from_this<Entry> {
 		return std::const_pointer_cast<E>(static_cast<Entry const*>(this)->must_be<E>());
 	}
 
-	virtual std::shared_ptr<Entry const> follow() const {
+	[[nodiscard]] virtual std::shared_ptr<Entry const> follow() const {
 		return this->shared_from_this();
 	}
 
-	std::shared_ptr<Entry> follow() {
+	[[nodiscard]] std::shared_ptr<Entry> follow() {
 		return std::const_pointer_cast<Entry>(static_cast<Entry const*>(this)->follow());
 	}
 
-	virtual std::shared_ptr<Entry const> follow_chain() const {
+	[[nodiscard]] virtual std::shared_ptr<Entry const> follow_chain() const {
 		return this->shared_from_this();
 	}
 
-	std::shared_ptr<Entry> follow_chain() {
+	[[nodiscard]] std::shared_ptr<Entry> follow_chain() {
 		return std::const_pointer_cast<Entry>(static_cast<Entry const*>(this)->follow_chain());
 	}
 
@@ -97,19 +97,19 @@ class TypedEntry: public Entry {
    public:
 	using FileType = F;
 
-	std::shared_ptr<File const> file() const override {
+	[[nodiscard]] std::shared_ptr<File const> file() const override {
 		return std::static_pointer_cast<File const>(this->file_);
 	}
 
-	std::shared_ptr<File> file() override {
+	[[nodiscard]] std::shared_ptr<File> file() override {
 		return std::static_pointer_cast<File>(this->file_);
 	}
 
-	std::shared_ptr<F const> typed_file() const {
+	[[nodiscard]] std::shared_ptr<F const> typed_file() const {
 		return std::static_pointer_cast<F const>(this->file_);
 	}
 
-	std::shared_ptr<F> typed_file() {
+	[[nodiscard]] std::shared_ptr<F> typed_file() {
 		return std::static_pointer_cast<F>(this->file_);
 	}
 
@@ -141,15 +141,15 @@ class SymlinkEntry: public TypedEntry<Symlink> {
 		return std::shared_ptr<SymlinkEntry>(new SymlinkEntry(std::move(name), std::move(prev), std::move(file)));
 	}
 
-	std::shared_ptr<Entry const> follow() const override;
+	[[nodiscard]] std::shared_ptr<Entry const> follow() const override;
 
-	std::shared_ptr<Entry> follow() {
+	[[nodiscard]] std::shared_ptr<Entry> follow() {
 		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow());
 	}
 
-	std::shared_ptr<Entry const> follow_chain() const override;
+	[[nodiscard]] std::shared_ptr<Entry const> follow_chain() const override;
 
-	std::shared_ptr<Entry> follow_chain() {
+	[[nodiscard]] std::shared_ptr<Entry> follow_chain() {
 		return std::const_pointer_cast<Entry>(static_cast<SymlinkEntry const*>(this)->follow_chain());
 	}
 
@@ -168,24 +168,24 @@ class DirectoryEntry: public TypedEntry<Directory> {
 
 	using Entry::prev;
 
-	std::shared_ptr<DirectoryEntry const> prev() const override;
+	[[nodiscard]] std::shared_ptr<DirectoryEntry const> prev() const override;
 
-	bool is_root() const {
+	[[nodiscard]] bool is_root() const {
 		return this->prev_ == nullptr;
 	}
 
-	std::shared_ptr<Entry const> next(std::string const& name) const;
+	[[nodiscard]] std::shared_ptr<Entry const> next(std::string const& name) const;
 
-	std::shared_ptr<Entry> next(std::string const& name) {
+	[[nodiscard]] std::shared_ptr<Entry> next(std::string const& name) {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->next(name));
 	}
 
-	std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry const>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last,
 	    std::error_code&                      ec) const;
 
-	std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
+	[[nodiscard]] std::pair<std::shared_ptr<Entry>, std::filesystem::path::const_iterator> navigate(
 	    std::filesystem::path::const_iterator first,
 	    std::filesystem::path::const_iterator last,
 	    std::error_code&                      ec) {
@@ -193,17 +193,17 @@ class DirectoryEntry: public TypedEntry<Directory> {
 		return std::make_pair(std::const_pointer_cast<Entry>(std::move(entry)), it);
 	}
 
-	std::shared_ptr<Entry const> navigate(std::filesystem::path const& p) const;
+	[[nodiscard]] std::shared_ptr<Entry const> navigate(std::filesystem::path const& p) const;
 
-	std::shared_ptr<Entry> navigate(std::filesystem::path const& p) {
+	[[nodiscard]] std::shared_ptr<Entry> navigate(std::filesystem::path const& p) {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p));
 	}
 
-	std::shared_ptr<Entry const> navigate(std::filesystem::path const& p, std::error_code& ec) const {
+	[[nodiscard]] std::shared_ptr<Entry const> navigate(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->navigate(p.begin(), p.end(), ec).first;
 	}
 
-	std::shared_ptr<Entry> navigate(std::filesystem::path& p, std::error_code& ec) const {
+	[[nodiscard]] std::shared_ptr<Entry> navigate(std::filesystem::path& p, std::error_code& ec) const {
 		return std::const_pointer_cast<Entry>(static_cast<DirectoryEntry const*>(this)->navigate(p, ec));
 	}
 
@@ -224,11 +224,11 @@ class UnknownTypeEntry: public Entry {
 		return std::shared_ptr<UnknownTypeEntry>(new UnknownTypeEntry(std::move(name), std::move(prev), std::move(file)));
 	}
 
-	std::shared_ptr<File const> file() const override {
+	[[nodiscard]] std::shared_ptr<File const> file() const override {
 		return this->file_;
 	}
 
-	std::shared_ptr<File> file() override {
+	[[nodiscard]] std::shared_ptr<File> file() override {
 		return this->file_;
 	}
 
