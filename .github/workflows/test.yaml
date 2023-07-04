@@ -23,8 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: vcpkg install catch2
-
       - name: Configure
         run: |
           cmake \

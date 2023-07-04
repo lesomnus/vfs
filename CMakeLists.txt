@@ -63,7 +63,7 @@ add_library(
 if(${PROJECT_NAME}_TIDY)
 	set_target_properties(
 		vfs PROPERTIES
-			CXX_CLANG_TIDY "clang-tidy-16"
+			CXX_CLANG_TIDY "clang-tidy"
 	)
 endif()
 
