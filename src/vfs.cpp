@@ -122,7 +122,7 @@ std::shared_ptr<std::ostream> Vfs::open_write(fs::path const& filename, std::ios
 
 std::shared_ptr<Fs const> Vfs::change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const {
 	auto d    = this->navigate(p / "")->must_be<DirectoryEntry const>();
-	auto root = DirectoryEntry::make("/", nullptr, std::const_pointer_cast<Directory>(d->typed_file()));
+	auto root = std::make_shared<DirectoryEntry>("/", nullptr, std::const_pointer_cast<Directory>(d->typed_file()));
 
 	return std::make_shared<Vfs>(root, nullptr, temp_dir);
 }

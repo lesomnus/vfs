@@ -135,7 +135,7 @@ std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other, fs::pa
 	parent.mount(original_p.filename(), std::move(attachment));
 
 	auto root = std::make_shared<OsDirectory>(parent.context(), this->base_path());
-	auto vfs  = std::make_shared<Vfs>(DirectoryEntry::make(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_path());
+	auto vfs  = std::make_shared<Vfs>(std::make_shared<DirectoryEntry>(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_path());
 
 	vfs = std::static_pointer_cast<Vfs>(vfs->current_path(this->current_os_path()));
 	return vfs;

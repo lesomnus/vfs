@@ -41,7 +41,7 @@ std::filesystem::path Entry::path() const {
 
 std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
 	auto d = std::make_shared<VDirectory>(0, 0);
-	return DirectoryEntry::make("/", nullptr, std::move(d));
+	return std::make_shared<DirectoryEntry>("/", nullptr, std::move(d));
 }
 
 std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
@@ -61,14 +61,14 @@ std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const
 	using fs::file_type;
 	switch(f->type()) {
 	case file_type::regular:
-		return RegularFileEntry::make(name, std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(f)));
+		return std::make_shared<RegularFileEntry>(name, std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(f)));
 	case file_type::directory:
-		return DirectoryEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(f)));
+		return std::make_shared<DirectoryEntry>(name, std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(f)));
 	case file_type::symlink:
-		return SymlinkEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+		return std::make_shared<SymlinkEntry>(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
 
 	default:
-		return UnknownTypeEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+		return std::make_shared<UnknownTypeEntry>(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
 	}
 }
 

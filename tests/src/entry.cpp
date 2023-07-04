@@ -12,8 +12,8 @@ TEST_CASE("Entry") {
 	// + foo/
 	//   + bar
 	auto root = vfs::impl::DirectoryEntry::make_root();
-	auto foo  = vfs::impl::DirectoryEntry::make("foo", root, root->emplace_directory("foo"));
-	auto bar  = vfs::impl::RegularFileEntry::make("bar", foo, foo->emplace_regular_file("bar"));
+	auto foo  = std::make_shared<vfs::impl::DirectoryEntry>("foo", root, root->emplace_directory("foo"));
+	auto bar  = std::make_shared<vfs::impl::RegularFileEntry>("bar", foo, foo->emplace_regular_file("bar"));
 
 	SECTION("::name") {
 		CHECK("foo" == foo->name());
@@ -57,8 +57,8 @@ TEST_CASE("DirectoryEntry") {
 	// + foo/
 	//   + bar
 	auto root = vfs::impl::DirectoryEntry::make_root();
-	auto foo  = vfs::impl::DirectoryEntry::make("foo", root, root->emplace_directory("foo"));
-	auto bar  = vfs::impl::RegularFileEntry::make("bar", foo, foo->emplace_regular_file("bar"));
+	auto foo  = std::make_shared<vfs::impl::DirectoryEntry>("foo", root, root->emplace_directory("foo"));
+	auto bar  = std::make_shared<vfs::impl::RegularFileEntry>("bar", foo, foo->emplace_regular_file("bar"));
 
 	SECTION("::next") {
 		CHECK(foo->holds_same_file_with(*root->next("foo")));
@@ -96,13 +96,13 @@ TEST_CASE("SymlinkEntry") {
 	//   + root_b -> ./bar/root_a
 	// + foobar -> /foo/bar
 	auto root = vfs::impl::DirectoryEntry::make_root();
-	auto foo  = vfs::impl::DirectoryEntry::make("foo", root, root->emplace_directory("foo"));
-	auto bar  = vfs::impl::DirectoryEntry::make("bar", foo, foo->emplace_directory("bar"));
+	auto foo  = std::make_shared<vfs::impl::DirectoryEntry>("foo", root, root->emplace_directory("foo"));
+	auto bar  = std::make_shared<vfs::impl::DirectoryEntry>("bar", foo, foo->emplace_directory("bar"));
 
-	auto root_a = vfs::impl::SymlinkEntry::make("root_a", bar, bar->emplace_symlink("root_a", "/"));
-	auto parent = vfs::impl::SymlinkEntry::make("parent", bar, bar->emplace_symlink("parent", ".."));
-	auto root_b = vfs::impl::SymlinkEntry::make("root_b", foo, foo->emplace_symlink("root_b", "./bar/root_a"));
-	auto foobar = vfs::impl::SymlinkEntry::make("foobar", root, root->emplace_symlink("foobar", "/foo/bar"));
+	auto root_a = std::make_shared<vfs::impl::SymlinkEntry>("root_a", bar, bar->emplace_symlink("root_a", "/"));
+	auto parent = std::make_shared<vfs::impl::SymlinkEntry>("parent", bar, bar->emplace_symlink("parent", ".."));
+	auto root_b = std::make_shared<vfs::impl::SymlinkEntry>("root_b", foo, foo->emplace_symlink("root_b", "./bar/root_a"));
+	auto foobar = std::make_shared<vfs::impl::SymlinkEntry>("foobar", root, root->emplace_symlink("foobar", "/foo/bar"));
 
 	SECTION("::path()") {
 		CHECK("/foo/bar/root_a" == root_a->path());
