@@ -1,7 +1,5 @@
 FROM ghcr.io/lesomnus/dev-gcc:13
 
-RUN ln -s /usr/bin/clang-tidy-16 /usr/bin/clang-tidy
-
 
 
 USER hypnos

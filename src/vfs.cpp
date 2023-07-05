@@ -443,6 +443,33 @@ std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
 	return handle_error([&] { return this->remove_all(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
+namespace {
+
+void throw_if_not_overwritable_(std::shared_ptr<File const> const& src, std::shared_ptr<File const> const& dst, fs::path const& dst_p) {
+	auto const dst_d = std::dynamic_pointer_cast<Directory const>(dst);
+	if(src->type() == fs::file_type::directory) {
+		if(!dst_d) {
+			// Source is a directory but destination is not.
+			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::not_a_directory));
+		}
+		if(!dst_d->empty()) {
+			// Destination is a directory that is not empty.
+			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::directory_not_empty));
+		}
+
+		// Source is a directory and destination is empty directory.
+	} else {
+		if(dst_d) {
+			// Source is not a directory but destination is a directory.
+			throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::is_a_directory));
+		}
+
+		// Both source and destination are not directory.
+	}
+}
+
+}  // namespace
+
 void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	auto const src_f = this->navigate(src);
 	if(auto const m = std::dynamic_pointer_cast<MountPoint>(src_f); m) {
@@ -471,27 +498,7 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 			return;
 		}
 
-		auto const d = std::dynamic_pointer_cast<Directory>(f);
-		if(auto const src_d = std::dynamic_pointer_cast<DirectoryEntry>(src_f); src_d) {
-			if(!d) {
-				// Source is a directory but destination is not.
-				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::not_a_directory));
-			}
-			if(!d->empty()) {
-				// Destination is a directory that is not empty.
-				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::directory_not_empty));
-			}
-
-			// Source is a directory and destination is empty directory.
-		} else {
-			if(d) {
-				// Source is not a directory but destination is a directory.
-				throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::is_a_directory));
-			}
-
-			// Both source and destination are not directory.
-		}
-
+		throw_if_not_overwritable_(src_f->file(), f, dst_p);
 		prev->typed_file()->erase(dst_p.filename());
 	}
 

@@ -61,9 +61,13 @@ add_library(
 
 
 if(${PROJECT_NAME}_TIDY)
+	find_program(
+		CLANG_TIDY REQUIRED
+		NAMES clang-tidy-17 clang-tidy-16 clang-tidy
+	)
 	set_target_properties(
 		vfs PROPERTIES
-			CXX_CLANG_TIDY "clang-tidy"
+			CXX_CLANG_TIDY ${CLANG_TIDY}
 	)
 endif()
 

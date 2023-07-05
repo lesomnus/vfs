@@ -13,16 +13,19 @@ namespace impl {
 
 namespace {
 
-std::mt19937 random_engine(std::random_device{}());
-
+std::mt19937& random_engine_() {
+	static std::mt19937 engine(std::random_device{}());
+	return engine;
 }
+
+}  // namespace
 
 std::string random_string(std::size_t len, std::string_view char_set) {
 	std::uniform_int_distribution<std::size_t> distribution{0, char_set.size() - 1};
 
 	std::string rst(len, char_set.at(0));
 	for(auto& c: rst) {
-		c = char_set[distribution(random_engine)];
+		c = char_set[distribution(random_engine_())];
 	}
 
 	return rst;
