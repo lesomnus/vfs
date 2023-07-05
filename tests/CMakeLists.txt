@@ -1,15 +1,4 @@
-include(FetchContent)
-
-FetchContent_Declare(
-	Catch2
-	GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-	GIT_TAG        v3.3.2
-)
-FetchContent_MakeAvailable(
-	Catch2
-)
-
-
+find_package(Catch2 CONFIG REQUIRED)
 
 enable_testing()
 include(Catch)
@@ -37,22 +26,29 @@ set_target_properties(
 
 
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+add_custom_target(test-all)
+
+add_custom_target(
+	run-test
+		COMMAND ${CMAKE_CTEST_COMMAND}
+)
+add_dependencies(run-test test-all)
+
+
+
+if(${PROJECT_IS_TOP_LEVEL} AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 	file(
 		DOWNLOAD
 			https://raw.githubusercontent.com/bilke/cmake-modules/877bab9dd1b17468c5d939cacaa2ad7ba99d1977/CodeCoverage.cmake
 	    	${PROJECT_BINARY_DIR}/tests/CodeCoverage.cmake
 	)
+
+	SET(HAVE_fprofile_abs_path FALSE) # To avoid clang-tidy unknown compiler argument error.
 	include(${PROJECT_BINARY_DIR}/tests/CodeCoverage.cmake)
+	append_coverage_compiler_flags_to_target(vfs)
 
-	string(REPLACE " " ";" COVERAGE_COMPILER_FLAG_LIST ${COVERAGE_COMPILER_FLAGS})
-
-	target_compile_options(
-		vfs PUBLIC
-			${COVERAGE_COMPILER_FLAG_LIST}
-	)
 	target_link_libraries(
-		vfs PUBLIC
+		vfs PRIVATE
 			gcov
 	)
 
@@ -64,12 +60,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 			"tests/*"
 			"${CMAKE_INSTALL_PREFIX}/*"
 	)
+	add_dependencies(coverage test-all)
 endif()
-
-add_custom_target(
-	test-all
-		COMMAND ${CMAKE_CTEST_COMMAND}
-)
 
 macro(vfs_SIMPLE_TEST NAME)
 	add_executable(
@@ -96,7 +88,6 @@ macro(vfs_SIMPLE_TEST NAME)
 	catch_discover_tests(test-${NAME})
 	
 	add_dependencies(test-all test-${NAME})
-	add_dependencies(coverage test-${NAME})
 endmacro()
 
 vfs_SIMPLE_TEST(copy)

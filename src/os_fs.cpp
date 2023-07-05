@@ -2,6 +2,7 @@
 #include "vfs/fs.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 
@@ -27,11 +28,11 @@ class StdFs::Cursor_: public C {
 		this->refresh_();
 	}
 
-	directory_entry const& value() const override {
+	[[nodiscard]] directory_entry const& value() const override {
 		return this->entry_;
 	}
 
-	bool at_end() const override {
+	[[nodiscard]] bool at_end() const override {
 		return this->it_ == fs::end(this->it_);
 	}
 
@@ -42,12 +43,11 @@ class StdFs::Cursor_: public C {
 
 		this->it_++;
 		this->refresh_();
-		return;
 	}
 
    protected:
 	void refresh_() {
-		if(this->at_end()) {
+		if(Cursor_::at_end()) {
 			this->entry_ = directory_entry();
 		} else {
 			auto const p = this->it_->path();
@@ -74,11 +74,11 @@ class StdFs::RecursiveCursor_: public StdFs::Cursor_<Fs::RecursiveCursor, fs::re
 		return this->it_.options();
 	}
 
-	int depth() const override {
+	[[nodiscard]] std::size_t depth() const override {
 		return this->it_.depth();
 	}
 
-	bool recursion_pending() const override {
+	[[nodiscard]] bool recursion_pending() const override {
 		return this->it_.recursion_pending();
 	}
 
@@ -160,9 +160,8 @@ fs::path ChRootedStdFs::os_path_of(fs::path const& p) const {
 		auto it = std::find_if(r.begin(), r.end(), [](auto entry) { return entry != ".."; });
 		if(it == r.end()) {
 			return this->base_;
-		} else {
-			return this->base_ / acc_paths(it, r.end());
 		}
+		return this->base_ / acc_paths(it, r.end());
 	}
 
 	return a;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -24,7 +25,7 @@ class Fs {
 	 * @param mode     Open mode for the file.
 	 * @return Input stream of the opened file.
 	 */
-	virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename, std::ios_base::openmode mode) const = 0;
 
 	/**
 	 * @brief Opens a file for reading.
@@ -32,7 +33,7 @@ class Fs {
 	 * @param filename Name of the file to be opened.
 	 * @return Input stream of the opened file.
 	 */
-	std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename) const {
+	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::filesystem::path const& filename) const {
 		return this->open_read(filename, std::ios_base::in);
 	}
 
@@ -55,21 +56,21 @@ class Fs {
 		return this->open_write(filename, std::ios_base::out);
 	}
 
-	virtual std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs const> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) const = 0;
 
-	std::shared_ptr<Fs const> change_root(std::filesystem::path const& p) const {
+	[[nodiscard]] std::shared_ptr<Fs const> change_root(std::filesystem::path const& p) const {
 		return this->change_root(p, "/tmp");
 	}
 
-	virtual std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs> change_root(std::filesystem::path const& p, std::filesystem::path const& temp_dir) = 0;
 
-	std::shared_ptr<Fs> change_root(std::filesystem::path const& p) {
+	[[nodiscard]] std::shared_ptr<Fs> change_root(std::filesystem::path const& p) {
 		return this->change_root(p, "/tmp");
 	}
 
 	virtual void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) = 0;
 
-	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& link, std::error_code& ec);
+	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source, std::error_code& ec);
 
 	virtual void unmount(std::filesystem::path const& target) = 0;
 
@@ -79,7 +80,7 @@ class Fs {
 	 * @param[in] p Path to be converted to its absolute form.
 	 * @return Absolute (although not necessarily canonical) form of \p p.
 	 */
-	std::filesystem::path absolute(std::filesystem::path const& p) const {
+	[[nodiscard]] std::filesystem::path absolute(std::filesystem::path const& p) const {
 		return p.is_absolute() ? p : this->current_path() / p;
 	}
 
@@ -90,7 +91,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Absolute (although not necessarily canonical) form of \p p.
 	 */
-	std::filesystem::path absolute(std::filesystem::path const& p, std::error_code& ec) const {
+	[[nodiscard]] std::filesystem::path absolute(std::filesystem::path const& p, std::error_code& ec) const {
 		return p.is_absolute() ? p : this->current_path(ec) / p;
 	}
 
@@ -103,7 +104,7 @@ class Fs {
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if \p p does not existing or insufficient permission.
 	 */
-	virtual std::filesystem::path canonical(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::path canonical(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Converts a given path to its canonical form, which is an absolute path with symbolic links resolved and redundant elements like ".", ".." removed.
@@ -113,7 +114,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Canonical form of \p p.
 	 */
-	virtual std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
+	[[nodiscard]] virtual std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Converts a given path to its weakly canonical form, which is an path with symbolic links resolved and redundant elements like ".", ".." removed.
@@ -122,7 +123,7 @@ class Fs {
 	 * @param[in] p Path to be converted to its weakly canonical form.
 	 * @return Weakly canonical form of \p p.
 	 */
-	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Converts a given path to its weakly canonical form, which is an path with symbolic links resolved and redundant elements like ".", ".." removed.
@@ -132,7 +133,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Weakly canonical form of \p p.
 	 */
-	virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
+	[[nodiscard]] virtual std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Constructs a relative path from the current path to a target path.
@@ -141,7 +142,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Relative path from the current to \p p.
 	 */
-	std::filesystem::path relative(std::filesystem::path const& p, std::error_code& ec) const {
+	[[nodiscard]] std::filesystem::path relative(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->relative(p, this->current_path(), ec);
 	}
 
@@ -152,7 +153,7 @@ class Fs {
 	 * @param[in] base Base path, against which \p p will be made relative.
 	 * @return Relative path from \p base to \p p.
 	 */
-	std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base) const {
+	[[nodiscard]] std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base) const {
 		return this->weakly_canonical(p).lexically_relative(this->weakly_canonical(base));
 	}
 
@@ -164,8 +165,8 @@ class Fs {
 	 * @param[out] ec   Error code to store error status to.
 	 * @return Relative path from \p base to \p p.
 	 */
-	std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
-		return std::filesystem::weakly_canonical(p, ec).lexically_relative(std::filesystem::weakly_canonical(base, ec));
+	[[nodiscard]] std::filesystem::path relative(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
+		return this->weakly_canonical(p, ec).lexically_relative(std::filesystem::weakly_canonical(base, ec));
 	}
 
 	/**
@@ -175,7 +176,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Proximate path from \p base to \p p.
 	 */
-	std::filesystem::path proximate(std::filesystem::path const& p, std::error_code& ec) const {
+	[[nodiscard]] std::filesystem::path proximate(std::filesystem::path const& p, std::error_code& ec) const {
 		return this->proximate(p, this->current_path(), ec);
 	}
 
@@ -186,8 +187,8 @@ class Fs {
 	 * @param[in] base Base path, against which \p p will be made proximate.
 	 * @return Proximate path from \p base to \p p.
 	 */
-	std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base = std::filesystem::current_path()) const {
-		return std::filesystem::weakly_canonical(p).lexically_proximate(std::filesystem::weakly_canonical(base));
+	[[nodiscard]] std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base = std::filesystem::current_path()) const {
+		return this->weakly_canonical(p).lexically_proximate(std::filesystem::weakly_canonical(base));
 	}
 
 	/**
@@ -198,8 +199,8 @@ class Fs {
 	 * @param[out] ec   Error code to store error status to.
 	 * @return Proximate path from \p base to \p p.
 	 */
-	std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
-		return std::filesystem::weakly_canonical(p, ec).lexically_proximate(std::filesystem::weakly_canonical(base, ec));
+	[[nodiscard]] std::filesystem::path proximate(std::filesystem::path const& p, std::filesystem::path const& base, std::error_code& ec) const {
+		return this->weakly_canonical(p, ec).lexically_proximate(std::filesystem::weakly_canonical(base, ec));
 	}
 
 	/**
@@ -331,13 +332,14 @@ class Fs {
 	 * @param[out] ec  Error code to store error status to.
 	 */
 	void copy_symlink(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept {
-		if(auto const target = this->read_symlink(src, ec); ec) {
+		auto const target = this->read_symlink(src, ec);
+		if(ec) {
 			return;
-		} else {
-			this->is_directory(target)
-			    ? this->create_directory_symlink(target, dst, ec)
-			    : this->create_symlink(target, dst, ec);
 		}
+
+		this->is_directory(target)
+		    ? this->create_directory_symlink(target, dst, ec)
+		    : this->create_symlink(target, dst, ec);
 	}
 
 	/**
@@ -453,7 +455,7 @@ class Fs {
 	 * 
 	 * @return Path of the current working directory.
 	 */
-	virtual std::filesystem::path current_path() const = 0;
+	[[nodiscard]] virtual std::filesystem::path current_path() const = 0;
 
 	/**
 	 * @brief Retrieves path of the current working directory.
@@ -461,7 +463,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Path of the current working directory.
 	 */
-	virtual std::filesystem::path current_path(std::error_code& ec) const = 0;
+	[[nodiscard]] virtual std::filesystem::path current_path(std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Creates a new Fs that share the same file system but have different working directory.
@@ -469,7 +471,7 @@ class Fs {
 	 * @param[in] p Path to change the current working directory to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Creates a new Fs that share the same file system but have different working directory.
@@ -478,7 +480,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Checks whether the path refers to an existing file system object
@@ -486,8 +488,8 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
-	bool exists(std::filesystem::file_status s) const noexcept {
-		return this->status_known(s) && s.type() != std::filesystem::file_type::not_found;
+	[[nodiscard]] static bool exists(std::filesystem::file_status s) noexcept {
+		return Fs::status_known(s) && s.type() != std::filesystem::file_type::not_found;
 	}
 
 	/**
@@ -496,7 +498,7 @@ class Fs {
 	 * @param[in] p Path to the file or directory to check.
 	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
-	bool exists(std::filesystem::path const& p) const {
+	[[nodiscard]] bool exists(std::filesystem::path const& p) const {
 		return std::filesystem::exists(this->status(p));
 	}
 
@@ -507,7 +509,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if file or directory on \p p exists, `false` otherwise.
 	 */
-	bool exists(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+	[[nodiscard]] bool exists(std::filesystem::path const& p, std::error_code& ec) const noexcept {
 		auto const s = this->status(p, ec);
 		if(std::filesystem::status_known(s)) {
 			ec.clear();
@@ -523,7 +525,7 @@ class Fs {
 	 * 
 	 * @exception \ref std::filesystem::filesystem_error if both paths \p p1 and \p p2 do not exist.
 	 */
-	virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const = 0;
+	[[nodiscard]] virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const = 0;
 
 	/**
 	 * @brief Checks whether two paths refer to the same file system object.
@@ -532,7 +534,7 @@ class Fs {
 	 * @param[out] ec    Error code to store error status to.
 	 * @return `true` if \p p1 and \p p2 refer to the same file or directory, `false` otherwise.
 	 */
-	virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Retrieves the size of a file.
@@ -540,7 +542,7 @@ class Fs {
 	 * @param[in] p Path to the file for which the size is to be retrieved.
 	 * @return Size of the file in bytes.
 	 */
-	virtual std::uintmax_t file_size(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::uintmax_t file_size(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the size of a file.
@@ -549,7 +551,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Size of the file in bytes.
 	 */
-	virtual std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Retrieves the number of hard links to a file.
@@ -557,7 +559,7 @@ class Fs {
 	 * @param[in] p Path to the file for which the number of hard links is to be retrieved.
 	 * @return Number of hard links to the file.
 	 */
-	virtual std::uintmax_t hard_link_count(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::uintmax_t hard_link_count(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the number of hard links to a file.
@@ -566,7 +568,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Number of hard links to the file.
 	 */
-	virtual std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Retrieves the last write time of a file.
@@ -574,7 +576,7 @@ class Fs {
 	 * @param[in] p Path to the file for which the last write time is to be retrieved.
 	 * @return Last write time of the file.
 	 */
-	virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the last write time of a file.
@@ -583,7 +585,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Last write time of the file.
 	 */
-	virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
 
 	/**
 	 * @brief Sets the last write time of a file.
@@ -648,7 +650,7 @@ class Fs {
 	 * @param[in] p Path to the symbolic link for which the target is to be retrieved.
 	 * @return Target of the symbolic link.
 	 */
-	virtual std::filesystem::path read_symlink(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::path read_symlink(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the target of a symbolic link.
@@ -657,7 +659,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Target of the symbolic link.
 	 */
-	virtual std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const = 0;
+	[[nodiscard]] virtual std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Removes a file or an empty directory.
@@ -733,7 +735,7 @@ class Fs {
 	 * @param[in] p Path to a file or directory for which the space information to be retrieved.
 	 * @return Space information of \p p.
 	 */
-	virtual std::filesystem::space_info space(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::space_info space(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves space information about a file system.
@@ -750,7 +752,7 @@ class Fs {
 	 * @param[in] p Path to the file or directory for which the status is to be retrieved.
 	 * @return Status of \p p.
 	 */
-	virtual std::filesystem::file_status status(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::file_status status(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the status of a file or directory.
@@ -767,7 +769,7 @@ class Fs {
 	 * @param[in] p Path to the file or directory for which the status is to be retrieved.
 	 * @return Status of \p p.
 	 */
-	virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::filesystem::file_status symlink_status(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Retrieves the status of a file or directory. If the given path is a symbolic link, it will not be followed and status of symbolic link is retrieved.
@@ -783,7 +785,7 @@ class Fs {
 	 * 
 	 * @return Path to the temporary directory.
 	 */
-	virtual std::filesystem::path temp_directory_path() const = 0;
+	[[nodiscard]] virtual std::filesystem::path temp_directory_path() const = 0;
 
 	/**
 	 * @brief Retrieves the path to the temporary directory.
@@ -791,7 +793,7 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Path to the temporary directory.
 	 */
-	virtual std::filesystem::path temp_directory_path(std::error_code& ec) const = 0;
+	[[nodiscard]] virtual std::filesystem::path temp_directory_path(std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Checks whether the path refers to a block file.
@@ -799,7 +801,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a block file, `false` otherwise.
 	 */
-	bool is_block_file(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_block_file(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::block;
 	}
 
@@ -809,8 +811,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a block file, `false` otherwise.
 	 */
-	bool is_block_file(std::filesystem::path const& p) const {
-		return this->is_block_file(this->status(p));
+	[[nodiscard]] bool is_block_file(std::filesystem::path const& p) const {
+		return Fs::is_block_file(this->status(p));
 	}
 
 	/**
@@ -820,8 +822,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a block file, `false` otherwise.
 	 */
-	bool is_block_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_block_file(this->status(p, ec));
+	[[nodiscard]] bool is_block_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_block_file(this->status(p, ec));
 	}
 
 	/**
@@ -830,7 +832,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a character file, `false` otherwise.
 	 */
-	bool is_character_file(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_character_file(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::character;
 	}
 
@@ -840,8 +842,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a character file, `false` otherwise.
 	 */
-	bool is_character_file(std::filesystem::path const& p) const {
-		return this->is_character_file(this->status(p));
+	[[nodiscard]] bool is_character_file(std::filesystem::path const& p) const {
+		return Fs::is_character_file(this->status(p));
 	}
 
 	/**
@@ -851,8 +853,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a character file, `false` otherwise.
 	 */
-	bool is_character_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_character_file(this->status(p, ec));
+	[[nodiscard]] bool is_character_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_character_file(this->status(p, ec));
 	}
 
 	/**
@@ -861,7 +863,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a directory, `false` otherwise.
 	 */
-	bool is_directory(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_directory(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::directory;
 	}
 
@@ -871,8 +873,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a directory, `false` otherwise.
 	 */
-	bool is_directory(std::filesystem::path const& p) const {
-		return this->is_directory(this->status(p));
+	[[nodiscard]] bool is_directory(std::filesystem::path const& p) const {
+		return Fs::is_directory(this->status(p));
 	}
 
 	/**
@@ -882,12 +884,12 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a directory, `false` otherwise.
 	 */
-	bool is_directory(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_directory(this->status(p, ec));
+	[[nodiscard]] bool is_directory(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_directory(this->status(p, ec));
 	}
 
-	virtual bool is_empty(std::filesystem::path const& p) const                      = 0;
-	virtual bool is_empty(std::filesystem::path const& p, std::error_code& ec) const = 0;
+	[[nodiscard]] virtual bool is_empty(std::filesystem::path const& p) const                      = 0;
+	virtual bool               is_empty(std::filesystem::path const& p, std::error_code& ec) const = 0;
 
 	/**
 	 * @brief Checks whether the path refers to a pipe file.
@@ -895,7 +897,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
 	 */
-	bool is_fifo(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_fifo(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::fifo;
 	}
 
@@ -905,8 +907,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
 	 */
-	bool is_fifo(std::filesystem::path const& p) const {
-		return this->is_fifo(this->status(p));
+	[[nodiscard]] bool is_fifo(std::filesystem::path const& p) const {
+		return Fs::is_fifo(this->status(p));
 	}
 
 	/**
@@ -916,8 +918,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a pipe file, `false` otherwise.
 	 */
-	bool is_fifo(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_fifo(this->status(p, ec));
+	[[nodiscard]] bool is_fifo(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_fifo(this->status(p, ec));
 	}
 
 	/**
@@ -926,8 +928,8 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to an other file, `false` otherwise.
 	 */
-	bool is_other(std::filesystem::file_status s) const noexcept {
-		return this->exists(s) && !this->is_regular_file(s) && !this->is_directory(s) && !this->is_symlink(s);
+	[[nodiscard]] static bool is_other(std::filesystem::file_status s) noexcept {
+		return Fs::exists(s) && !Fs::is_regular_file(s) && !Fs::is_directory(s) && !Fs::is_symlink(s);
 	}
 
 	/**
@@ -936,8 +938,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to an other file, `false` otherwise.
 	 */
-	bool is_other(std::filesystem::path const& p) const {
-		return this->is_other(this->status(p));
+	[[nodiscard]] bool is_other(std::filesystem::path const& p) const {
+		return Fs::is_other(this->status(p));
 	}
 
 	/**
@@ -947,8 +949,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to an other file, `false` otherwise.
 	 */
-	bool is_other(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_other(this->status(p, ec));
+	[[nodiscard]] bool is_other(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_other(this->status(p, ec));
 	}
 
 	/**
@@ -957,7 +959,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a regular file, `false` otherwise.
 	 */
-	bool is_regular_file(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_regular_file(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::regular;
 	}
 
@@ -967,8 +969,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a regular file, `false` otherwise.
 	 */
-	bool is_regular_file(std::filesystem::path const& p) const {
-		return this->is_regular_file(this->status(p));
+	[[nodiscard]] bool is_regular_file(std::filesystem::path const& p) const {
+		return Fs::is_regular_file(this->status(p));
 	}
 
 	/**
@@ -978,8 +980,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a regular file, `false` otherwise.
 	 */
-	bool is_regular_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_regular_file(this->status(p, ec));
+	[[nodiscard]] bool is_regular_file(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_regular_file(this->status(p, ec));
 	}
 
 	/**
@@ -988,7 +990,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a socket, `false` otherwise.
 	 */
-	bool is_socket(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_socket(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::socket;
 	}
 
@@ -998,8 +1000,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a socket, `false` otherwise.
 	 */
-	bool is_socket(std::filesystem::path const& p) const {
-		return this->is_socket(this->status(p));
+	[[nodiscard]] bool is_socket(std::filesystem::path const& p) const {
+		return Fs::is_socket(this->status(p));
 	}
 
 	/**
@@ -1009,8 +1011,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a socket, `false` otherwise.
 	 */
-	bool is_socket(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_socket(this->status(p, ec));
+	[[nodiscard]] bool is_socket(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_socket(this->status(p, ec));
 	}
 
 	/**
@@ -1019,7 +1021,7 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
 	 */
-	bool is_symlink(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool is_symlink(std::filesystem::file_status s) noexcept {
 		return s.type() == std::filesystem::file_type::symlink;
 	}
 
@@ -1029,8 +1031,8 @@ class Fs {
 	 * @param[in] p Path to the file to check.
 	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
 	 */
-	bool is_symlink(std::filesystem::path const& p) const {
-		return this->is_symlink(this->symlink_status(p));
+	[[nodiscard]] bool is_symlink(std::filesystem::path const& p) const {
+		return Fs::is_symlink(this->symlink_status(p));
 	}
 
 	/**
@@ -1040,8 +1042,8 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return `true` if \p p refers to a symbolic link, `false` otherwise.
 	 */
-	bool is_symlink(std::filesystem::path const& p, std::error_code& ec) const noexcept {
-		return this->is_symlink(this->symlink_status(p, ec));
+	[[nodiscard]] bool is_symlink(std::filesystem::path const& p, std::error_code& ec) const noexcept {
+		return Fs::is_symlink(this->symlink_status(p, ec));
 	}
 
 	/**
@@ -1050,21 +1052,21 @@ class Fs {
 	 * @param[in] s File status to check.
 	 * @return `true` if \p s holds known file type, `false` otherwise.
 	 */
-	bool status_known(std::filesystem::file_status s) const noexcept {
+	[[nodiscard]] static bool status_known(std::filesystem::file_status s) noexcept {
 		return s.type() != std::filesystem::file_type::none;
 	}
 
-	directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
+	[[nodiscard]] directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
 
-	directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+	[[nodiscard]] directory_iterator iterate_directory(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 
-	directory_iterator iterate_directory(std::filesystem::path const& p, std::error_code& ec) const;
+	[[nodiscard]] directory_iterator iterate_directory(std::filesystem::path const& p, std::error_code& ec) const;
 
-	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
+	[[nodiscard]] recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts = std::filesystem::directory_options::none) const;
 
-	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
+	[[nodiscard]] recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 
-	recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::error_code& ec) const;
+	[[nodiscard]] recursive_directory_iterator iterate_directory_recursively(std::filesystem::path const& p, std::error_code& ec) const;
 
    protected:
 	friend directory_iterator;
@@ -1074,9 +1076,9 @@ class Fs {
 	   public:
 		virtual ~Cursor() = default;
 
-		virtual directory_entry const& value() const = 0;
+		[[nodiscard]] virtual directory_entry const& value() const = 0;
 
-		virtual bool at_end() const = 0;
+		[[nodiscard]] virtual bool at_end() const = 0;
 
 		virtual void increment() = 0;
 
@@ -1087,9 +1089,9 @@ class Fs {
 	   public:
 		virtual std::filesystem::directory_options options() = 0;
 
-		virtual int depth() const = 0;
+		[[nodiscard]] virtual std::size_t depth() const = 0;
 
-		virtual bool recursion_pending() const = 0;
+		[[nodiscard]] virtual bool recursion_pending() const = 0;
 
 		virtual void pop() = 0;
 
@@ -1100,11 +1102,11 @@ class Fs {
 
 	virtual void copy_(std::filesystem::path const& src, Fs& other, std::filesystem::path const& dst, std::filesystem::copy_options opts) const = 0;
 
-	virtual std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
 
 	std::shared_ptr<Cursor> cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 
-	virtual std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts) const = 0;
 
 	std::shared_ptr<RecursiveCursor> recursive_cursor_(std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec) const;
 

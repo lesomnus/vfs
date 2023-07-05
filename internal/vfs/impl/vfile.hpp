@@ -27,7 +27,7 @@ class VFile: virtual public File {
 	VFile(VFile const& other) = default;
 	VFile(VFile&& other)      = default;
 
-	std::intmax_t owner() const override {
+	[[nodiscard]] std::intmax_t owner() const override {
 		return this->owner_;
 	}
 
@@ -35,7 +35,7 @@ class VFile: virtual public File {
 		this->owner_ = owner;
 	}
 
-	std::intmax_t group() const override {
+	[[nodiscard]] std::intmax_t group() const override {
 		return this->group_;
 	}
 
@@ -43,17 +43,17 @@ class VFile: virtual public File {
 		this->group_ = group;
 	}
 
-	std::filesystem::perms perms() const override {
+	[[nodiscard]] std::filesystem::perms perms() const override {
 		return this->perms_;
 	}
 
-	void perms(std::filesystem::perms perms, std::filesystem::perm_options opts) override;
+	void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) override;
 
 	bool operator==(File const& other) const override {
 		return this == &other;
 	}
 
-	std::filesystem::file_time_type last_write_time() const override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
 		return this->last_write_time_;
 	}
 
@@ -86,8 +86,8 @@ class NilFile
 
 	void resize(std::uintmax_t new_size) override { }
 
-	std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override;
-	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode) override;
+	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override;
+	std::shared_ptr<std::ostream>               open_write(std::ios_base::openmode mode) override;
 };
 
 class VRegularFile
@@ -102,7 +102,7 @@ class VRegularFile
 	VRegularFile(VRegularFile const& other) = delete;
 	VRegularFile(VRegularFile&& other)      = default;
 
-	std::intmax_t owner() const override {
+	[[nodiscard]] std::intmax_t owner() const override {
 		return VFile::owner();
 	}
 
@@ -110,7 +110,7 @@ class VRegularFile
 		VFile::owner(owner);
 	}
 
-	std::intmax_t group() const override {
+	[[nodiscard]] std::intmax_t group() const override {
 		return VFile::group();
 	}
 
@@ -118,7 +118,7 @@ class VRegularFile
 		VFile::group(group);
 	}
 
-	std::filesystem::perms perms() const override {
+	[[nodiscard]] std::filesystem::perms perms() const override {
 		return VFile::perms();
 	}
 
@@ -130,7 +130,7 @@ class VRegularFile
 		return VFile::operator==(other);
 	}
 
-	std::filesystem::file_time_type last_write_time() const override {
+	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
 		return TempRegularFile::last_write_time();
 	}
 
@@ -147,7 +147,7 @@ class VSymlink
 	    : VFile(0, 0, std::filesystem::perms::all)
 	    , target_(std::move(target)) { }
 
-	std::filesystem::path target() const override {
+	[[nodiscard]] std::filesystem::path target() const override {
 		return this->target_;
 	}
 
@@ -165,15 +165,15 @@ class VDirectory
 	VDirectory(VDirectory const& other) = default;
 	VDirectory(VDirectory&& other)      = default;
 
-	bool empty() const override {
+	[[nodiscard]] bool empty() const override {
 		return this->files_.empty();
 	}
 
-	bool contains(std::string const& name) const override {
+	[[nodiscard]] bool contains(std::string const& name) const override {
 		return this->files_.contains(name);
 	}
 
-	std::shared_ptr<File> next(std::string const& name) const override;
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override;
 
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override;
 
@@ -195,7 +195,7 @@ class VDirectory
 
 	std::uintmax_t clear() override;
 
-	std::shared_ptr<Cursor> cursor() const override;
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override;
 
    private:
 	std::unordered_map<std::string, std::shared_ptr<File>> files_;

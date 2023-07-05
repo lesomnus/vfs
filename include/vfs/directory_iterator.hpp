@@ -24,8 +24,8 @@ class directory_iterator {
 	explicit directory_iterator(Fs const& fs, std::filesystem::path const& p)
 	    : directory_iterator(fs, p, std::filesystem::directory_options::none) { }
 
-	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options)
-	    : cursor_(fs.cursor_(p, options)) {
+	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
+	    : cursor_(fs.cursor_(p, opts)) {
 		if(this->cursor_->at_end()) {
 			this->cursor_.reset();
 		}
@@ -34,8 +34,8 @@ class directory_iterator {
 	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::error_code& ec)
 	    : directory_iterator(fs, p, std::filesystem::directory_options::none, ec) { }
 
-	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options, std::error_code& ec)
-	    : cursor_(fs.cursor_(p, options, ec)) { }
+	directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec)
+	    : cursor_(fs.cursor_(p, opts, ec)) { }
 
 	directory_iterator(directory_iterator const&) = default;
 	directory_iterator(directory_iterator&&)      = default;
@@ -77,8 +77,8 @@ directory_iterator begin(directory_iterator iter) noexcept {
 	return iter;
 }
 
-directory_iterator end(directory_iterator) noexcept {
-	return directory_iterator();
+directory_iterator end(directory_iterator /*unused*/) noexcept {
+	return {};
 }
 
 class recursive_directory_iterator {
@@ -88,11 +88,11 @@ class recursive_directory_iterator {
 	explicit recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p)
 	    : recursive_directory_iterator(fs, p, std::filesystem::directory_options::none) { }
 
-	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options)
-	    : cursor_(fs.recursive_cursor_(p, options)) { }
+	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts)
+	    : cursor_(fs.recursive_cursor_(p, opts)) { }
 
-	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options options, std::error_code& ec)
-	    : cursor_(fs.recursive_cursor_(p, options, ec)) { }
+	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::filesystem::directory_options opts, std::error_code& ec)
+	    : cursor_(fs.recursive_cursor_(p, opts, ec)) { }
 
 	recursive_directory_iterator(Fs const& fs, std::filesystem::path const& p, std::error_code& ec)
 	    : recursive_directory_iterator(fs, p, std::filesystem::directory_options::none, ec) { }
@@ -123,7 +123,7 @@ class recursive_directory_iterator {
 	 * 
 	 * @return Current depth level.
 	 */
-	int depth() const {
+	[[nodiscard]] std::size_t depth() const {
 		return this->cursor_->depth();
 	}
 
@@ -132,7 +132,7 @@ class recursive_directory_iterator {
 	 * 
 	 * @return `true` if the next increment will iterate into the currently referred directory, `false` otherwise.
 	 */
-	bool recursion_pending() const {
+	[[nodiscard]] bool recursion_pending() const {
 		return this->cursor_->recursion_pending();
 	}
 
@@ -188,8 +188,8 @@ recursive_directory_iterator begin(recursive_directory_iterator iter) noexcept {
 	return iter;
 }
 
-recursive_directory_iterator end(recursive_directory_iterator) noexcept {
-	return recursive_directory_iterator();
+recursive_directory_iterator end(recursive_directory_iterator /*unused*/) noexcept {
+	return {};
 }
 
 }  // namespace vfs

@@ -17,6 +17,11 @@ namespace impl {
 
 namespace {
 
+std::string random_filename_() {
+	constexpr std::uint8_t TempFilenameLength = 32;
+	return random_string(TempFilenameLength, Alphanumeric);
+}
+
 fs::path temp_directory_() {
 	return std::filesystem::temp_directory_path() / "vfs";
 }
@@ -47,11 +52,11 @@ class Cursor_: public Directory::Cursor {
 		this->refresh();
 	}
 
-	std::string const& name() const override {
+	[[nodiscard]] std::string const& name() const override {
 		return this->name_;
 	}
 
-	std::shared_ptr<File> const& file() const override {
+	[[nodiscard]] std::shared_ptr<File> const& file() const override {
 		return this->file_;
 	}
 
@@ -64,12 +69,12 @@ class Cursor_: public Directory::Cursor {
 		this->refresh();
 	}
 
-	bool at_end() const override {
+	[[nodiscard]] bool at_end() const override {
 		return this->it_ == this->end_;
 	}
 
 	void refresh() {
-		if(this->at_end()) {
+		if(Cursor_::at_end()) {
 			this->name_ = "";
 			this->file_ = nullptr;
 		} else {
@@ -97,7 +102,7 @@ TempRegularFile::TempRegularFile()
 	this->path_ = d / "foo";
 	do {
 		fs::create_directories(d);
-		this->path_.replace_filename(random_string(32, Alphanumeric));
+		this->path_.replace_filename(random_filename_());
 
 		auto* f = std::fopen(this->path_.c_str(), "wx");
 		if(f != nullptr) {
@@ -189,7 +194,8 @@ std::pair<std::shared_ptr<Symlink>, bool> OsDirectory::emplace_symlink(std::stri
 	} catch(std::filesystem::filesystem_error const& error) {
 		if(error.code() != std::errc::file_exists) {
 			throw error;
-		} else if(not fs::is_symlink(next_p)) {
+		}
+		if(not fs::is_symlink(next_p)) {
 			return std::make_pair(nullptr, false);
 		}
 	}
@@ -246,7 +252,7 @@ TempDirectory::TempDirectory()
     : OsDirectory("") {
 	this->path_ = temp_directory_() / "foo";
 	do {
-		this->path_.replace_filename(random_string(32, Alphanumeric));
+		this->path_.replace_filename(random_filename_());
 	} while(!fs::create_directories(this->path_));
 }
 
@@ -265,7 +271,7 @@ TempSymlink::TempSymlink(fs::path const& target)
 	this->path_ = d / "foo";
 	do {
 		fs::create_directories(d);
-		this->path_.replace_filename(random_string(32, Alphanumeric));
+		this->path_.replace_filename(random_filename_());
 
 		try {
 			fs::create_symlink(target, this->path_);

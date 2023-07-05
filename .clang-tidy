@@ -1,0 +1,17 @@
+---
+Checks: >
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-special-member-functions,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-owning-memory,
+  modernize-*,
+  -modernize-concat-nested-namespaces,
+  -modernize-use-trailing-return-type,
+  readability-*,
+  -readability-identifier-length
+
+WarningsAsErrors: ""
+HeaderFilterRegex: "[include|internal].*"

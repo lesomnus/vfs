@@ -22,11 +22,11 @@ class Cursor_: public Directory::Cursor {
 	    : it(files.cbegin())
 	    , end(files.cend()) { }
 
-	std::string const& name() const override {
+	[[nodiscard]] std::string const& name() const override {
 		return this->it->first;
 	}
 
-	std::shared_ptr<File> const& file() const override {
+	[[nodiscard]] std::shared_ptr<File> const& file() const override {
 		return this->it->second;
 	}
 
@@ -38,7 +38,7 @@ class Cursor_: public Directory::Cursor {
 		++this->it;
 	}
 
-	bool at_end() const override {
+	[[nodiscard]] bool at_end() const override {
 		return this->it == this->end;
 	}
 
@@ -143,17 +143,17 @@ std::uintmax_t VDirectory::clear() {
 }
 
 std::pair<std::shared_ptr<RegularFile>, bool> VDirectory::emplace_regular_file(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(std::make_pair(name, std::make_shared<VRegularFile>(0, 0)));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<VRegularFile>(0, 0));
 	return std::make_pair(std::dynamic_pointer_cast<RegularFile>(it->second), ok);
 }
 
 std::pair<std::shared_ptr<Directory>, bool> VDirectory::emplace_directory(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(std::make_pair(name, std::make_shared<VDirectory>(0, 0)));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<VDirectory>(0, 0));
 	return std::make_pair(std::dynamic_pointer_cast<Directory>(it->second), ok);
 }
 
 std::pair<std::shared_ptr<Symlink>, bool> VDirectory::emplace_symlink(std::string const& name, std::filesystem::path target) {
-	auto [it, ok] = this->files_.emplace(std::make_pair(name, std::make_shared<VSymlink>(std::move(target))));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<VSymlink>(std::move(target)));
 	return std::make_pair(std::dynamic_pointer_cast<Symlink>(it->second), ok);
 }
 

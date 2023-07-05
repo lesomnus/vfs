@@ -9,17 +9,11 @@ namespace fs = std::filesystem;
 namespace vfs {
 namespace impl {
 
-void RegularFile::copy_content_to(RegularFile& other) const {
-	*other.open_write() << this->open_read()->rdbuf();
-}
-
-RegularFile& RegularFile::operator=(RegularFile const& other) {
-	other.copy_content_to(*this);
+void RegularFile::copy_from(RegularFile const& other) {
+	*this->open_write() << other.open_read()->rdbuf();
 	this->owner(other.owner());
 	this->group(other.group());
 	this->perms(other.perms(), fs::perm_options::replace);
-
-	return *this;
 }
 
 Directory::Iterator::Iterator(std::shared_ptr<Cursor> cursor)

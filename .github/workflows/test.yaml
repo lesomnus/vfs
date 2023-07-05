@@ -2,14 +2,19 @@ name: test
 
 on:
   pull_request:
-    paths: &source-files
+    paths:
       - include/**
       - internal/**
       - src/**
       - tests/**
       - CMakeLists.txt
   push:
-    paths: *source-files
+    paths:
+      - include/**
+      - internal/**
+      - src/**
+      - tests/**
+      - CMakeLists.txt
 
 jobs:
   test:
@@ -21,6 +26,7 @@ jobs:
       - name: Configure
         run: |
           cmake \
+            -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
             -DCMAKE_BUILD_TYPE:STRING=Debug \
             -S . \
             -B ./build \

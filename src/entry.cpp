@@ -17,9 +17,8 @@ namespace impl {
 std::shared_ptr<DirectoryEntry const> Entry::prev() const {
 	if(this->prev_) {
 		return this->prev_;
-	} else {
-		throw fs::filesystem_error("file not mounted", "", std::make_error_code(std::errc::bad_file_descriptor));
 	}
+	throw fs::filesystem_error("file not mounted", "", std::make_error_code(std::errc::bad_file_descriptor));
 }
 
 std::shared_ptr<DirectoryEntry const> Entry::root() const {
@@ -36,22 +35,20 @@ std::shared_ptr<DirectoryEntry const> Entry::root() const {
 std::filesystem::path Entry::path() const {
 	if(this->prev_) {
 		return this->prev_->path() / this->name_;
-	} else {
-		return "/";
 	}
+	return "/";
 }
 
 std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
 	auto d = std::make_shared<VDirectory>(0, 0);
-	return DirectoryEntry::make("/", nullptr, std::move(d));
+	return std::make_shared<DirectoryEntry>("/", nullptr, std::move(d));
 }
 
 std::shared_ptr<DirectoryEntry const> DirectoryEntry::prev() const {
 	if(this->prev_) {
 		return this->prev_;
-	} else {
-		return std::static_pointer_cast<DirectoryEntry const>(this->shared_from_this());
 	}
+	return std::static_pointer_cast<DirectoryEntry const>(this->shared_from_this());
 }
 
 std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const {
@@ -64,14 +61,14 @@ std::shared_ptr<Entry const> DirectoryEntry::next(std::string const& name) const
 	using fs::file_type;
 	switch(f->type()) {
 	case file_type::regular:
-		return RegularFileEntry::make(name, std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(f)));
+		return std::make_shared<RegularFileEntry>(name, std::move(prev), std::dynamic_pointer_cast<RegularFile>(std::move(f)));
 	case file_type::directory:
-		return DirectoryEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(f)));
+		return std::make_shared<DirectoryEntry>(name, std::move(prev), std::dynamic_pointer_cast<Directory>(std::move(f)));
 	case file_type::symlink:
-		return SymlinkEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+		return std::make_shared<SymlinkEntry>(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
 
 	default:
-		return UnknownTypeEntry::make(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
+		return std::make_shared<UnknownTypeEntry>(name, std::move(prev), std::dynamic_pointer_cast<Symlink>(std::move(f)));
 	}
 }
 

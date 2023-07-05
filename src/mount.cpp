@@ -54,11 +54,11 @@ std::shared_ptr<MountPoint> make_mount_point_(std::shared_ptr<File> attachment, 
 }
 
 fs::filesystem_error err_mount_point_does_not_exist(fs::path const& p) {
-	return fs::filesystem_error("mount point does not exist", p, std::make_error_code(std::errc::no_such_file_or_directory));
+	return {"mount point does not exist", p, std::make_error_code(std::errc::no_such_file_or_directory)};
 }
 
 fs::filesystem_error err_not_a_mount_point(fs::path const& p) {
-	return fs::filesystem_error("not a mount point", p, std::make_error_code(std::errc::invalid_argument));
+	return {"not a mount point", p, std::make_error_code(std::errc::invalid_argument)};
 }
 
 void test_mount_point_(fs::path const& p, fs::file_type mount_point_type, fs::file_type source_type) {
@@ -135,7 +135,7 @@ std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other, fs::pa
 	parent.mount(original_p.filename(), std::move(attachment));
 
 	auto root = std::make_shared<OsDirectory>(parent.context(), this->base_path());
-	auto vfs  = std::make_shared<Vfs>(DirectoryEntry::make(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_path());
+	auto vfs  = std::make_shared<Vfs>(std::make_shared<DirectoryEntry>(this->base_path().filename(), nullptr, std::move(root)), this->temp_directory_path());
 
 	vfs = std::static_pointer_cast<Vfs>(vfs->current_path(this->current_os_path()));
 	return vfs;
