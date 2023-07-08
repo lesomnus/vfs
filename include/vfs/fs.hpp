@@ -1134,4 +1134,12 @@ std::shared_ptr<Fs> make_os_fs();
  */
 std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
 
+/**
+ * @brief Makes empty `Fs` that is virtual. Regular files are stored on the memory.
+ * 
+ * @param temp_dir Path to the temporary directory in the created Fs.
+ * @return New empty `Fs` that is virtual.
+ */
+std::shared_ptr<Fs> make_mem_fs(std::filesystem::path const& temp_dir = "/tmp");
+
 }  // namespace vfs

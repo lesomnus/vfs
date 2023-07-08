@@ -27,6 +27,7 @@ add_library(
 		internal/vfs/impl/file.hpp
 		internal/vfs/impl/fs_proxy.hpp
 		internal/vfs/impl/fs.hpp
+		internal/vfs/impl/mem_file.hpp
 		internal/vfs/impl/os_file.hpp
 		internal/vfs/impl/os_fs.hpp
 		internal/vfs/impl/utils.hpp
@@ -37,6 +38,8 @@ add_library(
 		src/entry.cpp
 		src/file.cpp
 		src/fs.cpp
+		src/mem_file.cpp
+		src/mem_fs.cpp
 		src/mount.cpp
 		src/os_file.cpp
 		src/os_fs.cpp

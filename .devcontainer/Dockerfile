@@ -1,4 +1,4 @@
-FROM ghcr.io/lesomnus/dev-gcc:13
+FROM ghcr.io/lesomnus/dev-gcc:12
 
 
 
