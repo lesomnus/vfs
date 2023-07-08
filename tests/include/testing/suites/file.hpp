@@ -72,6 +72,35 @@ class TestFile {
 				f->last_write_time(t0);
 				CHECK(t0 == f->last_write_time());
 			}
+
+			SECTION("::open_write") {
+				using ios = std::ios_base;
+
+				auto const [f, ok] = sandbox->emplace_regular_file("foo");
+				REQUIRE(ok);
+
+				*f->open_write() << testing::QuoteA;
+				REQUIRE(testing::QuoteA == testing::read_all(*f->open_read()));
+
+				SECTION("trunc") {
+					*f->open_write(ios::trunc) << testing::QuoteB;
+					CHECK(testing::QuoteB == testing::read_all(*f->open_read()));
+				}
+
+				SECTION("app") {
+					*f->open_write(ios::app) << testing::QuoteB;
+					CHECK((std::string(testing::QuoteA) + std::string(testing::QuoteB)) == testing::read_all(*f->open_read()));
+				}
+
+				SECTION("fails if") {
+					std::shared_ptr<std::ostream> os;
+					SECTION("trunc|app") {
+						os = f->open_write(ios::trunc | ios::app);
+					}
+
+					CHECK(os->fail());
+				}
+			}
 		}
 
 		SECTION("Directory") {

@@ -61,6 +61,9 @@ class VFile: virtual public File {
 		this->last_write_time_ = new_time;
 	}
 
+	VFile& operator=(VFile const& other) = default;
+	VFile& operator=(VFile&& other)      = default;
+
    protected:
 	std::intmax_t          owner_;
 	std::intmax_t          group_;
@@ -197,7 +200,7 @@ class VDirectory
 
 	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override;
 
-   private:
+   protected:
 	std::unordered_map<std::string, std::shared_ptr<File>> files_;
 };
 
