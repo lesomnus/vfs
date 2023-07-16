@@ -30,6 +30,7 @@ add_library(
 		internal/vfs/impl/mem_file.hpp
 		internal/vfs/impl/os_file.hpp
 		internal/vfs/impl/os_fs.hpp
+		internal/vfs/impl/union_file.hpp
 		internal/vfs/impl/utils.hpp
 		internal/vfs/impl/vfile.hpp
 		internal/vfs/impl/vfs.hpp
@@ -43,6 +44,7 @@ add_library(
 		src/mount.cpp
 		src/os_file.cpp
 		src/os_fs.cpp
+		src/union_file.cpp
 		src/utils.cpp
 		src/vfile.cpp
 		src/vfs.cpp
