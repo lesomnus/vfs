@@ -72,27 +72,6 @@ class VFile: virtual public File {
 	std::filesystem::file_time_type last_write_time_;
 };
 
-class NilFile
-    : public VFile
-    , public RegularFile {
-   public:
-	NilFile(
-	    std::intmax_t          owner,
-	    std::intmax_t          group,
-	    std::filesystem::perms perms = DefaultPerms)
-	    : VFile(owner, group, perms) { }
-
-	NilFile(NilFile const& other) = default;
-	NilFile(NilFile&& other)      = default;
-
-	void last_write_time(std::filesystem::file_time_type new_time) override { }
-
-	void resize(std::uintmax_t new_size) override { }
-
-	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override;
-	std::shared_ptr<std::ostream>               open_write(std::ios_base::openmode mode) override;
-};
-
 class VRegularFile
     : public VFile
     , public TempRegularFile {

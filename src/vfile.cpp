@@ -9,44 +9,13 @@
 #include <string>
 #include <type_traits>
 
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/file_proxy.hpp"
+
 namespace fs = std::filesystem;
 
 namespace vfs {
 namespace impl {
-
-namespace {
-
-class Cursor_: public Directory::Cursor {
-   public:
-	Cursor_(std::unordered_map<std::string, std::shared_ptr<File>> const& files)
-	    : it(files.cbegin())
-	    , end(files.cend()) { }
-
-	[[nodiscard]] std::string const& name() const override {
-		return this->it->first;
-	}
-
-	[[nodiscard]] std::shared_ptr<File> const& file() const override {
-		return this->it->second;
-	}
-
-	void increment() override {
-		if(this->at_end()) {
-			return;
-		}
-
-		++this->it;
-	}
-
-	[[nodiscard]] bool at_end() const override {
-		return this->it == this->end;
-	}
-
-	std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator it;
-	std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator end;
-};
-
-}  // namespace
 
 void VFile::perms(fs::perms prms, fs::perm_options opts) {
 	switch(opts) {
@@ -72,14 +41,6 @@ void VFile::perms(fs::perms prms, fs::perm_options opts) {
 		throw std::invalid_argument("unexpected value of \"std::filesystem::perm_options\": " + std::to_string(v));
 	}
 	}
-}
-
-std::shared_ptr<std::istream> NilFile::open_read(std::ios_base::openmode mode) const {
-	return std::make_shared<std::ifstream>();
-}
-
-std::shared_ptr<std::ostream> NilFile::open_write(std::ios_base::openmode mode) {
-	return std::make_shared<std::ofstream>();
 }
 
 VRegularFile::VRegularFile(
@@ -158,6 +119,10 @@ std::pair<std::shared_ptr<Symlink>, bool> VDirectory::emplace_symlink(std::strin
 }
 
 bool VDirectory::link(std::string const& name, std::shared_ptr<File> file) {
+	if(auto proxy = std::dynamic_pointer_cast<FileProxyBase>(std::move(file)); proxy) {
+		file = std::move(*proxy).target();
+	}
+
 	auto f = std::dynamic_pointer_cast<VFile>(std::move(file));
 	if(!f) {
 		throw fs::filesystem_error("cannot create link to different type of filesystem", std::make_error_code(std::errc::cross_device_link));
@@ -168,7 +133,7 @@ bool VDirectory::link(std::string const& name, std::shared_ptr<File> file) {
 }
 
 std::shared_ptr<Directory::Cursor> VDirectory::cursor() const {
-	return std::make_shared<Cursor_>(this->files_);
+	return std::make_shared<StaticCursor>(this->files_);
 }
 
 }  // namespace impl

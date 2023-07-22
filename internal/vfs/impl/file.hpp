@@ -6,6 +6,8 @@
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 
 namespace vfs {
@@ -136,6 +138,26 @@ class Directory: virtual public File {
 		}
 	};
 
+	class StaticCursor: public Cursor {
+	   public:
+		StaticCursor(std::unordered_map<std::string, std::shared_ptr<File>> const& files);
+		StaticCursor(std::unordered_map<std::string, std::shared_ptr<File>>&& files);
+
+		[[nodiscard]] std::string const& name() const override;
+
+		[[nodiscard]] std::shared_ptr<File> const& file() const override;
+
+		void increment() override;
+
+		[[nodiscard]] bool at_end() const override;
+
+	   private:
+		std::unordered_map<std::string, std::shared_ptr<File>> files_;
+
+		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator it_;
+		std::unordered_map<std::string, std::shared_ptr<File>>::const_iterator end_;
+	};
+
 	struct Iterator {
 		Iterator() = default;
 
@@ -209,6 +231,7 @@ class Directory: virtual public File {
 	}
 };
 
+// TODO: inherit from FileProxy?
 class MountPoint: virtual public File {
    public:
 	[[nodiscard]] std::intmax_t owner() const override {
