@@ -192,21 +192,66 @@ TEST_CASE("UnionDirectory") {
 		CHECK((std::string(testing::QuoteB) + std::string(testing::QuoteC)) == testing::read_all(*next_r->open_read()));
 	}
 
-	SECTION("lower is looked when emplacing regular file") {
-		REQUIRE(not upper->contains("foo"));
-		REQUIRE(lower->contains("foo"));
+	SECTION("emplace") {
+		SECTION("file is created on upper") {
+			REQUIRE(not upper->contains("bar"));
+			REQUIRE(lower->contains("bar"));
 
-		auto [file, ok] = root->emplace_regular_file("foo");
-		CHECK(nullptr != file);
-		CHECK(!ok);
-	}
+			auto baz = std::dynamic_pointer_cast<vfs::impl::Directory>(root->next("baz"));
+			REQUIRE(nullptr != baz);
 
-	SECTION("lower is looked when emplacing directory") {
-		REQUIRE(not upper->contains("bar"));
-		REQUIRE(lower->contains("bar"));
+			fs::file_type type;
 
-		auto [file, ok] = root->emplace_directory("bar");
-		CHECK(nullptr != file);
-		CHECK(!ok);
+			SECTION("regular file") {
+				type = fs::file_type::regular;
+
+				auto [file, ok] = baz->emplace_regular_file("egg");
+				CHECK(nullptr != file);
+				CHECK(ok);
+			}
+
+			SECTION("directory") {
+				type = fs::file_type::directory;
+
+				auto [file, ok] = baz->emplace_directory("egg");
+				CHECK(nullptr != file);
+				CHECK(ok);
+			}
+
+			SECTION("symlink") {
+				type = fs::file_type::symlink;
+
+				auto [file, ok] = baz->emplace_symlink("egg", "ham");
+				CHECK(nullptr != file);
+				CHECK(ok);
+			}
+
+			auto egg = baz->next("egg");
+			CHECK(type == egg->type());
+			CHECK(baz->contains("qux"));
+		}
+
+		SECTION("lower is looked before emplace") {
+			REQUIRE(not upper->contains("foo"));
+			REQUIRE(lower->contains("foo"));
+
+			SECTION("regular file") {
+				auto [file, ok] = root->emplace_regular_file("foo");
+				CHECK(nullptr != file);
+				CHECK(!ok);
+			}
+
+			SECTION("directory") {
+				auto [file, ok] = root->emplace_directory("foo");
+				CHECK(nullptr == file);
+				CHECK(!ok);
+			}
+
+			SECTION("symlink") {
+				auto [file, ok] = root->emplace_symlink("foo", "whatever");
+				CHECK(nullptr == file);
+				CHECK(!ok);
+			}
+		}
 	}
 }

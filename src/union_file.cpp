@@ -132,8 +132,6 @@ class Branch_: virtual public Directory {
 		assert(nullptr != this->context_);
 	}
 
-	virtual std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) = 0;
-
 	[[nodiscard]] std::shared_ptr<UnionDirectory::Context> const& context() const {
 		return this->context_;
 	}
@@ -141,15 +139,6 @@ class Branch_: virtual public Directory {
    protected:
 	std::shared_ptr<UnionDirectory::Context> context_;
 };
-
-class BranchHolder: public DirectoryProxy<Branch_> {
-   public:
-	using DirectoryProxy::DirectoryProxy;
-
-	void mount(std::string const& name, std::shared_ptr<File> file) override;
-};
-
-std::shared_ptr<Directory> make_sup_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory> upper);
 
 class SupBranch_
     : public Branch_
@@ -160,14 +149,6 @@ class SupBranch_
 	    , DirectoryProxy<Directory>(std::move(upper)) { }
 
 	using Branch_::type;
-
-	[[nodiscard]] bool empty() const override {
-		return this->target_->empty();
-	}
-
-	[[nodiscard]] bool contains(std::string const& name) const override {
-		return this->target_->contains(name);
-	}
 
 	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override {
 		auto next_f = this->target_->next(name);
@@ -181,11 +162,7 @@ class SupBranch_
 		}
 
 		auto ctx = this->context_->at(name);
-		return make_sup_branch_(std::move(ctx), std::move(next_d));
-	}
-
-	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
-		return this->target_->emplace_regular_file(name);
+		return std::make_shared<SupBranch_>(std::move(ctx), std::move(next_d));
 	}
 
 	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
@@ -195,15 +172,7 @@ class SupBranch_
 		}
 
 		auto ctx = this->context_->at(name);
-		return std::make_pair(make_sup_branch_(std::move(ctx), it.first), it.second);
-	}
-
-	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
-		return this->target_->emplace_symlink(name, std::move(target));
-	}
-
-	bool link(std::string const& name, std::shared_ptr<File> file) override {
-		return this->target_->link(name, std::move(file));
+		return std::make_pair(std::make_shared<SupBranch_>(std::move(ctx), it.first), it.second);
 	}
 
 	bool unlink(std::string const& name) override {
@@ -213,10 +182,6 @@ class SupBranch_
 		}
 
 		return ok;
-	}
-
-	void unmount(std::string const& name) override {
-		this->target_->unlink(name);
 	}
 
 	std::uintmax_t erase(std::string const& name) override {
@@ -249,11 +214,6 @@ class SupBranch_
 		}
 
 		return std::make_shared<StaticCursor>(std::move(files));
-	}
-
-	std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) override {
-		this->target_->mount(name, std::move(file));
-		return nullptr;
 	}
 };
 
@@ -317,22 +277,27 @@ class SubBranch_
 	}
 
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
-		// TODO: emplace a file to pulled directory on upper layer if there is no existing file with given name.
-		throw std::logic_error("do not write on read-only filesystem");
+		if(auto next = this->target_->next(name); next) {
+			return std::make_pair(std::dynamic_pointer_cast<RegularFile>(std::move(next)), false);
+		}
+
+		return this->anchor_.pull()->emplace_regular_file(name);
 	}
 
 	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
-		// TODO: emplace a file to pulled directory on upper layer if there is no existing file with given name.
-		// SubBranch_ must be turn into SupBranch_.
-		throw std::logic_error("do not write on read-only filesystem");
+		if(auto next = this->target_->next(name); next) {
+			return std::make_pair(std::dynamic_pointer_cast<Directory>(std::move(next)), false);
+		}
+
+		return this->anchor_.pull()->emplace_directory(name);
 	}
 
 	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
-		throw std::logic_error("do not write on read-only filesystem");
-	}
+		if(auto next = this->target_->next(name); next) {
+			return std::make_pair(std::dynamic_pointer_cast<Symlink>(std::move(next)), false);
+		}
 
-	bool link(std::string const& name, std::shared_ptr<File> file) override {
-		throw std::logic_error("do not write on read-only filesystem");
+		return this->anchor_.pull()->emplace_symlink(name, target);
 	}
 
 	bool unlink(std::string const& name) override {
@@ -348,8 +313,8 @@ class SubBranch_
 		return true;
 	}
 
-	void unmount(std::string const& name) override {
-		// TODO: throw not a mountpoint
+	void mount(std::string const& name, std::shared_ptr<File> file) override {
+		this->anchor_.pull()->mount(name, std::move(file));
 	}
 
 	std::uintmax_t erase(std::string const& name) override {
@@ -398,30 +363,81 @@ class SubBranch_
 		return std::make_shared<Directory::StaticCursor>(std::move(files));
 	}
 
-	std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) override {
-		this->anchor_.pull()->mount(name, std::move(file));
-		return this->anchor_.target();
+	[[nodiscard]] Anchor_ const& anchor() const {
+		return this->anchor_;
+	}
+
+	[[nodiscard]] std::shared_ptr<Directory const> lower() const& {
+		return this->target_;
+	}
+
+	[[nodiscard]] std::shared_ptr<Directory const> lower() && {
+		return std::move(this->target_);
 	}
 
    private:
 	Anchor_ anchor_;
 };
 
+class SubBranchHolder: public DirectoryProxy<Directory> {
+   public:
+	using DirectoryProxy::DirectoryProxy;
+
+	void mount(std::string const& name, std::shared_ptr<File> file) override {
+		this->target_->mount(name, std::move(file));
+		this->upgrade();
+	}
+
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
+		auto it = this->target_->emplace_regular_file(name);
+		if(!it.second) {
+			return it;
+		}
+
+		this->upgrade();
+
+		return it;
+	}
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
+		auto it = this->target_->emplace_directory(name);
+		if(!it.second) {
+			return it;
+		}
+
+		this->upgrade();
+
+		return it;
+	}
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
+		auto it = this->target_->emplace_symlink(name, std::move(target));
+		if(!it.second) {
+			return it;
+		}
+
+		this->upgrade();
+
+		return it;
+	}
+
+   private:
+	void upgrade() {
+		auto sub = std::dynamic_pointer_cast<SubBranch_>(this->target_);
+		if(!sub) {
+			return;
+		}
+
+		this->target_ = std::make_shared<UnionDirectory>(sub->context(), sub->anchor().target(), std::move(*sub).lower());
+	}
+};
+
 std::shared_ptr<Directory> make_sup_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory> upper) {
-	return std::make_shared<BranchHolder>(std::make_shared<SupBranch_>(std::move(context), std::move(upper)));
+	return std::static_pointer_cast<Directory>(std::make_shared<SupBranch_>(std::move(context), std::move(upper)));
 }
 
 std::shared_ptr<Directory> make_sub_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory const> lower, Anchor_ anchor) {
-	return std::make_shared<BranchHolder>(std::make_shared<SubBranch_>(std::move(context), std::move(lower), std::move(anchor)));
-}
-
-void BranchHolder::mount(std::string const& name, std::shared_ptr<File> file) {
-	auto target = this->target_->pull_mount(name, std::move(file));
-	if(!target) {
-		return;
-	}
-
-	this->target_ = std::make_shared<SupBranch_>(this->target_->context(), std::move(target));
+	return std::make_shared<SubBranchHolder>(std::make_shared<SubBranch_>(std::move(context), std::move(lower), std::move(anchor)));
 }
 
 }  // namespace

@@ -27,3 +27,29 @@ class TestChRootedVfs: public testing::suites::TestFsFixture {
 };
 
 METHOD_AS_TEST_CASE(testing::suites::TestFsBasic<TestChRootedVfs>::test, "UnionFs with chroot");
+
+TEST_CASE("UnionFs") {
+	auto upper = vfs::make_mem_fs();
+	auto lower = vfs::make_mem_fs();
+	auto root  = vfs::make_union_fs(*upper, *lower);
+
+	SECTION("::rename") {
+		SECTION("file on lower must be preserved") {
+			upper->create_directory("foo");
+			lower->create_directory("bar");
+			*lower->open_write("bar/baz") << testing::QuoteA;
+			REQUIRE(upper->is_directory("foo"));
+			REQUIRE(lower->is_regular_file("bar/baz"));
+			CHECK(root->is_directory("foo"));
+			CHECK(root->is_regular_file("bar/baz"));
+
+			root->rename("bar/baz", "foo/qux");
+			CHECK(upper->is_regular_file("foo/qux"));
+			CHECK(lower->is_regular_file("bar/baz"));
+			CHECK(root->is_regular_file("foo/qux"));
+			CHECK(not root->exists("bar/baz"));
+
+			CHECK(testing::QuoteA == testing::read_all(*root->open_read("foo/qux")));
+		}
+	}
+}
