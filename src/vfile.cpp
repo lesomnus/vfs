@@ -9,6 +9,9 @@
 #include <string>
 #include <type_traits>
 
+#include "vfs/impl/file.hpp"
+#include "vfs/impl/file_proxy.hpp"
+
 namespace fs = std::filesystem;
 
 namespace vfs {
@@ -116,6 +119,10 @@ std::pair<std::shared_ptr<Symlink>, bool> VDirectory::emplace_symlink(std::strin
 }
 
 bool VDirectory::link(std::string const& name, std::shared_ptr<File> file) {
+	if(auto proxy = std::dynamic_pointer_cast<FileProxyBase>(std::move(file)); proxy) {
+		file = std::move(*proxy).target();
+	}
+
 	auto f = std::dynamic_pointer_cast<VFile>(std::move(file));
 	if(!f) {
 		throw fs::filesystem_error("cannot create link to different type of filesystem", std::make_error_code(std::errc::cross_device_link));

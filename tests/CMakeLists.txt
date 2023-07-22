@@ -99,6 +99,7 @@ vfs_SIMPLE_TEST(mount)
 vfs_SIMPLE_TEST(os_file)
 vfs_SIMPLE_TEST(os_fs)
 vfs_SIMPLE_TEST(union_file)
+vfs_SIMPLE_TEST(union_fs)
 vfs_SIMPLE_TEST(vfile)
 vfs_SIMPLE_TEST(vfs)
 

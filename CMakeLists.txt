@@ -24,6 +24,7 @@ add_library(
 		include/vfs.hpp
 
 		internal/vfs/impl/entry.hpp
+		internal/vfs/impl/file_proxy.hpp
 		internal/vfs/impl/file.hpp
 		internal/vfs/impl/fs_proxy.hpp
 		internal/vfs/impl/fs.hpp
@@ -45,6 +46,7 @@ add_library(
 		src/os_file.cpp
 		src/os_fs.cpp
 		src/union_file.cpp
+		src/union_fs.cpp
 		src/utils.cpp
 		src/vfile.cpp
 		src/vfs.cpp

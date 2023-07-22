@@ -6,6 +6,7 @@
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
@@ -49,52 +50,6 @@ class File {
 	}
 
 	virtual void last_write_time(std::filesystem::file_time_type new_time) = 0;
-};
-
-template<std::derived_from<File> F>
-class FileProxy: public F {
-   public:
-	FileProxy(std::shared_ptr<F> target)
-	    : target_(std::move(target)) { }
-
-	[[nodiscard]] std::intmax_t owner() const override {
-		return this->target_->owner();
-	}
-
-	void owner(std::intmax_t owner) override {
-		return this->target_->owner(owner);
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		return this->target_->group();
-	}
-
-	void group(std::intmax_t group) override {
-		return this->target_->group(group);
-	}
-
-	[[nodiscard]] std::filesystem::perms perms() const override {
-		return this->target_->perms();
-	}
-
-	void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) override {
-		return this->target_->perms(prms, opts);
-	}
-
-	bool operator==(File const& other) const override {
-		return this->target_->operator==(other);
-	}
-
-	[[nodiscard]] std::filesystem::file_time_type last_write_time() const override {
-		return this->target_->last_write_time();
-	}
-
-	void last_write_time(std::filesystem::file_time_type new_time) override {
-		return this->target_->last_write_time(new_time);
-	}
-
-   protected:
-	std::shared_ptr<F> target_;
 };
 
 class RegularFile: virtual public File {
@@ -276,6 +231,7 @@ class Directory: virtual public File {
 	}
 };
 
+// TODO: inherit from FileProxy?
 class MountPoint: virtual public File {
    public:
 	[[nodiscard]] std::intmax_t owner() const override {

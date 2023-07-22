@@ -675,14 +675,25 @@ class TestFsBasic {
 
 		SECTION("::iterate_directory_recursively") {
 			auto const check =
-			    [](vfs::recursive_directory_iterator                               it,
-			       std::unordered_map<int, std::unordered_set<std::string>> const& expected_list) {
+			    [&fs](vfs::recursive_directory_iterator it, std::unordered_map<int, std::unordered_set<std::string>> const& expected_list) {
 				    std::unordered_map<int, std::unordered_set<std::string>> filenames;
 
 				    std::size_t cnt_actual = 0;
 				    for(; it != vfs::recursive_directory_iterator(); ++it) {
 					    ++cnt_actual;
-					    auto const [_, ok] = filenames[it.depth()].insert(it->path().filename());
+
+					    auto p = it->path();
+					    if(p.is_relative()) {
+						    p = p.lexically_normal();
+					    } else {
+						    p = p.lexically_relative(fs->current_path());
+					    }
+					    REQUIRE(!p.empty());
+
+					    auto const depth = std::distance(p.begin(), p.end()) - 1;
+					    CHECK(depth == it.depth());
+
+					    auto const [_, ok] = filenames[depth].insert(it->path().filename());
 					    CHECK(ok);
 				    }
 
@@ -696,6 +707,22 @@ class TestFsBasic {
 			    };
 
 			SECTION("nested directories") {
+				fs->create_directories("1/2/3");
+				fs->create_directories("4/5/6");
+
+				REQUIRE(fs->is_directory("1/2/3"));
+				REQUIRE(fs->is_directory("4/5/6"));
+
+				check(
+				    fs->iterate_directory_recursively("."),
+				    {
+				        {0, {"1", "4"}},
+				        {1, {"2", "5"}},
+				        {2, {"3", "6"}},
+                });
+			}
+
+			SECTION("nested directories with files") {
 				// /
 				// + a
 				// + foo/
@@ -736,6 +763,7 @@ class TestFsBasic {
 
 				REQUIRE(fs->is_directory("foo/bar/baz"));
 				REQUIRE(fs->is_directory("qux/"));
+				REQUIRE(fs->is_directory("qux/baz"));
 				REQUIRE(fs->is_symlink("qux"));
 
 				check(

@@ -702,16 +702,16 @@ class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
 	}
 
 	void increment() override {
-		bool stepped_out = false;
+		std::size_t cnt_stepped_out = 0;
 		while(!this->at_end()) {
 			auto& cursor = *this->cursors_.top();
 			if(cursor.at_end()) {
 				this->cursors_.pop();
-				stepped_out = true;
+				++cnt_stepped_out;
 				continue;
 			}
 
-			if(!stepped_out) {
+			if(cnt_stepped_out == 0) {
 				auto f = cursor.file();
 				if((this->opts_ & fs::directory_options::follow_directory_symlink) == fs::directory_options::follow_directory_symlink) {
 					if(f->type() == fs::file_type::symlink) {
@@ -732,7 +732,18 @@ class Vfs::RecursiveCursor_: public Fs::RecursiveCursor {
 				continue;
 			}
 
-			this->entry_.replace_filename(cursor.name());
+			if(cnt_stepped_out == 0) {
+				this->entry_.replace_filename(cursor.name());
+			} else {
+				auto p = this->entry_.path();
+				for(std::size_t i = 0; i < cnt_stepped_out; ++i) {
+					p = p.parent_path();
+				}
+
+				p.replace_filename(cursor.name());
+				this->entry_.assign(p);
+			}
+
 			break;
 		}
 	}

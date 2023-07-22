@@ -7,8 +7,21 @@
 #include <vfs/impl/union_file.hpp>
 
 #include "testing.hpp"
+#include "testing/suites/file.hpp"
 
 namespace fs = std::filesystem;
+
+class TestUnionFile: public testing::suites::TestFileFixture {
+   public:
+	std::shared_ptr<vfs::impl::Directory> make() {
+		auto upper = std::make_shared<vfs::impl::MemDirectory>(0, 0);
+		auto lower = std::make_shared<vfs::impl::MemDirectory>(0, 0);
+
+		return std::make_shared<vfs::impl::UnionDirectory>(std::move(upper), std::move(lower));
+	}
+};
+
+METHOD_AS_TEST_CASE(testing::suites::TestFile<TestUnionFile>::test, "UnionFile");
 
 TEST_CASE("UnionDirectory") {
 	auto upper = std::make_shared<vfs::impl::MemDirectory>(0, 0);

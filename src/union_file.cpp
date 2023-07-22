@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace fs = std::filesystem;
 
@@ -17,9 +18,70 @@ namespace impl {
 
 namespace {
 
+std::uintmax_t count_files_(UnionDirectory::Context& context, File const& file) {
+	auto const* d = dynamic_cast<Directory const*>(&file);
+	if(d == nullptr) {
+		return 1;
+	}
+
+	std::uintmax_t cnt = 1;
+	for(auto const& [name, f]: *d) {
+		if(context.hidden.contains(name)) {
+			continue;
+		}
+
+		auto const& ctx = context.at(name);
+		cnt += count_files_(*ctx, *f);
+	}
+
+	return cnt;
+}
+
+class Anchor_ {
+   public:
+	Anchor_(std::shared_ptr<Directory> upper, std::filesystem::path crumbs)
+	    : upper_(std::move(upper))
+	    , crumbs_(std::move(crumbs)) { }
+
+	Anchor_(std::shared_ptr<Directory> upper)
+	    : upper_(std::move(upper)) { }
+
+	[[nodiscard]] std::shared_ptr<Directory> const& target() const {
+		return this->upper_;
+	}
+
+	[[nodiscard]] Anchor_ next(std::string const& name) const {
+		return {this->upper_, this->crumbs_ / name};
+	}
+
+	// Creates directories on `upper` by following `crumbs`.
+	std::shared_ptr<Directory> const& pull() {
+		if(this->crumbs_.empty()) {
+			return this->upper_;
+		}
+
+		std::shared_ptr<Directory> d = std::move(this->upper_);
+		for(auto const& name: this->crumbs_) {
+			auto [next_d, _] = d->emplace_directory(name);
+			if(!next_d) {
+				throw std::runtime_error("file is created while navigating?");
+			}
+
+			d = std::move(next_d);
+		}
+
+		this->upper_ = std::move(d);
+		return this->upper_;
+	}
+
+   private:
+	std::shared_ptr<Directory> upper_;
+	std::filesystem::path      crumbs_;
+};
+
 class RegularFileOnLower_: public FileProxy<RegularFile> {
    public:
-	RegularFileOnLower_(std::string name, std::shared_ptr<RegularFile> target, UnionDirectory::Anchor anchor)
+	RegularFileOnLower_(std::string name, std::shared_ptr<RegularFile> target, Anchor_ anchor)
 	    : FileProxy<RegularFile>(std::move(target))
 	    , name_(std::move(name))
 	    , anchor_(std::move(anchor)) { }
@@ -46,8 +108,7 @@ class RegularFileOnLower_: public FileProxy<RegularFile> {
 			return this->target_;
 		}
 
-		this->anchor_->pull();
-		auto [target, _] = this->anchor_->target()->emplace_regular_file(this->name_);
+		auto [target, _] = this->anchor_->pull()->emplace_regular_file(this->name_);
 		this->anchor_.reset();
 
 		if((mode & std::ios_base::app) == std::ios_base::app) {
@@ -61,31 +122,311 @@ class RegularFileOnLower_: public FileProxy<RegularFile> {
 
 	std::string name_;
 
-	std::optional<UnionDirectory::Anchor> anchor_;
+	std::optional<Anchor_> anchor_;
 };
 
-std::uintmax_t count_files_(UnionDirectory::Context& context, File const& file) {
-	auto const* d = dynamic_cast<Directory const*>(&file);
-	if(d == nullptr) {
-		return 1;
+class Branch_: virtual public Directory {
+   public:
+	Branch_(std::shared_ptr<UnionDirectory::Context> context)
+	    : context_(std::move(context)) {
+		assert(nullptr != this->context_);
 	}
 
-	std::uintmax_t cnt = 1;
-	for(auto const& [name, f]: *d) {
-		if(context.hidden.contains(name)) {
-			continue;
+	virtual std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) = 0;
+
+	[[nodiscard]] std::shared_ptr<UnionDirectory::Context> const& context() const {
+		return this->context_;
+	}
+
+   protected:
+	std::shared_ptr<UnionDirectory::Context> context_;
+};
+
+class BranchHolder: public DirectoryProxy<Branch_> {
+   public:
+	using DirectoryProxy::DirectoryProxy;
+
+	void mount(std::string const& name, std::shared_ptr<File> file) override;
+};
+
+std::shared_ptr<Directory> make_sup_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory> upper);
+
+class SupBranch_
+    : public Branch_
+    , public DirectoryProxy<Directory> {
+   public:
+	SupBranch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory> upper)
+	    : Branch_(std::move(context))
+	    , DirectoryProxy<Directory>(std::move(upper)) { }
+
+	using Branch_::type;
+
+	[[nodiscard]] bool empty() const override {
+		return this->target_->empty();
+	}
+
+	[[nodiscard]] bool contains(std::string const& name) const override {
+		return this->target_->contains(name);
+	}
+
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override {
+		auto next_f = this->target_->next(name);
+		if(!next_f) {
+			return nullptr;
 		}
 
-		auto const& ctx = context.at(name);
-		cnt += count_files_(*ctx, *f);
+		auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f));
+		if(!next_d) {
+			return next_f;
+		}
+
+		auto ctx = this->context_->at(name);
+		return make_sup_branch_(std::move(ctx), std::move(next_d));
 	}
 
-	return cnt;
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
+		return this->target_->emplace_regular_file(name);
+	}
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
+		auto it = this->target_->emplace_directory(name);
+		if(!it.first) {
+			return it;
+		}
+
+		auto ctx = this->context_->at(name);
+		return std::make_pair(make_sup_branch_(std::move(ctx), it.first), it.second);
+	}
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
+		return this->target_->emplace_symlink(name, std::move(target));
+	}
+
+	bool link(std::string const& name, std::shared_ptr<File> file) override {
+		return this->target_->link(name, std::move(file));
+	}
+
+	bool unlink(std::string const& name) override {
+		auto const ok = this->target_->unlink(name);
+		if(ok) {
+			this->context_->hidden.insert(name);
+		}
+
+		return ok;
+	}
+
+	void unmount(std::string const& name) override {
+		this->target_->unlink(name);
+	}
+
+	std::uintmax_t erase(std::string const& name) override {
+		auto const cnt = this->target_->erase(name);
+		if(cnt > 0) {
+			this->context_->hidden.insert(name);
+		}
+
+		return cnt;
+	}
+
+	std::uintmax_t clear() override {
+		for(auto const& [name, _]: *this->target_) {
+			this->context_->hidden.insert(name);
+		}
+
+		return this->target_->clear();
+	}
+
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override {
+		std::unordered_map<std::string, std::shared_ptr<File>> files;
+		for(auto const& [name, next_f]: *this->target_) {
+			auto next_f_ = next_f;
+			if(auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f_)); next_d) {
+				auto ctx = this->context_->at(name);
+				next_f_  = std::make_shared<SupBranch_>(std::move(ctx), std::move(next_d));
+			}
+
+			files.insert(std::make_pair(name, std::move(next_f_)));
+		}
+
+		return std::make_shared<StaticCursor>(std::move(files));
+	}
+
+	std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) override {
+		this->target_->mount(name, std::move(file));
+		return nullptr;
+	}
+};
+
+class SubBranch_
+    : public Branch_
+    , public DirectoryProxy<Directory const> {
+   public:
+	SubBranch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory const> lower, Anchor_ anchor)
+	    : Branch_(std::move(context))
+	    , DirectoryProxy(std::move(lower))
+	    , anchor_(std::move(anchor)) {
+		assert(nullptr != this->anchor_.target());
+	}
+
+	using Branch_::type;
+
+	[[nodiscard]] bool empty() const override {
+		if(this->target_->empty()) {
+			return true;
+		}
+
+		for(auto const& [name, _]: *this->target_) {
+			if(this->context_->hidden.contains(name)) {
+				continue;
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] bool contains(std::string const& name) const override {
+		if(this->context_->hidden.contains(name)) {
+			return false;
+		}
+
+		return this->target_->contains(name);
+	}
+
+	[[nodiscard]] std::shared_ptr<File> next(std::string const& name) const override {
+		if(this->context_->hidden.contains(name)) {
+			return nullptr;
+		}
+
+		auto next_f = this->target_->next(name);
+		if(!next_f) {
+			return nullptr;
+		}
+		if(auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f)); next_d) {
+			auto ctx = this->context_->at(name);
+			return std::make_shared<SubBranch_>(std::move(ctx), this->target_, this->anchor_.next(name));
+		}
+
+		auto next_r = std::dynamic_pointer_cast<RegularFile>(std::move(next_f));
+		if(!next_r) {
+			return next_f;
+		}
+
+		return std::make_shared<RegularFileOnLower_>(name, std::move(next_r), this->anchor_);
+	}
+
+	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
+		// TODO: emplace a file to pulled directory on upper layer if there is no existing file with given name.
+		throw std::logic_error("do not write on read-only filesystem");
+	}
+
+	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
+		// TODO: emplace a file to pulled directory on upper layer if there is no existing file with given name.
+		// SubBranch_ must be turn into SupBranch_.
+		throw std::logic_error("do not write on read-only filesystem");
+	}
+
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
+		throw std::logic_error("do not write on read-only filesystem");
+	}
+
+	bool link(std::string const& name, std::shared_ptr<File> file) override {
+		throw std::logic_error("do not write on read-only filesystem");
+	}
+
+	bool unlink(std::string const& name) override {
+		if(this->context_->hidden.contains(name)) {
+			return false;
+		}
+		if(!this->target_->contains(name)) {
+			return false;
+		}
+
+		auto const [_, ok] = this->context_->hidden.insert(name);
+		assert(ok);
+		return true;
+	}
+
+	void unmount(std::string const& name) override {
+		// TODO: throw not a mountpoint
+	}
+
+	std::uintmax_t erase(std::string const& name) override {
+		if(this->context_->hidden.contains(name)) {
+			return 0;
+		}
+
+		auto next_f = this->target_->next(name);
+		if(!next_f) {
+			return 0;
+		}
+
+		auto const [_, ok] = this->context_->hidden.insert(name);
+		assert(ok);
+
+		auto const ctx = this->context_->at(name);
+		auto const cnt = count_files_(*ctx, *next_f);
+		return cnt;
+	}
+
+	std::uintmax_t clear() override {
+		std::uintmax_t cnt = 0;
+		for(auto const& [name, next_f]: *this->target_) {
+			auto [_, ok] = this->context_->hidden.insert(name);
+			if(!ok) {
+				continue;
+			}
+
+			auto const ctx = this->context_->at(name);
+			cnt += count_files_(*ctx, *next_f);
+		}
+
+		return cnt;
+	}
+
+	[[nodiscard]] std::shared_ptr<Cursor> cursor() const override {
+		std::unordered_map<std::string, std::shared_ptr<File>> files;
+		for(auto it: *this->target_) {
+			if(this->context_->hidden.contains(it.first)) {
+				continue;
+			}
+
+			files.insert(it);
+		}
+
+		return std::make_shared<Directory::StaticCursor>(std::move(files));
+	}
+
+	std::shared_ptr<Directory> pull_mount(std::string const& name, std::shared_ptr<File> file) override {
+		this->anchor_.pull()->mount(name, std::move(file));
+		return this->anchor_.target();
+	}
+
+   private:
+	Anchor_ anchor_;
+};
+
+std::shared_ptr<Directory> make_sup_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory> upper) {
+	return std::make_shared<BranchHolder>(std::make_shared<SupBranch_>(std::move(context), std::move(upper)));
+}
+
+std::shared_ptr<Directory> make_sub_branch_(std::shared_ptr<UnionDirectory::Context> context, std::shared_ptr<Directory const> lower, Anchor_ anchor) {
+	return std::make_shared<BranchHolder>(std::make_shared<SubBranch_>(std::move(context), std::move(lower), std::move(anchor)));
+}
+
+void BranchHolder::mount(std::string const& name, std::shared_ptr<File> file) {
+	auto target = this->target_->pull_mount(name, std::move(file));
+	if(!target) {
+		return;
+	}
+
+	this->target_ = std::make_shared<SupBranch_>(this->target_->context(), std::move(target));
 }
 
 }  // namespace
 
-UnionDirectory::UnionDirectory(std::shared_ptr<Directory> upper, std::shared_ptr<Directory> lower)
+UnionDirectory::UnionDirectory(std::shared_ptr<Directory> upper, std::shared_ptr<Directory const> lower)
     : FileProxy(std::move(upper))
     , lower_(std::move(lower))
     , context_(std::make_shared<Context>()) {
@@ -93,7 +434,7 @@ UnionDirectory::UnionDirectory(std::shared_ptr<Directory> upper, std::shared_ptr
 	assert(nullptr != this->lower_);
 }
 
-UnionDirectory::UnionDirectory(std::shared_ptr<Context> context, std::shared_ptr<Directory> upper, std::shared_ptr<Directory> lower)
+UnionDirectory::UnionDirectory(std::shared_ptr<Context> context, std::shared_ptr<Directory> upper, std::shared_ptr<Directory const> lower)
     : FileProxy(std::move(upper))
     , context_(std::move(context))
     , lower_(std::move(lower)) {
@@ -145,7 +486,7 @@ std::shared_ptr<File> UnionDirectory::next(std::string const& name) const {
 		auto ctx = this->context_->at(name);
 		if(!lo_next_d) {
 			// D:!D
-			return std::make_shared<SupBranch>(std::move(ctx), std::move(up_next_d));
+			return make_sup_branch_(std::move(ctx), std::move(up_next_d));
 		}
 
 		// D:D
@@ -155,7 +496,7 @@ std::shared_ptr<File> UnionDirectory::next(std::string const& name) const {
 	// 0:?
 	if(lo_next_d) {
 		// 0:D
-		return std::make_shared<SubBranch>(this->context_->at(name), std::move(lo_next_d), Anchor(this->target_, name));
+		return make_sub_branch_(this->context_->at(name), std::move(lo_next_d), Anchor_(this->target_, name));
 	}
 
 	// 0:!D
@@ -172,7 +513,7 @@ std::shared_ptr<File> UnionDirectory::next(std::string const& name) const {
 	}
 
 	// 0:R
-	return std::make_shared<RegularFileOnLower_>(name, std::move(lo_next_r), Anchor(this->target_));
+	return std::make_shared<RegularFileOnLower_>(name, std::move(lo_next_r), Anchor_(this->target_));
 }
 
 std::pair<std::shared_ptr<RegularFile>, bool> UnionDirectory::emplace_regular_file(std::string const& name) {
@@ -196,15 +537,20 @@ std::pair<std::shared_ptr<RegularFile>, bool> UnionDirectory::emplace_regular_fi
 	}
 
 	// 0:R
-	return std::make_pair(std::make_shared<RegularFileOnLower_>(name, std::move(lo_next_r), Anchor(this->target_)), false);
+	return std::make_pair(std::make_shared<RegularFileOnLower_>(name, std::move(lo_next_r), Anchor_(this->target_)), false);
 }
 
 std::pair<std::shared_ptr<Directory>, bool> UnionDirectory::emplace_directory(std::string const& name) {
 	auto lo_next = this->lower_next_(name);
 	if(!lo_next) {
 		// ?:0
-		auto [up_next_d, ok] = this->target_->emplace_directory(name);
-		return std::make_pair(std::make_shared<SupBranch>(this->context_->at(name), std::move(up_next_d)), ok);
+		auto it = this->target_->emplace_directory(name);
+		if(!it.first) {
+			return it;
+		}
+
+		auto& [up_next_d, ok] = it;
+		return std::make_pair(make_sup_branch_(this->context_->at(name), std::move(up_next_d)), ok);
 	}
 
 	// ?:F
@@ -219,7 +565,7 @@ std::pair<std::shared_ptr<Directory>, bool> UnionDirectory::emplace_directory(st
 		}
 
 		// 0:D
-		return std::make_pair(std::make_shared<SubBranch>(this->context_->at(name), std::move(lo_next_d), Anchor{this->target_, name}), false);
+		return std::make_pair(make_sub_branch_(this->context_->at(name), std::move(lo_next_d), Anchor_{this->target_, name}), false);
 	}
 
 	// F:F
@@ -235,7 +581,7 @@ std::pair<std::shared_ptr<Directory>, bool> UnionDirectory::emplace_directory(st
 	auto lo_next_d = std::dynamic_pointer_cast<Directory>(std::move(lo_next));
 	if(!lo_next_d) {
 		// D:(F-D)
-		return std::make_pair(std::make_shared<SupBranch>(this->context_->at(name), std::move(up_next_d)), false);
+		return std::make_pair(make_sup_branch_(this->context_->at(name), std::move(up_next_d)), false);
 	}
 
 	// D:D
@@ -262,7 +608,7 @@ std::pair<std::shared_ptr<Symlink>, bool> UnionDirectory::emplace_symlink(std::s
 bool UnionDirectory::link(std::string const& name, std::shared_ptr<File> file) {
 	auto up_next = this->target_->link(name, file);
 	if(up_next) {
-		return false;
+		return true;
 	}
 
 	auto lo_next = this->lower_next_(name);
@@ -372,229 +718,6 @@ std::shared_ptr<UnionDirectory::Context> UnionDirectory::Context::at(std::string
 	auto ctx = std::make_shared<Context>();
 	child_ctx.insert(std::make_pair(name, ctx));
 	return ctx;
-}
-
-UnionDirectory::SupBranch::SupBranch(std::shared_ptr<Context> context, std::shared_ptr<Directory> upper)
-    : FileProxy(std::move(upper))
-    , context_(std::move(context)) {
-	assert(nullptr != this->target_);
-	assert(nullptr != this->context_);
-}
-
-bool UnionDirectory::SupBranch::empty() const {
-	return this->target_->empty();
-}
-
-bool UnionDirectory::SupBranch::contains(std::string const& name) const {
-	return this->target_->contains(name);
-}
-
-std::shared_ptr<File> UnionDirectory::SupBranch::next(std::string const& name) const {
-	auto next_f = this->target_->next(name);
-	if(!next_f) {
-		return nullptr;
-	}
-
-	auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f));
-	if(!next_d) {
-		return next_f;
-	}
-
-	auto ctx = this->context_->at(name);
-	return std::make_shared<SupBranch>(std::move(ctx), std::move(next_d));
-}
-
-std::pair<std::shared_ptr<RegularFile>, bool> UnionDirectory::SupBranch::emplace_regular_file(std::string const& name) {
-	return this->target_->emplace_regular_file(name);
-}
-
-std::pair<std::shared_ptr<Directory>, bool> UnionDirectory::SupBranch::emplace_directory(std::string const& name) {
-	auto it = this->target_->emplace_directory(name);
-	if(!it.first) {
-		return it;
-	}
-
-	auto ctx = this->context_->at(name);
-	return std::make_pair(std::make_shared<SupBranch>(std::move(ctx), it.first), it.second);
-}
-
-std::pair<std::shared_ptr<Symlink>, bool> UnionDirectory::SupBranch::emplace_symlink(std::string const& name, std::filesystem::path target) {
-	return this->target_->emplace_symlink(name, std::move(target));
-}
-
-bool UnionDirectory::SupBranch::link(std::string const& name, std::shared_ptr<File> file) {
-	return this->target_->link(name, std::move(file));
-}
-
-bool UnionDirectory::SupBranch::unlink(std::string const& name) {
-	auto const ok = this->target_->unlink(name);
-	if(ok) {
-		this->context_->hidden.insert(name);
-	}
-
-	return ok;
-}
-
-std::uintmax_t UnionDirectory::SupBranch::erase(std::string const& name) {
-	auto const cnt = this->target_->erase(name);
-	if(cnt > 0) {
-		this->context_->hidden.insert(name);
-	}
-
-	return cnt;
-}
-
-std::uintmax_t UnionDirectory::SupBranch::clear() {
-	for(auto const& [name, _]: *this->target_) {
-		this->context_->hidden.insert(name);
-	}
-
-	return this->target_->clear();
-}
-
-std::shared_ptr<Directory::Cursor> UnionDirectory::SupBranch::cursor() const {
-	std::unordered_map<std::string, std::shared_ptr<File>> files;
-	for(auto const& [name, next_f]: *this->target_) {
-		auto next_f_ = next_f;
-		if(auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f_)); next_d) {
-			auto ctx = this->context_->at(name);
-			next_f_  = std::make_shared<SupBranch>(std::move(ctx), std::move(next_d));
-		}
-
-		files.insert(std::make_pair(name, std::move(next_f_)));
-	}
-
-	return std::make_shared<StaticCursor>(std::move(files));
-}
-
-UnionDirectory::SubBranch::SubBranch(std::shared_ptr<Context> context, std::shared_ptr<Directory> lower, Anchor anchor)
-    : FileProxy(std::move(lower))
-    , context_(std::move(context))
-    , anchor_(std::move(anchor)) {
-	assert(nullptr != this->target_);
-	assert(nullptr != this->context_);
-	assert(nullptr != this->anchor_.target());
-}
-
-bool UnionDirectory::SubBranch::empty() const {
-	if(this->target_->empty()) {
-		return true;
-	}
-
-	for(auto const& [name, _]: *this->target_) {
-		if(this->context_->hidden.contains(name)) {
-			continue;
-		}
-
-		return false;
-	}
-
-	return true;
-}
-
-bool UnionDirectory::SubBranch::contains(std::string const& name) const {
-	if(this->context_->hidden.contains(name)) {
-		return false;
-	}
-
-	return this->target_->contains(name);
-}
-
-std::shared_ptr<File> UnionDirectory::SubBranch::next(std::string const& name) const {
-	if(this->context_->hidden.contains(name)) {
-		return nullptr;
-	}
-
-	auto next_f = this->target_->next(name);
-	if(!next_f) {
-		return nullptr;
-	}
-	if(auto next_d = std::dynamic_pointer_cast<Directory>(std::move(next_f)); next_d) {
-		auto ctx = this->context_->at(name);
-		return std::make_shared<SubBranch>(std::move(ctx), this->target_, this->anchor_.next(name));
-	}
-
-	auto next_r = std::dynamic_pointer_cast<RegularFile>(std::move(next_f));
-	if(!next_r) {
-		return next_f;
-	}
-
-	return std::make_shared<RegularFileOnLower_>(name, std::move(next_r), this->anchor_);
-}
-
-std::pair<std::shared_ptr<RegularFile>, bool> UnionDirectory::SubBranch::emplace_regular_file(std::string const& name) {
-	throw std::logic_error("do not write on read-only filesystem");
-}
-
-std::pair<std::shared_ptr<Directory>, bool> UnionDirectory::SubBranch::emplace_directory(std::string const& name) {
-	throw std::logic_error("do not write on read-only filesystem");
-}
-
-std::pair<std::shared_ptr<Symlink>, bool> UnionDirectory::SubBranch::emplace_symlink(std::string const& name, std::filesystem::path target) {
-	throw std::logic_error("do not write on read-only filesystem");
-}
-
-bool UnionDirectory::SubBranch::link(std::string const& name, std::shared_ptr<File> file) {
-	throw std::logic_error("do not write on read-only filesystem");
-}
-
-bool UnionDirectory::SubBranch::unlink(std::string const& name) {
-	if(this->context_->hidden.contains(name)) {
-		return false;
-	}
-	if(!this->target_->contains(name)) {
-		return false;
-	}
-
-	auto const [_, ok] = this->context_->hidden.insert(name);
-	assert(ok);
-	return true;
-}
-
-std::uintmax_t UnionDirectory::SubBranch::erase(std::string const& name) {
-	if(this->context_->hidden.contains(name)) {
-		return 0;
-	}
-
-	auto next_f = this->target_->next(name);
-	if(!next_f) {
-		return 0;
-	}
-
-	auto const [_, ok] = this->context_->hidden.insert(name);
-	assert(ok);
-
-	auto const ctx = this->context_->at(name);
-	auto const cnt = count_files_(*ctx, *next_f);
-	return cnt;
-}
-
-std::uintmax_t UnionDirectory::SubBranch::clear() {
-	std::uintmax_t cnt = 0;
-	for(auto const& [name, next_f]: *this->target_) {
-		auto [_, ok] = this->context_->hidden.insert(name);
-		if(!ok) {
-			continue;
-		}
-
-		auto const ctx = this->context_->at(name);
-		cnt += count_files_(*ctx, *next_f);
-	}
-
-	return cnt;
-}
-
-std::shared_ptr<Directory::Cursor> UnionDirectory::SubBranch::cursor() const {
-	std::unordered_map<std::string, std::shared_ptr<File>> files;
-	for(auto it: *this->target_) {
-		if(this->context_->hidden.contains(it.first)) {
-			continue;
-		}
-
-		files.insert(it);
-	}
-
-	return std::make_shared<Directory::StaticCursor>(std::move(files));
 }
 
 }  // namespace impl

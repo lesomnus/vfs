@@ -158,6 +158,16 @@ class Fs {
 	}
 
 	/**
+	 * @brief Constructs a relative path from a current path to a target path.
+	 * 
+	 * @param[in] p Path to be converted from current path to its relative form.
+	 * @return Relative path from current path to \p p.
+	 */
+	[[nodiscard]] std::filesystem::path relative(std::filesystem::path const& p) const {
+		return this->relative(p, this->current_path());
+	}
+
+	/**
 	 * @brief Constructs a relative path from a base path to a target path.
 	 * 
 	 * @param[in]  p    Path to be converted from \p base to its relative form.
@@ -1141,5 +1151,7 @@ std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
  * @return New empty `Fs` that is virtual.
  */
 std::shared_ptr<Fs> make_mem_fs(std::filesystem::path const& temp_dir = "/tmp");
+
+std::shared_ptr<Fs> make_union_fs(Fs& upper, Fs const& lower);
 
 }  // namespace vfs
