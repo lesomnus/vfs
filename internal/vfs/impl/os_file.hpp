@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "vfs/impl/file.hpp"
+#include "vfs/impl/mount_point.hpp"
 #include "vfs/impl/utils.hpp"
 
 namespace vfs {

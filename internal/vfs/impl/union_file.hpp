@@ -15,7 +15,7 @@
 namespace vfs {
 namespace impl {
 
-class UnionDirectory: public FileProxy<Directory> {
+class UnionDirectory: public TypedFileProxy<Directory> {
    public:
 	struct Context {
 		// Always return a value; create new one if one does not exist.
@@ -26,8 +26,8 @@ class UnionDirectory: public FileProxy<Directory> {
 		std::unordered_set<std::string> hidden;
 	};
 
-	UnionDirectory(std::shared_ptr<Directory> upper, std::shared_ptr<Directory const> lower);
 	UnionDirectory(std::shared_ptr<Context> context, std::shared_ptr<Directory> upper, std::shared_ptr<Directory const> lower);
+	UnionDirectory(std::shared_ptr<Directory> upper, std::shared_ptr<Directory const> lower);
 
 	UnionDirectory(UnionDirectory const& other) = default;
 	UnionDirectory(UnionDirectory&& other)      = default;

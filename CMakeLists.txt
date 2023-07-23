@@ -29,6 +29,7 @@ add_library(
 		internal/vfs/impl/fs_proxy.hpp
 		internal/vfs/impl/fs.hpp
 		internal/vfs/impl/mem_file.hpp
+		internal/vfs/impl/mount_point.hpp
 		internal/vfs/impl/os_file.hpp
 		internal/vfs/impl/os_fs.hpp
 		internal/vfs/impl/union_file.hpp

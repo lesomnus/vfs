@@ -11,6 +11,7 @@
 
 #include "vfs/impl/file.hpp"
 #include "vfs/impl/file_proxy.hpp"
+#include "vfs/impl/mount_point.hpp"
 
 namespace fs = std::filesystem;
 
@@ -116,8 +117,8 @@ std::pair<std::shared_ptr<Symlink>, bool> VDirectory::emplace_symlink(std::strin
 }
 
 bool VDirectory::link(std::string const& name, std::shared_ptr<File> file) {
-	if(auto proxy = std::dynamic_pointer_cast<FileProxyBase>(std::move(file)); proxy) {
-		file = std::move(*proxy).target();
+	if(auto proxy = std::dynamic_pointer_cast<FileProxy>(std::move(file)); proxy) {
+		file = proxy->origin();
 	}
 
 	auto f = std::dynamic_pointer_cast<VFile>(std::move(file));
