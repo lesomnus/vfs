@@ -40,7 +40,7 @@ std::filesystem::path Entry::path() const {
 }
 
 std::shared_ptr<DirectoryEntry> DirectoryEntry::make_root() {
-	auto d = std::make_shared<VDirectory>(0, 0);
+	auto d = std::make_shared<VDirectory>();
 	return std::make_shared<DirectoryEntry>("/", nullptr, std::move(d));
 }
 

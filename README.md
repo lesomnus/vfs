@@ -39,15 +39,14 @@ int main(int argc, char* argv[]) {
 
 ### File Systems
 - `vfs::make_os_fs` Proxy of `std::filesystem`.
-- `vfs::make_vfs` Basic file system that is not thread-safe and does not consider permissions.
-- 🏗️ `vfs::make_strict_vfs` Basic file system with permissions.
+- `vfs::make_vfs` Basic file system.
+- `vfs::make_mem_fs` Files are stored on the memory.
+- `vfs::make_union_fs` Provides a single coherent file system over multiple file systems.
 
 ### Utilities
 - `vfs::Fs::change_root` Changes the root directory.
 - `vfs::Fs::mount` Mounts different file system.
 - `vfs::Fs::copy` Copies a file between file systems.
-- 🏗️ `vfs::with_user` Switches user.
-- 🏗️ `vfs::with_mem_storage` Stores files in the memory.
 
 
 ## About Current Working Directory

@@ -27,14 +27,6 @@ class File {
 		};
 	}
 
-	[[nodiscard]] virtual std::intmax_t owner() const = 0;
-
-	virtual void owner(std::intmax_t owner) = 0;
-
-	[[nodiscard]] virtual std::intmax_t group() const = 0;
-
-	virtual void group(std::intmax_t group) = 0;
-
 	[[nodiscard]] virtual std::filesystem::perms perms() const = 0;
 
 	virtual void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) = 0;
@@ -234,22 +226,6 @@ class Directory: virtual public File {
 // TODO: inherit from FileProxy?
 class MountPoint: virtual public File {
    public:
-	[[nodiscard]] std::intmax_t owner() const override {
-		return this->attachment()->owner();
-	}
-
-	void owner(std::intmax_t owner) override {
-		this->attachment()->owner(owner);
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		return this->attachment()->group();
-	}
-
-	void group(std::intmax_t group) override {
-		this->attachment()->group(group);
-	}
-
 	[[nodiscard]] std::filesystem::perms perms() const override {
 		return this->attachment()->perms();
 	}

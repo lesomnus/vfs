@@ -62,30 +62,6 @@ class FileProxy
 		}
 	}
 
-	[[nodiscard]] std::intmax_t owner() const override {
-		return this->target_->owner();
-	}
-
-	void owner(std::intmax_t owner) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->target_->owner(owner);
-		}
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		return this->target_->group();
-	}
-
-	void group(std::intmax_t group) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->target_->group(group);
-		}
-	}
-
 	[[nodiscard]] std::filesystem::perms perms() const override {
 		return this->target_->perms();
 	}

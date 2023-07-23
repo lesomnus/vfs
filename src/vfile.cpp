@@ -43,11 +43,8 @@ void VFile::perms(fs::perms prms, fs::perm_options opts) {
 	}
 }
 
-VRegularFile::VRegularFile(
-    std::intmax_t owner,
-    std::intmax_t group,
-    fs::perms     perms)
-    : VFile(owner, group, perms) { }
+VRegularFile::VRegularFile(fs::perms perms)
+    : VFile(perms) { }
 
 std::shared_ptr<File> VDirectory::next(std::string const& name) const {
 	auto it = this->files_.find(name);
@@ -104,12 +101,12 @@ std::uintmax_t VDirectory::clear() {
 }
 
 std::pair<std::shared_ptr<RegularFile>, bool> VDirectory::emplace_regular_file(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(name, std::make_shared<VRegularFile>(0, 0));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<VRegularFile>());
 	return std::make_pair(std::dynamic_pointer_cast<RegularFile>(it->second), ok);
 }
 
 std::pair<std::shared_ptr<Directory>, bool> VDirectory::emplace_directory(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(name, std::make_shared<VDirectory>(0, 0));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<VDirectory>());
 	return std::make_pair(std::dynamic_pointer_cast<Directory>(it->second), ok);
 }
 

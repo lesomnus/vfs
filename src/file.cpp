@@ -13,8 +13,6 @@ namespace impl {
 
 void RegularFile::copy_from(RegularFile const& other) {
 	*this->open_write() << other.open_read()->rdbuf();
-	this->owner(other.owner());
-	this->group(other.group());
 	this->perms(other.perms(), fs::perm_options::replace);
 }
 

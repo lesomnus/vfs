@@ -17,10 +17,10 @@ class MemRegularFile
     , public RegularFile
     , public std::enable_shared_from_this<MemRegularFile> {
    public:
-	MemRegularFile(
-	    std::intmax_t          owner,
-	    std::intmax_t          group,
-	    std::filesystem::perms perms = DefaultPerms);
+	MemRegularFile(std::filesystem::perms perms);
+
+	MemRegularFile()
+	    : MemRegularFile(RegularFile::DefaultPerms) { }
 
 	MemRegularFile(MemRegularFile const& other);
 	MemRegularFile(MemRegularFile&& other) = default;
@@ -52,8 +52,11 @@ class MemRegularFile
 class MemDirectory
     : public VDirectory {
    public:
-	MemDirectory(std::intmax_t owner, std::intmax_t group, std::filesystem::perms perms = DefaultPerms)
-	    : VDirectory(owner, group, perms) { }
+	MemDirectory(std::filesystem::perms perms)
+	    : VDirectory(perms) { }
+
+	MemDirectory()
+	    : VDirectory(DefaultPerms) { }
 
 	MemDirectory(MemDirectory const& other) = default;
 	MemDirectory(MemDirectory&& other)      = default;

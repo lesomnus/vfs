@@ -16,32 +16,11 @@ namespace impl {
 
 class VFile: virtual public File {
    public:
-	VFile(
-	    std::intmax_t          owner,
-	    std::intmax_t          group,
-	    std::filesystem::perms perms)
-	    : owner_(owner)
-	    , group_(group)
-	    , perms_(perms) { }
+	VFile(std::filesystem::perms perms)
+	    : perms_(perms) { }
 
 	VFile(VFile const& other) = default;
 	VFile(VFile&& other)      = default;
-
-	[[nodiscard]] std::intmax_t owner() const override {
-		return this->owner_;
-	}
-
-	void owner(std::intmax_t owner) override {
-		this->owner_ = owner;
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		return this->group_;
-	}
-
-	void group(std::intmax_t group) override {
-		this->group_ = group;
-	}
 
 	[[nodiscard]] std::filesystem::perms perms() const override {
 		return this->perms_;
@@ -65,10 +44,7 @@ class VFile: virtual public File {
 	VFile& operator=(VFile&& other)      = default;
 
    protected:
-	std::intmax_t          owner_;
-	std::intmax_t          group_;
-	std::filesystem::perms perms_;
-
+	std::filesystem::perms          perms_;
 	std::filesystem::file_time_type last_write_time_;
 };
 
@@ -76,29 +52,10 @@ class VRegularFile
     : public VFile
     , public TempRegularFile {
    public:
-	VRegularFile(
-	    std::intmax_t          owner,
-	    std::intmax_t          group,
-	    std::filesystem::perms perms = DefaultPerms);
+	VRegularFile(std::filesystem::perms perms = DefaultPerms);
 
 	VRegularFile(VRegularFile const& other) = delete;
 	VRegularFile(VRegularFile&& other)      = default;
-
-	[[nodiscard]] std::intmax_t owner() const override {
-		return VFile::owner();
-	}
-
-	void owner(std::intmax_t owner) override {
-		VFile::owner(owner);
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		return VFile::group();
-	}
-
-	void group(std::intmax_t group) override {
-		VFile::group(group);
-	}
 
 	[[nodiscard]] std::filesystem::perms perms() const override {
 		return VFile::perms();
@@ -126,7 +83,7 @@ class VSymlink
     , public Symlink {
    public:
 	VSymlink(std::filesystem::path target)
-	    : VFile(0, 0, std::filesystem::perms::all)
+	    : VFile(std::filesystem::perms::all)
 	    , target_(std::move(target)) { }
 
 	[[nodiscard]] std::filesystem::path target() const override {
@@ -141,8 +98,8 @@ class VDirectory
     : public VFile
     , public Directory {
    public:
-	VDirectory(std::intmax_t owner, std::intmax_t group, std::filesystem::perms perms = DefaultPerms)
-	    : VFile(owner, group, perms) { }
+	VDirectory(std::filesystem::perms perms = DefaultPerms)
+	    : VFile(perms) { }
 
 	VDirectory(VDirectory const& other) = default;
 	VDirectory(VDirectory&& other)      = default;

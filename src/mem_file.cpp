@@ -15,11 +15,8 @@ namespace fs = std::filesystem;
 namespace vfs {
 namespace impl {
 
-MemRegularFile::MemRegularFile(
-    std::intmax_t owner,
-    std::intmax_t group,
-    fs::perms     perms)
-    : VFile(owner, group, perms)
+MemRegularFile::MemRegularFile(fs::perms perms)
+    : VFile(perms)
     , data_(std::make_shared<std::string>()) { }
 
 MemRegularFile::MemRegularFile(MemRegularFile const& other)
@@ -102,12 +99,12 @@ MemRegularFile& MemRegularFile::operator=(MemRegularFile const& other) {
 }
 
 std::pair<std::shared_ptr<RegularFile>, bool> MemDirectory::emplace_regular_file(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(name, std::make_shared<MemRegularFile>(0, 0));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<MemRegularFile>());
 	return std::make_pair(std::dynamic_pointer_cast<RegularFile>(it->second), ok);
 }
 
 std::pair<std::shared_ptr<Directory>, bool> MemDirectory::emplace_directory(std::string const& name) {
-	auto [it, ok] = this->files_.emplace(name, std::make_shared<MemDirectory>(0, 0));
+	auto [it, ok] = this->files_.emplace(name, std::make_shared<MemDirectory>());
 	return std::make_pair(std::dynamic_pointer_cast<Directory>(it->second), ok);
 }
 

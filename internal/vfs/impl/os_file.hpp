@@ -30,24 +30,6 @@ class OsFile: virtual public File {
 	OsFile(OsFile const& other) = default;
 	OsFile(OsFile&& other)      = default;
 
-	[[nodiscard]] std::intmax_t owner() const override {
-		// TODO:
-		return 0;
-	}
-
-	void owner(std::intmax_t owner) override {
-		// TODO:
-	}
-
-	[[nodiscard]] std::intmax_t group() const override {
-		// TODO:
-		return 0;
-	}
-
-	void group(std::intmax_t group) override {
-		// TODO:
-	}
-
 	[[nodiscard]] std::filesystem::perms perms() const override {
 		return std::filesystem::status(this->path_).permissions();
 	}

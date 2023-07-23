@@ -14,8 +14,8 @@ namespace fs = std::filesystem;
 class TestUnionFile: public testing::suites::TestFileFixture {
    public:
 	std::shared_ptr<vfs::impl::Directory> make() {
-		auto upper = std::make_shared<vfs::impl::MemDirectory>(0, 0);
-		auto lower = std::make_shared<vfs::impl::MemDirectory>(0, 0);
+		auto upper = std::make_shared<vfs::impl::MemDirectory>();
+		auto lower = std::make_shared<vfs::impl::MemDirectory>();
 
 		return std::make_shared<vfs::impl::UnionDirectory>(std::move(upper), std::move(lower));
 	}
@@ -24,8 +24,8 @@ class TestUnionFile: public testing::suites::TestFileFixture {
 METHOD_AS_TEST_CASE(testing::suites::TestFile<TestUnionFile>::test, "UnionFile");
 
 TEST_CASE("UnionDirectory") {
-	auto upper = std::make_shared<vfs::impl::MemDirectory>(0, 0);
-	auto lower = std::make_shared<vfs::impl::MemDirectory>(0, 0);
+	auto upper = std::make_shared<vfs::impl::MemDirectory>();
+	auto lower = std::make_shared<vfs::impl::MemDirectory>();
 
 	// /
 	// + foo

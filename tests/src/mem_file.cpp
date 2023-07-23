@@ -9,7 +9,7 @@
 class TestMemFile: public testing::suites::TestFileFixture {
    public:
 	std::shared_ptr<vfs::impl::Directory> make() {
-		return std::make_shared<vfs::impl::MemDirectory>(0, 0);
+		return std::make_shared<vfs::impl::MemDirectory>();
 	}
 };
 
