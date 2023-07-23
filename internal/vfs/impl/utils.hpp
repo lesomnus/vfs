@@ -16,7 +16,7 @@ constexpr std::string_view Alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZa
 [[nodiscard]] std::filesystem::path acc_paths(std::filesystem::path::const_iterator first, std::filesystem::path::const_iterator last);
 
 template<std::invocable<> F, typename R = std::invoke_result_t<F>>
-auto handle_error(F const& f, std::error_code& ec, R v = R{}) -> R {
+auto handle_error(F const& f, std::error_code& ec, R v = R{}) noexcept -> R {
 	try {
 		auto rst = f();
 		ec.clear();
