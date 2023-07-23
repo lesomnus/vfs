@@ -13,6 +13,7 @@
 #include "vfs/fs.hpp"
 
 #include "vfs/impl/entry.hpp"
+#include "vfs/impl/mount_point.hpp"
 #include "vfs/impl/utils.hpp"
 #include "vfs/impl/vfile.hpp"
 
