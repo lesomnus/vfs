@@ -39,15 +39,12 @@ class TypedFileProxy
 	}
 
 	[[nodiscard]] std::shared_ptr<File> origin() override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			if(auto* proxy = dynamic_cast<FileProxy*>(this->origin_.get()); proxy != nullptr) {
-				return proxy->origin();
-			}
-
-			return this->origin_;
+		auto rst = this->mutable_origin_();
+		if(auto* proxy = dynamic_cast<FileProxy*>(rst.get()); proxy != nullptr) {
+			return proxy->origin();
 		}
+
+		return rst;
 	}
 
 	[[nodiscard]] std::filesystem::perms perms() const override {
@@ -55,11 +52,7 @@ class TypedFileProxy
 	}
 
 	void perms(std::filesystem::perms prms, std::filesystem::perm_options opts) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->perms(prms, opts);
-		}
+		return this->mutable_origin_()->perms(prms, opts);
 	}
 
 	bool operator==(File const& other) const override {
@@ -75,14 +68,18 @@ class TypedFileProxy
 	}
 
 	void last_write_time(std::filesystem::file_time_type new_time) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->last_write_time(new_time);
-		}
+		return this->mutable_origin_()->last_write_time(new_time);
 	}
 
    protected:
+	std::shared_ptr<std::remove_const_t<Storage>>& mutable_origin_() {
+		if constexpr(std::is_const_v<Storage>) {
+			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
+		} else {
+			return this->origin_;
+		}
+	}
+
 	std::shared_ptr<Storage> origin_;
 };
 
@@ -97,11 +94,7 @@ class RegularFileProxy: public TypedFileProxy<RegularFile, Storage> {
 	}
 
 	void resize(std::uintmax_t new_size) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->resize(new_size);
-		}
+		return this->mutable_origin_()->resize(new_size);
 	}
 
 	[[nodiscard]] std::shared_ptr<std::istream> open_read(std::ios_base::openmode mode) const override {
@@ -109,11 +102,7 @@ class RegularFileProxy: public TypedFileProxy<RegularFile, Storage> {
 	}
 
 	std::shared_ptr<std::ostream> open_write(std::ios_base::openmode mode) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->open_write(mode);
-		}
+		return this->mutable_origin_()->open_write(mode);
 	}
 };
 
@@ -137,75 +126,39 @@ class DirectoryProxy: public TypedFileProxy<Directory, Storage> {
 	}
 
 	std::pair<std::shared_ptr<RegularFile>, bool> emplace_regular_file(std::string const& name) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->emplace_regular_file(name);
-		}
+		return this->mutable_origin_()->emplace_regular_file(name);
 	}
 
 	std::pair<std::shared_ptr<Directory>, bool> emplace_directory(std::string const& name) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->emplace_directory(name);
-		}
+		return this->mutable_origin_()->emplace_directory(name);
 	}
 
-	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path origin) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->emplace_symlink(name, std::move(origin));
-		}
+	std::pair<std::shared_ptr<Symlink>, bool> emplace_symlink(std::string const& name, std::filesystem::path target) override {
+		return this->mutable_origin_()->emplace_symlink(name, std::move(target));
 	}
 
 	bool link(std::string const& name, std::shared_ptr<File> file) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->link(name, std::move(file));
-		}
+		return this->mutable_origin_()->link(name, std::move(file));
 	}
 
 	bool unlink(std::string const& name) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->unlink(name);
-		}
+		return this->mutable_origin_()->unlink(name);
 	}
 
 	void mount(std::string const& name, std::shared_ptr<File> file) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->mount(name, std::move(file));
-		}
+		return this->mutable_origin_()->mount(name, std::move(file));
 	}
 
 	void unmount(std::string const& name) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->unmount(name);
-		}
+		return this->mutable_origin_()->unmount(name);
 	}
 
 	std::uintmax_t erase(std::string const& name) override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->erase(name);
-		}
+		return this->mutable_origin_()->erase(name);
 	}
 
 	std::uintmax_t clear() override {
-		if constexpr(std::is_const_v<Storage>) {
-			throw std::filesystem::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
-		} else {
-			return this->origin_->clear();
-		}
+		return this->mutable_origin_()->clear();
 	}
 
 	[[nodiscard]] std::shared_ptr<Directory::Cursor> cursor() const override {
