@@ -17,16 +17,16 @@ class directory_entry {
 	directory_entry(directory_entry&&) noexcept = default;
 
 	directory_entry(Fs const& fs) noexcept
-	    : fs_(fs.current_path(fs.current_path())) { }
+	    : fs_(fs.shared_from_this()) { }
 
 	explicit directory_entry(Fs const& fs, std::filesystem::path p)
-	    : fs_(fs.current_path(fs.current_path()))
+	    : fs_(fs.shared_from_this())
 	    , path_(std::move(p)) {
 		this->refresh();
 	}
 
 	directory_entry(Fs const& fs, std::filesystem::path p, std::error_code& ec)
-	    : fs_(fs.current_path(fs.current_path()))
+	    : fs_(fs.shared_from_this())
 	    , path_(std::move(p)) {
 		this->refresh(ec);
 	}
@@ -415,7 +415,7 @@ class directory_entry {
 		return this->status().type();
 	}
 
-	std::shared_ptr<Fs>        fs_;
+	std::shared_ptr<Fs const>  fs_;
 	std::filesystem::path      path_;
 	std::filesystem::file_type type_ = std::filesystem::file_type::none;
 };

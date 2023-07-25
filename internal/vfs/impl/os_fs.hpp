@@ -1,10 +1,12 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <system_error>
+#include <type_traits>
 #include <utility>
 
 #include "vfs/impl/file.hpp"
@@ -20,16 +22,21 @@
 namespace vfs {
 namespace impl {
 
-class OsFsProxy: public FsProxy {
+template<typename T>
+requires std::same_as<std::remove_const_t<T>, FsBase>
+class OsFsProxy: public BasicFsProxy<T> {
    public:
-	OsFsProxy(std::shared_ptr<FsBase> fs)
-	    : FsProxy(std::move(fs)) { }
+	using BasicFsProxy<T>::BasicFsProxy;
 
 	void mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) override;
 
    protected:
-	[[nodiscard]] std::shared_ptr<FsProxy> make_proxy_(std::shared_ptr<Fs> fs) const override {
-		return std::make_shared<OsFsProxy>(fs_base(std::move(fs)));
+	[[nodiscard]] std::shared_ptr<BasicFsProxy<T const> const> make_proxy_(std::shared_ptr<Fs const> fs) const override {
+		return std::make_shared<OsFsProxy<T const>>(*fs);
+	}
+
+	[[nodiscard]] std::shared_ptr<BasicFsProxy<T>> make_proxy_(std::shared_ptr<Fs> fs) override {
+		return std::make_shared<OsFsProxy<T>>(*fs);
 	}
 };
 
@@ -177,7 +184,7 @@ class StdFs: public OsFs {
 		return this->cwd_;
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override {
+	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p) const override {
 		auto c = this->canonical(p);
 		if(!this->is_directory(c)) {
 			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));
@@ -186,7 +193,15 @@ class StdFs: public OsFs {
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
+		return handle_error([&] { return this->current_path(p); }, ec);
+	}
+
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) override {
+		return std::const_pointer_cast<Fs>(static_cast<StdFs const*>(this)->current_path(p));
+	}
+
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) noexcept override {
 		return handle_error([&] { return this->current_path(p); }, ec);
 	}
 
@@ -377,7 +392,7 @@ class ChRootedStdFs: public StdFs {
 		return this->confine_(StdFs::weakly_canonical(p));
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override {
+	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p) const override {
 		auto c = this->canonical(p);
 		if(!this->is_directory(c)) {
 			throw std::filesystem::filesystem_error("", c, std::make_error_code(std::errc::not_a_directory));

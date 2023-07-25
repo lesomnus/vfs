@@ -1,8 +1,10 @@
 #pragma once
 
+#include <concepts>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 
 #include "vfs/impl/file.hpp"
 
@@ -34,32 +36,20 @@ std::logic_error err_unknown_fs_() {
 
 }  // namespace
 
-inline FsBase& fs_base(Fs& fs) {
-	auto* b = dynamic_cast<FsBase*>(&fs);
+template<typename T>
+requires std::same_as<std::remove_const_t<T>, Fs>
+inline auto& fs_base(T& fs) {
+	auto* b = dynamic_cast<std::conditional_t<std::is_const_v<T>, FsBase const, FsBase>*>(&fs);
 	if(b == nullptr) {
 		throw err_unknown_fs_();
 	}
 	return *b;
 }
 
-inline FsBase const& fs_base(Fs const& fs) {
-	auto const* b = dynamic_cast<FsBase const*>(&fs);
-	if(b == nullptr) {
-		throw err_unknown_fs_();
-	}
-	return *b;
-}
-
-inline std::shared_ptr<FsBase> fs_base(std::shared_ptr<Fs>&& fs) {
-	auto b = std::dynamic_pointer_cast<FsBase>(std::move(fs));
-	if(!b) {
-		throw err_unknown_fs_();
-	}
-	return b;
-}
-
-inline std::shared_ptr<FsBase> fs_base(std::shared_ptr<Fs> const& fs) {
-	auto b = std::dynamic_pointer_cast<FsBase>(fs);
+template<typename T>
+requires std::same_as<std::remove_const_t<T>, Fs>
+inline auto fs_base(std::shared_ptr<T> fs) {
+	auto b = std::dynamic_pointer_cast<std::conditional_t<std::is_const_v<T>, FsBase const, FsBase>>(std::move(fs));
 	if(!b) {
 		throw err_unknown_fs_();
 	}

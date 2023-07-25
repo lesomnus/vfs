@@ -301,13 +301,21 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 	return this->cwd_->path();
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const {
+std::shared_ptr<Fs const> Vfs::current_path(fs::path const& p) const {
 	auto d = this->navigate(p / "")->must_be<DirectoryEntry const>();
 	return std::make_shared<Vfs>(*this, const_cast<DirectoryEntry&>(*d));
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const noexcept {
+std::shared_ptr<Fs const> Vfs::current_path(fs::path const& p, std::error_code& ec) const noexcept {
 	return handle_error([&] { return this->current_path(p); }, ec);
+}
+
+std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) {
+	return std::const_pointer_cast<Fs>(static_cast<Vfs const*>(this)->current_path(p));
+}
+
+std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) noexcept {
+	return std::const_pointer_cast<Fs>(static_cast<Vfs const*>(this)->current_path(p, ec));
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {

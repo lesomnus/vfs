@@ -79,8 +79,11 @@ class Vfs: public FsBase {
 	[[nodiscard]] std::filesystem::path current_path() const override;
 	[[nodiscard]] std::filesystem::path current_path(std::error_code& ec) const override;
 
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const override;
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p) const override;
+	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override;
+
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) override;
+	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) noexcept override;
 
 	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override;
 	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override;

@@ -14,7 +14,7 @@ class directory_entry;
 class directory_iterator;
 class recursive_directory_iterator;
 
-class Fs {
+class Fs: public std::enable_shared_from_this<Fs> {
    public:
 	virtual ~Fs() = default;
 
@@ -481,7 +481,7 @@ class Fs {
 	 * @param[in] p Path to change the current working directory to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) const = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs const> current_path(std::filesystem::path const& p) const = 0;
 
 	/**
 	 * @brief Creates a new Fs that share the same file system but have different working directory.
@@ -490,7 +490,24 @@ class Fs {
 	 * @param[out] ec Error code to store error status to.
 	 * @return Same file system where the working directory is \p p.
 	 */
-	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+	[[nodiscard]] virtual std::shared_ptr<Fs const> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept = 0;
+
+	/**
+	 * @brief Creates a new Fs that share the same file system but have different working directory.
+	 * 
+	 * @param[in] p Path to change the current working directory to.
+	 * @return Same file system where the working directory is \p p.
+	 */
+	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p) = 0;
+
+	/**
+	 * @brief Creates a new Fs that share the same file system but have different working directory.
+	 * 
+	 * @param[in]  p  Path to change the current working directory to.
+	 * @param[out] ec Error code to store error status to.
+	 * @return Same file system where the working directory is \p p.
+	 */
+	[[nodiscard]] virtual std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) noexcept = 0;
 
 	/**
 	 * @brief Checks whether the path refers to an existing file system object
@@ -1153,5 +1170,7 @@ std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
 std::shared_ptr<Fs> make_mem_fs(std::filesystem::path const& temp_dir = "/tmp");
 
 std::shared_ptr<Fs> make_union_fs(Fs& upper, Fs const& lower);
+
+std::shared_ptr<Fs> make_read_only_fs(Fs const& fs);
 
 }  // namespace vfs
