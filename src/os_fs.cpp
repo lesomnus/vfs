@@ -171,7 +171,11 @@ fs::path ChRootedStdFs::os_path_of(fs::path const& p) const {
 
 std::shared_ptr<Fs> make_os_fs() {
 	auto std_fs = std::make_shared<impl::StdFs>(fs::current_path());
-	return std::make_shared<impl::OsFsProxy>(std::move(std_fs));
+	return std::make_shared<impl::OsFsProxy<impl::FsBase>>(*std_fs);
+}
+
+std::shared_ptr<Fs> make_read_only_fs(Fs const& fs) {
+	return std::make_shared<impl::ReadOnlyFsProxy>(fs);
 }
 
 }  // namespace vfs

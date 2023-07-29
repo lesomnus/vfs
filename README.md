@@ -42,6 +42,7 @@ int main(int argc, char* argv[]) {
 - `vfs::make_vfs` Basic file system.
 - `vfs::make_mem_fs` Files are stored on the memory.
 - `vfs::make_union_fs` Provides a single coherent file system over multiple file systems.
+- `vfs::make_read_only_fs` Makes the given file system read-only.
 
 ### Utilities
 - `vfs::Fs::change_root` Changes the root directory.

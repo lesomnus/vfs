@@ -132,10 +132,6 @@ fs::path Vfs::canonical(fs::path const& p) const {
 	return this->navigate(p)->follow_chain()->path();
 }
 
-fs::path Vfs::canonical(fs::path const& p, std::error_code& ec) const {
-	return handle_error([&] { return this->canonical(p); }, ec);
-}
-
 fs::path Vfs::weakly_canonical(fs::path const& p) const {
 	auto ec      = std::error_code();
 	auto [f, it] = this->navigate(p.begin(), p.end(), ec);
@@ -148,14 +144,6 @@ fs::path Vfs::weakly_canonical(fs::path const& p) const {
 		t /= acc_paths(it, p.end());
 	}
 	return t.lexically_normal();
-}
-
-fs::path Vfs::weakly_canonical(fs::path const& p, std::error_code& ec) const {
-	return handle_error([&] { return this->weakly_canonical(p); }, ec);
-}
-
-void Vfs::copy(fs::path const& src, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
-	handle_error([&] { this->copy(src, dst, opts); return 0; }, ec);
 }
 
 bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options opts) {
@@ -196,16 +184,8 @@ bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options o
 	throw fs::filesystem_error("", src_r->path(), dst_p, std::make_error_code(std::errc::file_exists));
 }
 
-bool Vfs::copy_file(fs::path const& src, fs::path const& dst, fs::copy_options opts, std::error_code& ec) {
-	return handle_error([&] { return this->copy_file(src, dst, opts); }, ec, false);
-}
-
 bool Vfs::create_directory(fs::path const& p) {
 	return this->create_directory(p, fs::path("/"));
-}
-
-bool Vfs::create_directory(fs::path const& p, std::error_code& ec) noexcept {
-	return this->create_directory(p, fs::path("/"), ec);
 }
 
 bool Vfs::create_directory(fs::path const& p, fs::path const& attr) {
@@ -233,10 +213,6 @@ bool Vfs::create_directory(fs::path const& p, fs::path const& attr) {
 	throw fs::filesystem_error("", dst_p, std::make_error_code(std::errc::file_exists));
 }
 
-bool Vfs::create_directory(fs::path const& p, fs::path const& attr, std::error_code& ec) noexcept {
-	return handle_error([&] { return this->create_directory(p, attr); }, ec);
-}
-
 bool Vfs::create_directories(fs::path const& p) {
 	auto const t = this->weakly_canonical(p);
 	auto [f, it] = this->navigate(t.begin(), t.end());
@@ -260,10 +236,6 @@ bool Vfs::create_directories(fs::path const& p) {
 	return true;
 }
 
-bool Vfs::create_directories(fs::path const& p, std::error_code& ec) {
-	return handle_error([&] { return this->create_directories(p); }, ec);
-}
-
 void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
 	auto const dst_f = this->navigate(target);
 	if(dst_f->file()->type() == fs::file_type::directory) {
@@ -273,10 +245,6 @@ void Vfs::create_hard_link(fs::path const& target, fs::path const& link) {
 	auto const src_p = this->weakly_canonical(link);
 	auto const prev  = this->navigate(src_p.parent_path() / "")->must_be<DirectoryEntry>();
 	prev->typed_file()->link(src_p.filename(), dst_f->file());
-}
-
-void Vfs::create_hard_link(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
-	handle_error([&] { this->create_hard_link(target, link); return 0; }, ec);
 }
 
 void Vfs::create_symlink(fs::path const& target, fs::path const& link) {
@@ -289,10 +257,6 @@ void Vfs::create_symlink(fs::path const& target, fs::path const& link) {
 	prev->emplace_symlink(src_p.filename(), target);
 }
 
-void Vfs::create_symlink(fs::path const& target, fs::path const& link, std::error_code& ec) noexcept {
-	handle_error([&] {this->create_symlink(target, link); return 0; }, ec);
-}
-
 fs::path Vfs::current_path() const {
 	return this->cwd_->path();
 }
@@ -301,13 +265,13 @@ fs::path Vfs::current_path(std::error_code& ec) const {
 	return this->cwd_->path();
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) const {
+std::shared_ptr<Fs const> Vfs::current_path(fs::path const& p) const {
 	auto d = this->navigate(p / "")->must_be<DirectoryEntry const>();
 	return std::make_shared<Vfs>(*this, const_cast<DirectoryEntry&>(*d));
 }
 
-std::shared_ptr<Fs> Vfs::current_path(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->current_path(p); }, ec);
+std::shared_ptr<Fs> Vfs::current_path(fs::path const& p) {
+	return std::const_pointer_cast<Fs>(static_cast<Vfs const*>(this)->current_path(p));
 }
 
 bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
@@ -334,10 +298,6 @@ bool Vfs::equivalent(fs::path const& p1, fs::path const& p2) const {
 	throw fs::filesystem_error("", p1, p2, std::make_error_code(std::errc::no_such_file_or_directory));
 }
 
-bool Vfs::equivalent(fs::path const& p1, fs::path const& p2, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->equivalent(p1, p2); }, ec);
-}
-
 std::uintmax_t Vfs::file_size(fs::path const& p) const {
 	auto const f = this->navigate(p)->follow_chain();
 	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry const>(f); d) {
@@ -352,17 +312,9 @@ std::uintmax_t Vfs::file_size(fs::path const& p) const {
 	return r->typed_file()->size();
 }
 
-std::uintmax_t Vfs::file_size(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->file_size(p); }, ec, static_cast<std::uintmax_t>(-1));
-}
-
 std::uintmax_t Vfs::hard_link_count(fs::path const& p) const {
 	auto const f = this->navigate(p)->file();
 	return f.use_count() - 1;  // Minus one for being held by `f`.
-}
-
-std::uintmax_t Vfs::hard_link_count(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->hard_link_count(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
 fs::file_time_type Vfs::last_write_time(fs::path const& p) const {
@@ -370,17 +322,9 @@ fs::file_time_type Vfs::last_write_time(fs::path const& p) const {
 	return f->file()->last_write_time();
 }
 
-fs::file_time_type Vfs::last_write_time(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->last_write_time(p); }, ec, fs::file_time_type::min());
-}
-
 void Vfs::last_write_time(fs::path const& p, fs::file_time_type t) {
 	auto const f = this->navigate(p)->follow_chain();
 	f->file()->last_write_time(t);
-}
-
-void Vfs::last_write_time(fs::path const& p, fs::file_time_type t, std::error_code& ec) noexcept {
-	handle_error([&] { this->last_write_time(p, t); return 0; }, ec);
 }
 
 void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts) {
@@ -392,10 +336,6 @@ void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts) 
 	f->file()->perms(prms, opts);
 }
 
-void Vfs::permissions(fs::path const& p, fs::perms prms, fs::perm_options opts, std::error_code& ec) {
-	handle_error([&] { this->permissions(p, prms, opts); return 0; }, ec);
-}
-
 fs::path Vfs::read_symlink(fs::path const& p) const {
 	auto const f = this->navigate(p);
 	auto const s = std::dynamic_pointer_cast<SymlinkEntry const>(f);
@@ -404,10 +344,6 @@ fs::path Vfs::read_symlink(fs::path const& p) const {
 	}
 
 	return s->typed_file()->target();
-}
-
-fs::path Vfs::read_symlink(fs::path const& p, std::error_code& ec) const {
-	return handle_error([&] { return this->read_symlink(p); }, ec);
 }
 
 bool Vfs::remove(fs::path const& p) {
@@ -426,10 +362,6 @@ bool Vfs::remove(fs::path const& p) {
 	return true;
 }
 
-bool Vfs::remove(fs::path const& p, std::error_code& ec) noexcept {
-	return handle_error([&] { return this->remove(p); }, ec);
-}
-
 std::uintmax_t Vfs::remove_all(fs::path const& p) {
 	auto       ec = std::error_code();
 	auto const f  = this->navigate(p, ec);
@@ -438,10 +370,6 @@ std::uintmax_t Vfs::remove_all(fs::path const& p) {
 	}
 
 	return f->prev()->typed_file()->erase(f->name());
-}
-
-std::uintmax_t Vfs::remove_all(fs::path const& p, std::error_code& ec) {
-	return handle_error([&] { return this->remove_all(p); }, ec, static_cast<std::uintmax_t>(-1));
 }
 
 namespace {
@@ -538,10 +466,6 @@ void Vfs::rename(fs::path const& src, fs::path const& dst) {
 	src_f->prev()->typed_file()->unlink(src_f->name());
 }
 
-void Vfs::rename(fs::path const& src, fs::path const& dst, std::error_code& ec) noexcept {
-	handle_error([&] { this->rename(src, dst); return 0; }, ec);
-}
-
 void Vfs::resize_file(fs::path const& p, std::uintmax_t n) {
 	auto const f = this->navigate(p)->follow_chain();
 	if(auto const d = std::dynamic_pointer_cast<DirectoryEntry>(f); d) {
@@ -556,16 +480,8 @@ void Vfs::resize_file(fs::path const& p, std::uintmax_t n) {
 	r->typed_file()->resize(n);
 }
 
-void Vfs::resize_file(fs::path const& p, std::uintmax_t n, std::error_code& ec) noexcept {
-	handle_error([&] {  this->resize_file(p, n); return 0; }, ec);
-}
-
 fs::space_info Vfs::space(fs::path const& p) const {
 	return this->navigate(p)->follow_chain()->file()->space();
-}
-
-fs::space_info Vfs::space(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->space(p); }, ec);
 }
 
 fs::file_status Vfs::status(fs::path const& p) const {
@@ -588,10 +504,6 @@ fs::file_status Vfs::status(fs::path const& p) const {
 	}
 }
 
-fs::file_status Vfs::status(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->status(p); }, ec);
-}
-
 fs::file_status Vfs::symlink_status(fs::path const& p) const {
 	try {
 		auto const f = this->navigate(p)->file();
@@ -612,20 +524,11 @@ fs::file_status Vfs::symlink_status(fs::path const& p) const {
 	}
 }
 
-fs::file_status Vfs::symlink_status(fs::path const& p, std::error_code& ec) const noexcept {
-	return handle_error([&] { return this->symlink_status(p); }, ec);
-}
-
 fs::path Vfs::temp_directory_path() const {
 	if(this->temp_.empty()) {
 		throw fs::filesystem_error("", std::make_error_code(std::errc::no_such_file_or_directory));
 	}
 
-	return this->temp_;
-}
-
-fs::path Vfs::temp_directory_path(std::error_code& ec) const {
-	ec.clear();
 	return this->temp_;
 }
 
@@ -638,10 +541,6 @@ bool Vfs::is_empty(fs::path const& p) const {
 		return r->size() == 0;
 	}
 	throw fs::filesystem_error("cannot determine if file is empty", f->path(), std::make_error_code(std::errc::no_such_file_or_directory));
-}
-
-bool Vfs::is_empty(fs::path const& p, std::error_code& ec) const {
-	return handle_error([&] { return this->is_empty(p); }, ec);
 }
 
 class Vfs::Cursor_: public Fs::Cursor {

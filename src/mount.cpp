@@ -142,7 +142,13 @@ std::shared_ptr<Vfs> StdFs::make_mount(fs::path const& target, Fs& other, fs::pa
 	return vfs;
 }
 
-void OsFsProxy::mount(fs::path const& target, Fs& other, fs::path const& source) {
+template<>
+void OsFsProxy<FsBase const>::mount(std::filesystem::path const& target, Fs& other, std::filesystem::path const& source) {
+	throw fs::filesystem_error("", std::make_error_code(std::errc::read_only_file_system));
+}
+
+template<>
+void OsFsProxy<FsBase>::mount(fs::path const& target, Fs& other, fs::path const& source) {
 	if(auto os_fs = std::dynamic_pointer_cast<OsFs>(this->fs_); os_fs) {
 		this->fs_ = os_fs->make_mount(target, other, source);
 	} else {
