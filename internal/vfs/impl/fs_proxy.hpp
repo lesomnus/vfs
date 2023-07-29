@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "vfs/impl/fs.hpp"
+#include "vfs/impl/utils.hpp"
 
 #include "vfs/fs.hpp"
 
@@ -52,234 +53,112 @@ class BasicFsProxy: public FsBase {
 		return this->fs_->canonical(p);
 	}
 
-	[[nodiscard]] std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override {
-		return this->fs_->canonical(p, ec);
-	}
-
 	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
 		return this->fs_->weakly_canonical(p);
-	}
-
-	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
-		return this->fs_->weakly_canonical(p, ec);
 	}
 
 	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override {
 		this->mutable_fs_()->copy(src, dst, opts);
 	}
 
-	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override {
-		this->mutable_fs_()->copy(src, dst, opts, ec);
-	}
-
 	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override {
 		return this->mutable_fs_()->copy_file(src, dst, opts);
-	}
-
-	bool copy_file(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts, std::error_code& ec) override {
-		return this->mutable_fs_()->copy_file(src, dst, opts, ec);
 	}
 
 	bool create_directory(std::filesystem::path const& p) override {
 		return this->mutable_fs_()->create_directory(p);
 	}
 
-	bool create_directory(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		return this->mutable_fs_()->create_directory(p, ec);
-	}
-
 	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr) override {
 		return this->mutable_fs_()->create_directory(p, attr);
-	}
-
-	bool create_directory(std::filesystem::path const& p, std::filesystem::path const& attr, std::error_code& ec) noexcept override {
-		return this->mutable_fs_()->create_directory(p, attr, ec);
 	}
 
 	bool create_directories(std::filesystem::path const& p) override {
 		return this->mutable_fs_()->create_directories(p);
 	}
 
-	bool create_directories(std::filesystem::path const& p, std::error_code& ec) override {
-		return this->mutable_fs_()->create_directories(p, ec);
-	}
-
 	void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link) override {
 		return this->mutable_fs_()->create_hard_link(target, link);
-	}
-
-	void create_hard_link(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override {
-		return this->mutable_fs_()->create_hard_link(target, link, ec);
 	}
 
 	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link) override {
 		return this->mutable_fs_()->create_symlink(target, link);
 	}
 
-	void create_symlink(std::filesystem::path const& target, std::filesystem::path const& link, std::error_code& ec) noexcept override {
-		return this->mutable_fs_()->create_symlink(target, link, ec);
-	}
-
 	[[nodiscard]] std::filesystem::path current_path() const override {
 		return this->fs_->current_path();
-	}
-
-	[[nodiscard]] std::filesystem::path current_path(std::error_code& ec) const override {
-		return this->fs_->current_path(ec);
 	}
 
 	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p) const override {
 		return this->make_proxy_(this->fs_->current_path(p));
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		auto fs = this->fs_->current_path(p, ec);
-		if(ec) {
-			return nullptr;
-		}
-
-		return this->make_proxy_(std::move(fs));
-	}
-
 	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) override {
 		return this->make_proxy_(this->mutable_fs_()->current_path(p));
-	}
-
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		auto fs = this->mutable_fs_()->current_path(p, ec);
-		if(ec) {
-			return nullptr;
-		}
-
-		return this->make_proxy_(std::move(fs));
 	}
 
 	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override {
 		return this->fs_->equivalent(p1, p2);
 	}
 
-	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
-		return this->fs_->equivalent(p1, p2, ec);
-	}
-
 	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p) const override {
 		return this->fs_->file_size(p);
-	}
-
-	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->file_size(p, ec);
 	}
 
 	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p) const override {
 		return this->fs_->hard_link_count(p);
 	}
 
-	[[nodiscard]] std::uintmax_t hard_link_count(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->hard_link_count(p, ec);
-	}
-
 	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p) const override {
 		return this->fs_->last_write_time(p);
-	}
-
-	[[nodiscard]] std::filesystem::file_time_type last_write_time(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->last_write_time(p, ec);
 	}
 
 	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t) override {
 		this->mutable_fs_()->last_write_time(p, t);
 	}
 
-	void last_write_time(std::filesystem::path const& p, std::filesystem::file_time_type t, std::error_code& ec) noexcept override {
-		this->mutable_fs_()->last_write_time(p, t, ec);
-	}
-
 	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts) override {
 		this->mutable_fs_()->permissions(p, prms, opts);
-	}
-
-	void permissions(std::filesystem::path const& p, std::filesystem::perms prms, std::filesystem::perm_options opts, std::error_code& ec) override {
-		this->mutable_fs_()->permissions(p, prms, opts, ec);
 	}
 
 	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p) const override {
 		return this->fs_->read_symlink(p);
 	}
 
-	[[nodiscard]] std::filesystem::path read_symlink(std::filesystem::path const& p, std::error_code& ec) const override {
-		return this->fs_->read_symlink(p, ec);
-	}
-
 	bool remove(std::filesystem::path const& p) override {
 		return this->mutable_fs_()->remove(p);
-	}
-
-	bool remove(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		return this->mutable_fs_()->remove(p, ec);
 	}
 
 	std::uintmax_t remove_all(std::filesystem::path const& p) override {
 		return this->mutable_fs_()->remove_all(p);
 	}
 
-	std::uintmax_t remove_all(std::filesystem::path const& p, std::error_code& ec) override {
-		return this->mutable_fs_()->remove_all(p, ec);
-	}
-
 	void rename(std::filesystem::path const& src, std::filesystem::path const& dst) override {
 		this->mutable_fs_()->rename(src, dst);
-	}
-
-	void rename(std::filesystem::path const& src, std::filesystem::path const& dst, std::error_code& ec) noexcept override {
-		this->mutable_fs_()->rename(src, dst, ec);
 	}
 
 	void resize_file(std::filesystem::path const& p, std::uintmax_t n) override {
 		this->mutable_fs_()->resize_file(p, n);
 	}
 
-	void resize_file(std::filesystem::path const& p, std::uintmax_t n, std::error_code& ec) noexcept override {
-		this->mutable_fs_()->resize_file(p, n, ec);
-	}
-
 	[[nodiscard]] std::filesystem::space_info space(std::filesystem::path const& p) const override {
 		return this->fs_->space(p);
-	}
-
-	[[nodiscard]] std::filesystem::space_info space(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->space(p, ec);
 	}
 
 	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p) const override {
 		return this->fs_->status(p);
 	}
 
-	[[nodiscard]] std::filesystem::file_status status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->status(p, ec);
-	}
-
 	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p) const override {
 		return this->fs_->symlink_status(p);
-	}
-
-	[[nodiscard]] std::filesystem::file_status symlink_status(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return this->fs_->symlink_status(p, ec);
 	}
 
 	[[nodiscard]] std::filesystem::path temp_directory_path() const override {
 		return this->fs_->temp_directory_path();
 	}
 
-	[[nodiscard]] std::filesystem::path temp_directory_path(std::error_code& ec) const override {
-		return this->fs_->temp_directory_path(ec);
-	}
-
 	[[nodiscard]] bool is_empty(std::filesystem::path const& p) const override {
 		return this->fs_->is_empty(p);
-	}
-
-	bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
-		return this->fs_->is_empty(p, ec);
 	}
 
 	[[nodiscard]] std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override {

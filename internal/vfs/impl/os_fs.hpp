@@ -101,10 +101,6 @@ class StdFs: public OsFs {
 		return std::filesystem::canonical(this->os_path_of(p));
 	}
 
-	[[nodiscard]] std::filesystem::path canonical(std::filesystem::path const& p, std::error_code& ec) const override {
-		return handle_error([&] { return this->canonical(p); }, ec);
-	}
-
 	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p) const override {
 		if(p.empty()) {
 			return p;
@@ -114,10 +110,6 @@ class StdFs: public OsFs {
 		}
 
 		return std::filesystem::weakly_canonical(this->os_path_of(p));
-	}
-
-	[[nodiscard]] std::filesystem::path weakly_canonical(std::filesystem::path const& p, std::error_code& ec) const override {
-		return handle_error([&] { return this->weakly_canonical(p); }, ec);
 	}
 
 	void copy(std::filesystem::path const& src, std::filesystem::path const& dst, std::filesystem::copy_options opts) override {
@@ -193,24 +185,12 @@ class StdFs: public OsFs {
 		return std::make_shared<StdFs>(this->canonical(p));
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs const> current_path(std::filesystem::path const& p, std::error_code& ec) const noexcept override {
-		return handle_error([&] { return this->current_path(p); }, ec);
-	}
-
 	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p) override {
 		return std::const_pointer_cast<Fs>(static_cast<StdFs const*>(this)->current_path(p));
 	}
 
-	[[nodiscard]] std::shared_ptr<Fs> current_path(std::filesystem::path const& p, std::error_code& ec) noexcept override {
-		return handle_error([&] { return this->current_path(p); }, ec);
-	}
-
 	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2) const override {
 		return std::filesystem::equivalent(this->os_path_of(p1), this->os_path_of(p2));
-	}
-
-	[[nodiscard]] bool equivalent(std::filesystem::path const& p1, std::filesystem::path const& p2, std::error_code& ec) const noexcept override {
-		return handle_error([&] { return this->equivalent(p1, p2); }, ec);
 	}
 
 	[[nodiscard]] std::uintmax_t file_size(std::filesystem::path const& p) const override {
@@ -321,16 +301,8 @@ class StdFs: public OsFs {
 		return std::filesystem::temp_directory_path();
 	}
 
-	[[nodiscard]] std::filesystem::path temp_directory_path(std::error_code& ec) const override {
-		return handle_error([&] { return this->temp_directory_path(); }, ec);
-	}
-
 	[[nodiscard]] bool is_empty(std::filesystem::path const& p) const override {
 		return std::filesystem::is_empty(this->os_path_of(p));
-	}
-
-	[[nodiscard]] bool is_empty(std::filesystem::path const& p, std::error_code& ec) const override {
-		return handle_error([&] { return this->is_empty(p); }, ec);
 	}
 
 	[[nodiscard]] std::shared_ptr<File const> file_at(std::filesystem::path const& p) const override;

@@ -1156,7 +1156,7 @@ std::shared_ptr<Fs> make_os_fs();
 /**
  * @brief Makes empty `Fs` that is virtual. Regular files are written to the temporary directory of the OS and are deleted when the `Fs` is destructed.
  * 
- * @param temp_dir Path to the temporary directory in the created Fs.
+ * @param temp_dir Path to the temporary directory in the created `Fs`.
  * @return New empty `Fs` that is virtual.
  */
 std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
@@ -1164,13 +1164,19 @@ std::shared_ptr<Fs> make_vfs(std::filesystem::path const& temp_dir = "/tmp");
 /**
  * @brief Makes empty `Fs` that is virtual. Regular files are stored on the memory.
  * 
- * @param temp_dir Path to the temporary directory in the created Fs.
+ * @param temp_dir Path to the temporary directory in the created `Fs`.
  * @return New empty `Fs` that is virtual.
  */
 std::shared_ptr<Fs> make_mem_fs(std::filesystem::path const& temp_dir = "/tmp");
 
 std::shared_ptr<Fs> make_union_fs(Fs& upper, Fs const& lower);
 
+/**
+ * @brief Makes `Fs` read-only. Non-const methods of resulting `Fs` throw `std::filesystem::filesystem_error` with `std::errc::read_only_file_system`.
+ * 
+ * @param fs `Fs` to make read-only.
+ * @return `Fs` that is the same as the given `Fs` but read-only.
+ */
 std::shared_ptr<Fs> make_read_only_fs(Fs const& fs);
 
 }  // namespace vfs
