@@ -35,7 +35,7 @@ class TypedMountPoint
     : public MountPoint
     , public Proxy {
    public:
-	using TargetType = Proxy::TargetType;
+	using TargetType = typename Proxy::TargetType;
 
 	TypedMountPoint(std::shared_ptr<TargetType> attachment, std::shared_ptr<TargetType> original)
 	    : MountPoint(std::move(original))
