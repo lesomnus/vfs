@@ -30,7 +30,7 @@ fs::filesystem_error err_create_hard_link_to_diff_fs_() {
 
 bool emplace_regular_file_into(std::shared_ptr<RegularFile const> src_r, fs::path const& src_p, Directory& dst_prev, fs::path const& dst_p, fs::copy_options opts) {
 	auto const [dst_r, ok] = dst_prev.emplace_regular_file(dst_p.filename());
-	auto const commit      = [&]() -> bool {
+	auto const commit      = [&dst_r = dst_r, &src_r = src_r]() -> bool {
         // NOLINTNEXTLINE
         assert(nullptr != dst_r.get());
         dst_r->copy_from(*src_r);
